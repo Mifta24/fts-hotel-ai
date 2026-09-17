@@ -3,12 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hotel;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class HotelPageController extends Controller
 {
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
+
+    public function index(): View|RedirectResponse
+    {
+        $hotels = Hotel::where('public_status', 'published')->orderBy('name')->get();
+
+        if ($hotels->count() === 1) {
+            return redirect()->route('hotel.show', $hotels->first()->slug);
+        }
+
+        return view('welcome', ['hotels' => $hotels]);
+    }
 
     public function show(Request $request, string $hotelSlug): View
     {
@@ -32,7 +44,59 @@ class HotelPageController extends Controller
             'locale' => $locale,
             'supportedLocales' => self::SUPPORTED_LOCALES,
             'labels' => $this->labels($locale),
+            'lobby' => $this->lobbyLabels($locale),
+            'facilities' => $hotel->knowledgeItems()->where('is_active', true)
+                ->whereIn('category', ['facilities', 'dining', 'transport'])
+                ->orderBy('sort_order')->get(),
         ]);
+    }
+
+    private function lobbyLabels(string $locale): array
+    {
+        return match ($locale) {
+            'en' => [
+                'welcome' => 'Welcome to your', 'lobby' => 'virtual lobby',
+                'intro' => 'A warm welcome. A wonderful stay. Let me take care of the details.',
+                'home' => 'Lobby', 'explore' => 'Explore your stay', 'reservation' => 'Reservations',
+                'reservation_intro' => 'Tell your AI Concierge your dates and number of guests. We will help you find a room and submit a booking request.',
+                'reservation_q' => 'I would like to book a room. Please help me check availability.',
+                'start_booking' => 'Plan my stay', 'available' => 'Here to help, 24/7',
+                'assistant' => 'Your virtual host', 'illustration' => 'AI illustration',
+                'staff_intro' => 'Need a personal touch? Send a message and we will connect you with the hotel team.',
+                'empty' => 'Ask your AI Concierge for more information.', 'back' => 'Back to lobby',
+                'check_in' => 'Check-in', 'check_out' => 'Check-out', 'location' => 'Find us',
+                'connection_error' => 'Chat could not connect. Please reload to try again.',
+                'rooms_empty' => 'Room information will be available soon. Please ask our team.',
+            ],
+            'ja' => [
+                'welcome' => 'ようこそ', 'lobby' => 'バーチャルロビー',
+                'intro' => '心を込めたおもてなしで、素敵なご滞在をお手伝いします。',
+                'home' => 'ロビー', 'explore' => 'ご滞在のご案内', 'reservation' => 'ご予約',
+                'reservation_intro' => 'ご希望の日程と人数をAIコンシェルジュにお伝えください。空室確認と予約リクエストをお手伝いします。',
+                'reservation_q' => '部屋を予約したいです。空室を確認してください。',
+                'start_booking' => '滞在を計画する', 'available' => '24時間お手伝いします',
+                'assistant' => 'バーチャルホスト', 'illustration' => 'AIイラスト',
+                'staff_intro' => 'ホテルのスタッフがお手伝いします。メッセージを送ってご相談ください。',
+                'empty' => '詳しくはAIコンシェルジュにお尋ねください。', 'back' => 'ロビーに戻る',
+                'check_in' => 'チェックイン', 'check_out' => 'チェックアウト', 'location' => 'アクセス',
+                'connection_error' => 'チャットに接続できませんでした。再読み込みしてください。',
+                'rooms_empty' => '客室情報は準備中です。スタッフにお尋ねください。',
+            ],
+            default => [
+                'welcome' => 'Selamat datang di', 'lobby' => 'lobi virtual Anda',
+                'intro' => 'Sambutan hangat. Pengalaman istimewa. Biarkan saya membantu rencana menginap Anda.',
+                'home' => 'Beranda', 'explore' => 'Jelajahi hotel', 'reservation' => 'Reservasi',
+                'reservation_intro' => 'Ceritakan tanggal menginap dan jumlah tamu kepada AI Concierge. Kami bantu cek ketersediaan kamar hingga pengajuan reservasi.',
+                'reservation_q' => 'Saya ingin reservasi kamar. Bantu saya cek ketersediaan.',
+                'start_booking' => 'Rencanakan menginap', 'available' => 'Siap membantu, 24 jam',
+                'assistant' => 'Resepsionis virtual Anda', 'illustration' => 'Ilustrasi AI',
+                'staff_intro' => 'Butuh bantuan langsung? Kirim pesan untuk terhubung dengan tim hotel kami.',
+                'empty' => 'Tanyakan informasi selengkapnya kepada AI Concierge.', 'back' => 'Kembali ke lobi',
+                'check_in' => 'Check-in', 'check_out' => 'Check-out', 'location' => 'Lokasi hotel',
+                'connection_error' => 'Chat belum tersambung. Muat ulang halaman untuk mencoba lagi.',
+                'rooms_empty' => 'Informasi kamar segera tersedia. Silakan tanyakan kepada staf kami.',
+            ],
+        };
     }
 
     private function labels(string $locale): array

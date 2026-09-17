@@ -37,12 +37,20 @@ function initConcierge() {
     const closeButton = widget.querySelector('[data-chat-close]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
+    const inline = root.dataset.inline === 'true';
+    let ready = false;
+    let busy = false;
     let handedOver = false;
     let knownMessageCount = 0;
     let pollTimer = null;
-    let isOpen = false;
+    let isOpen = inline;
 
     function openPanel() {
+        if (inline) {
+            root.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            inputEl.focus({ preventScroll: true });
+            return;
+        }
         if (isOpen) return;
         isOpen = true;
         root.classList.remove('hidden');
@@ -57,7 +65,7 @@ function initConcierge() {
         root.classList.remove('flex');
     }
 
-    toggleButton.addEventListener('click', () => (isOpen ? closePanel() : openPanel()));
+    toggleButton?.addEventListener('click', () => (isOpen ? closePanel() : openPanel()));
     closeButton?.addEventListener('click', closePanel);
 
     function money(value) {
@@ -84,21 +92,10 @@ function initConcierge() {
         return response.json();
     }
 
-    // Flat-illustration bot mascot (matches <x-concierge-avatar> in the
-    // header) — never a photo, so the AI always reads as AI.
     function avatarMark() {
         const el = document.createElement('span');
-        el.className =
-            'flex h-7 w-7 shrink-0 items-center justify-center self-end rounded-full bg-gradient-to-br from-amber-600 to-amber-400 shadow-sm';
-        el.innerHTML = `
-            <svg viewBox="0 0 24 24" class="h-2/3 w-2/3">
-                <rect x="9" y="2" width="6" height="3" rx="1.5" fill="#DC2626" />
-                <rect x="4" y="5" width="16" height="14" rx="6" fill="#FFFFFF" />
-                <rect x="8" y="11" width="2.4" height="3.2" rx="1.2" fill="#1E293B" />
-                <rect x="13.6" y="11" width="2.4" height="3.2" rx="1.2" fill="#1E293B" />
-                <rect x="9.4" y="16.2" width="5.2" height="1.6" rx="0.8" fill="#1E293B" />
-            </svg>
-        `;
+        el.className = 'chat-host-avatar';
+        el.setAttribute('aria-hidden', 'true');
         return el;
     }
 
@@ -237,9 +234,15 @@ function initConcierge() {
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function setBusy(busy) {
-        inputEl.disabled = busy;
-        submitEl.disabled = busy;
+    function setBusy(value) {
+        busy = value;
+        const disabled = busy || !ready || handedOver;
+        inputEl.disabled = disabled;
+        submitEl.disabled = disabled;
+        root.setAttribute('aria-busy', String(busy));
+        document.body.classList.toggle('is-thinking', busy);
+        document.querySelectorAll('[data-hero-quick-message], [data-ask-ai-button], [data-quick-message]')
+            .forEach((button) => { button.disabled = disabled; });
         submitEl.textContent = busy ? config.labels.thinking : config.labels.send;
     }
 
@@ -247,16 +250,14 @@ function initConcierge() {
         handedOver = true;
         statusBanner.textContent = config.labels.handedOver;
         statusBanner.classList.remove('hidden');
-        inputEl.disabled = true;
-        submitEl.disabled = true;
+        setBusy(busy);
         startPolling();
     }
 
     function clearHandedOverBanner() {
         handedOver = false;
         statusBanner.classList.add('hidden');
-        inputEl.disabled = false;
-        submitEl.disabled = false;
+        setBusy(busy);
         stopPolling();
     }
 
@@ -349,7 +350,7 @@ function initConcierge() {
     }
 
     async function sendMessage(text) {
-        if (!text.trim() || handedOver) return;
+        if (!text.trim() || handedOver || busy || !ready) return;
 
         const guestToken = localStorage.getItem(config.storageKey);
         if (!guestToken) return;
@@ -417,6 +418,7 @@ function initConcierge() {
 
     formEl.addEventListener('submit', (event) => {
         event.preventDefault();
+        if (!ready || busy || handedOver || !inputEl.value.trim()) return;
         const text = inputEl.value;
         inputEl.value = '';
         sendMessage(text);
@@ -440,7 +442,42 @@ function initConcierge() {
         });
     });
 
-    boot();
+    document.querySelector('[data-focus-chat]')?.addEventListener('click', openPanel);
+
+    setBusy(true);
+    boot().then(() => {
+        ready = true;
+        scrollToBottom();
+    }).catch(() => {
+        statusBanner.textContent = root.dataset.labelConnectionError;
+        statusBanner.classList.remove('hidden');
+        messagesEl.appendChild(bubble('assistant', config.labels.intro));
+    }).finally(() => setBusy(false));
 }
 
 document.addEventListener('DOMContentLoaded', initConcierge);
+
+
+function initLobbyNavigation() {
+    const panels = [...document.querySelectorAll('[data-lobby-panel]')];
+    if (!panels.length) return;
+    const links = [...document.querySelectorAll('[data-lobby-link]')];
+
+    function showPage(focus = false) {
+        const requested = window.location.hash.slice(1) || 'home';
+        const page = panels.some((panel) => panel.dataset.lobbyPanel === requested) ? requested : 'home';
+        panels.forEach((panel) => { panel.hidden = panel.dataset.lobbyPanel !== page; });
+        links.forEach((link) => {
+            if (link.dataset.lobbyLink === page) link.setAttribute('aria-current', 'page');
+            else link.removeAttribute('aria-current');
+        });
+        if (focus && page !== 'home') {
+            panels.find((panel) => panel.dataset.lobbyPanel === page)?.focus({ preventScroll: true });
+        }
+    }
+
+    window.addEventListener('hashchange', () => showPage(true));
+    showPage();
+}
+
+document.addEventListener('DOMContentLoaded', initLobbyNavigation);

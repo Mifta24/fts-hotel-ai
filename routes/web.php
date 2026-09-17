@@ -10,9 +10,7 @@ use App\Http\Controllers\ConciergeChatController;
 use App\Http\Controllers\HotelPageController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [HotelPageController::class, 'index'])->name('home');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
