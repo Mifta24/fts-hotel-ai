@@ -7,16 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
+    'reference',
     'hotel_id',
     'room_type_id',
     'conversation_id',
     'guest_name',
     'guest_email',
     'guest_phone',
+    'contact_type',
     'check_in',
     'check_out',
     'adults',
     'children',
+    'room_count',
     'extra_bed',
     'total_price',
     'status',
@@ -53,6 +56,22 @@ class Booking extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /**
+     * A short, unambiguous, non-sequential code guests can quote to staff.
+     */
+    public static function generateReference(): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+        do {
+            $reference = 'BK-'.collect(range(1, 6))
+                ->map(fn () => $alphabet[random_int(0, strlen($alphabet) - 1)])
+                ->implode('');
+        } while (static::where('reference', $reference)->exists());
+
+        return $reference;
     }
 
     public function nights(): int

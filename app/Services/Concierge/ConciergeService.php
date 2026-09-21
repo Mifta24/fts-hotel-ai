@@ -38,9 +38,49 @@ class ConciergeService
         ]);
     }
 
+    /**
+     * Remembers where in the UI the guest is, so the concierge can answer for
+     * "this room" or the reservation they are filling in. Only values that
+     * exist for this hotel are kept; nothing personal is stored here.
+     *
+     * @param  array{scene?: ?string, selected_room?: ?string, selected_facility?: ?int, reservation?: ?array<string, mixed>}  $context
+     */
+    public function rememberContext(Hotel $hotel, Conversation $conversation, array $context): void
+    {
+        $updates = [];
+
+        if (in_array($context['scene'] ?? null, Conversation::SCENES, true)) {
+            $updates['current_scene'] = $context['scene'];
+        }
+
+        if (filled($context['selected_room'] ?? null)) {
+            $roomType = $hotel->roomTypes()->where('is_active', true)->where('slug', $context['selected_room'])->first();
+
+            if ($roomType) {
+                $updates['selected_room_type_id'] = $roomType->id;
+            }
+        }
+
+        if (filled($context['selected_facility'] ?? null)) {
+            $facility = $hotel->knowledgeItems()->where('is_active', true)->whereKey($context['selected_facility'])->first();
+
+            if ($facility) {
+                $updates['selected_facility_id'] = $facility->id;
+            }
+        }
+
+        if (array_key_exists('reservation', $context)) {
+            $updates['reservation_state'] = $context['reservation'] ?: null;
+        }
+
+        if ($updates !== []) {
+            $conversation->update($updates);
+        }
+    }
+
     public function reply(Hotel $hotel, Conversation $conversation, string $guestMessage): ConversationMessage
     {
-        $conversation->messages()->create([
+        $guestRecord = $conversation->messages()->create([
             'role' => ConversationMessage::ROLE_GUEST,
             'content' => $guestMessage,
         ]);
@@ -52,11 +92,23 @@ class ConciergeService
             ]);
         }
 
+        try {
+            return $this->answer($hotel, $conversation);
+        } catch (\Throwable $e) {
+            // The guest keeps the text on screen and can retry; leaving it here would duplicate it.
+            $guestRecord->delete();
+
+            throw $e;
+        }
+    }
+
+    private function answer(Hotel $hotel, Conversation $conversation): ConversationMessage
+    {
         $tools = new HotelConciergeTools($hotel, $conversation, $conversation->locale);
         $definitions = HotelConciergeTools::definitions();
 
         $messages = [
-            ['role' => 'system', 'content' => $this->buildSystemPrompt($hotel, $conversation->locale)],
+            ['role' => 'system', 'content' => $this->buildSystemPrompt($hotel, $conversation)],
             ...$this->buildHistory($conversation),
         ];
 
@@ -161,8 +213,9 @@ class ConciergeService
             ->all();
     }
 
-    private function buildSystemPrompt(Hotel $hotel, string $locale): string
+    private function buildSystemPrompt(Hotel $hotel, Conversation $conversation): string
     {
+        $locale = $conversation->locale;
         $localeNames = ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語 (Japanese)'];
         $localeName = $localeNames[$locale] ?? "the guest's language";
         $today = now($hotel->timezone)->toDateString();
@@ -180,6 +233,45 @@ class ConciergeService
         7. Be warm, concise, and professional — like an experienced hotel concierge, not a generic assistant. Keep replies short; let the rendered room cards carry the detail.
 
         Currency for all prices: {$hotel->currency}. Today's date: {$today}.
+
+        {$this->buildUiContext($conversation)}
         PROMPT;
+    }
+
+    /**
+     * Tells the model what the guest is looking at, per the scene-aware rules
+     * of the product spec. Room names come from the database, never the guest.
+     */
+    private function buildUiContext(Conversation $conversation): string
+    {
+        $scene = in_array($conversation->current_scene, Conversation::SCENES, true) ? $conversation->current_scene : 'reception';
+        $room = $conversation->selectedRoomType;
+
+        $guidance = match ($scene) {
+            'lobby', 'reception' => 'Help with rooms, facilities, hotel information, reservations or reaching staff. Do not repeat the welcome greeting.',
+            'rooms' => 'The guest is browsing the room list. Help them compare rooms and pick one; use search_rooms when they give dates and party size.',
+            'room_detail' => 'The guest is looking at the selected room on screen. Treat "this room" as that room, answer questions about it, and suggest a reservation when it fits. Use get_room_detail / check_availability with its slug; never quote a price from memory.',
+            'facilities' => 'The guest is looking at the list of hotel facilities. Answer with search_knowledge and keep the focus on facilities.',
+            'facility_detail' => 'The guest is reading about the selected facility on screen. Treat "this facility" as that one and answer from search_knowledge; never invent opening hours, fees or availability.',
+            'reservation' => 'The guest is filling in the reservation form on screen. Collect only what is still missing, validate dates and party size, and summarise before any submission. Never ask for card details.',
+            'handover' => 'The guest is on the staff contact screen. Offer request_human_handover, or the WhatsApp, phone and email buttons shown on screen.',
+        };
+
+        $lines = [
+            'CURRENT UI CONTEXT',
+            "Current scene: {$scene}",
+            'Selected room: '.($room ? "{$room->name} (slug: {$room->slug})" : 'none'),
+            'Selected facility: '.($conversation->selectedFacility?->title ?? 'none'),
+        ];
+
+        $draft = $conversation->reservation_state;
+
+        if (is_array($draft) && $draft !== []) {
+            $lines[] = 'Reservation draft on screen: '.collect($draft)->map(fn ($value, $key) => "{$key}={$value}")->implode(', ');
+        }
+
+        $lines[] = "Scene guidance: {$guidance}";
+
+        return implode("\n", $lines);
     }
 }

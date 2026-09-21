@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RoomTypeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConciergeChatController;
 use App\Http\Controllers\HotelPageController;
+use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HotelPageController::class, 'index'])->name('home');
@@ -15,7 +16,7 @@ Route::get('/', [HotelPageController::class, 'index'])->name('home');
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('login', [LoginController::class, 'create'])->name('login');
-        Route::post('login', [LoginController::class, 'store'])->name('login.store');
+        Route::post('login', [LoginController::class, 'store'])->middleware('throttle:5,1')->name('login.store');
     });
 
     Route::middleware('auth')->group(function () {
@@ -38,9 +39,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
 Route::prefix('{hotelSlug}')->group(function () {
     Route::get('/', [HotelPageController::class, 'show'])->name('hotel.show');
 
+    Route::prefix('reservation')->name('reservation.')->middleware('throttle:20,1')->group(function () {
+        Route::post('quote', [ReservationController::class, 'quote'])->name('quote');
+        Route::post('/', [ReservationController::class, 'store'])->name('store');
+    });
+
     Route::prefix('concierge')->name('concierge.')->group(function () {
-        Route::post('start', [ConciergeChatController::class, 'start'])->name('start');
-        Route::post('message', [ConciergeChatController::class, 'message'])->name('message');
-        Route::get('history', [ConciergeChatController::class, 'history'])->name('history');
+        Route::post('start', [ConciergeChatController::class, 'start'])->middleware('throttle:concierge-start')->name('start');
+        Route::post('message', [ConciergeChatController::class, 'message'])->middleware('throttle:concierge-message')->name('message');
+        Route::get('history', [ConciergeChatController::class, 'history'])->middleware('throttle:concierge-history')->name('history');
     });
 });

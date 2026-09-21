@@ -12,6 +12,7 @@
         <table class="w-full text-left text-sm">
             <thead class="border-b border-stone-200 bg-stone-50 text-xs uppercase text-stone-500">
                 <tr>
+                    <th class="px-4 py-3">Reference</th>
                     <th class="px-4 py-3">Guest</th>
                     <th class="px-4 py-3">Room</th>
                     <th class="px-4 py-3">Dates</th>
@@ -23,11 +24,13 @@
             <tbody class="divide-y divide-stone-100">
                 @forelse ($bookings as $booking)
                     <tr>
+                        <td class="px-4 py-3 font-mono text-xs">{{ $booking->reference }}</td>
                         <td class="px-4 py-3">
                             <p class="font-medium text-stone-900">{{ $booking->guest_name }}</p>
-                            <p class="text-xs text-stone-500">{{ $booking->guest_phone }}</p>
+                            <p class="text-xs text-stone-500">{{ $booking->contact_type ? ucfirst($booking->contact_type).': ' : '' }}{{ $booking->guest_phone ?? $booking->guest_email }}</p>
+                            @if ($booking->notes)<p class="mt-1 max-w-xs text-xs italic text-stone-400">{{ $booking->notes }}</p>@endif
                         </td>
-                        <td class="px-4 py-3">{{ $booking->roomType->name }}</td>
+                        <td class="px-4 py-3">{{ $booking->room_count }} × {{ $booking->roomType->name }}<p class="text-xs text-stone-400">{{ $booking->adults }} adults{{ $booking->children ? ', '.$booking->children.' children' : '' }}</p></td>
                         <td class="px-4 py-3 text-xs text-stone-500">{{ $booking->check_in->toFormattedDateString() }} → {{ $booking->check_out->toFormattedDateString() }}</td>
                         <td class="px-4 py-3">{{ $hotel->currency }} {{ number_format((float) $booking->total_price, 0, ',', '.') }}</td>
                         <td class="px-4 py-3">
@@ -54,7 +57,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-stone-400">No bookings found.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-stone-400">No bookings found.</td></tr>
                 @endforelse
             </tbody>
         </table>

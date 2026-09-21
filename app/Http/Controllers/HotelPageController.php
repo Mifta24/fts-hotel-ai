@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hotel;
-use Illuminate\Http\RedirectResponse;
+use App\Services\Reservation\ReservationHandover;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -11,15 +11,45 @@ class HotelPageController extends Controller
 {
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
 
-    public function index(): View|RedirectResponse
+    public function __construct(private readonly ReservationHandover $handover) {}
+
+    /**
+     * Guest-facing names for the coded room values stored in the database.
+     *
+     * @var array<string, array{bed: array<string, string>, view: array<string, string>, amenity: array<string, string>}>
+     */
+    private const ROOM_TERMS = [
+        'en' => [
+            'bed' => ['king' => 'King bed', 'queen' => 'Queen bed', 'twin' => 'Twin bed', 'single' => 'Single bed', 'double' => 'Double bed'],
+            'view' => ['garden' => 'Garden view', 'ocean' => 'Ocean view', 'pool' => 'Pool view', 'city' => 'City view', 'mountain' => 'Mountain view'],
+            'amenity' => ['air_conditioning' => 'Air conditioning', 'wifi' => 'Wi-Fi', 'minibar' => 'Minibar', 'safe_deposit_box' => 'Safe deposit box', 'balcony' => 'Balcony', 'bathtub' => 'Bathtub', 'coffee_maker' => 'Coffee maker', 'living_room' => 'Living room', 'private_pool' => 'Private pool'],
+        ],
+        'id' => [
+            'bed' => ['king' => 'Tempat tidur king', 'queen' => 'Tempat tidur queen', 'twin' => 'Tempat tidur twin', 'single' => 'Tempat tidur single', 'double' => 'Tempat tidur double'],
+            'view' => ['garden' => 'Pemandangan taman', 'ocean' => 'Pemandangan laut', 'pool' => 'Pemandangan kolam', 'city' => 'Pemandangan kota', 'mountain' => 'Pemandangan gunung'],
+            'amenity' => ['air_conditioning' => 'AC', 'wifi' => 'Wi-Fi', 'minibar' => 'Minibar', 'safe_deposit_box' => 'Brankas', 'balcony' => 'Balkon', 'bathtub' => 'Bak mandi', 'coffee_maker' => 'Mesin kopi', 'living_room' => 'Ruang tamu', 'private_pool' => 'Kolam renang pribadi'],
+        ],
+        'ja' => [
+            'bed' => ['king' => 'キングベッド', 'queen' => 'クイーンベッド', 'twin' => 'ツインベッド', 'single' => 'シングルベッド', 'double' => 'ダブルベッド'],
+            'view' => ['garden' => 'ガーデンビュー', 'ocean' => 'オーシャンビュー', 'pool' => 'プールビュー', 'city' => 'シティビュー', 'mountain' => 'マウンテンビュー'],
+            'amenity' => ['air_conditioning' => 'エアコン', 'wifi' => 'Wi-Fi', 'minibar' => 'ミニバー', 'safe_deposit_box' => 'セーフティボックス', 'balcony' => 'バルコニー', 'bathtub' => 'バスタブ', 'coffee_maker' => 'コーヒーメーカー', 'living_room' => 'リビングルーム', 'private_pool' => 'プライベートプール'],
+        ],
+    ];
+
+    public function index(Request $request): View
     {
         $hotels = Hotel::where('public_status', 'published')->orderBy('name')->get();
 
-        if ($hotels->count() === 1) {
-            return redirect()->route('hotel.show', $hotels->first()->slug);
-        }
+        $locale = in_array($request->query('lang'), self::SUPPORTED_LOCALES, true)
+            ? $request->query('lang')
+            : ($hotels->first()?->default_locale ?? 'id');
 
-        return view('welcome', ['hotels' => $hotels]);
+        return view('opening', [
+            'hotels' => $hotels,
+            'locale' => $locale,
+            'supportedLocales' => self::SUPPORTED_LOCALES,
+            'opening' => $this->openingLabels($locale),
+        ]);
     }
 
     public function show(Request $request, string $hotelSlug): View
@@ -45,10 +75,104 @@ class HotelPageController extends Controller
             'supportedLocales' => self::SUPPORTED_LOCALES,
             'labels' => $this->labels($locale),
             'lobby' => $this->lobbyLabels($locale),
+            'roomTerms' => self::ROOM_TERMS[$locale],
+            'wizard' => $this->wizardLabels($locale),
+            'staffLinks' => $this->handover->forStaff($hotel, $locale),
+            'today' => now($hotel->timezone)->toDateString(),
+            'infoItems' => $hotel->knowledgeItems()->where('is_active', true)
+                ->whereIn('category', ['general', 'policies', 'faq'])
+                ->orderBy('sort_order')->get()->groupBy('category'),
             'facilities' => $hotel->knowledgeItems()->where('is_active', true)
                 ->whereIn('category', ['facilities', 'dining', 'transport'])
                 ->orderBy('sort_order')->get(),
         ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function openingLabels(string $locale): array
+    {
+        return match ($locale) {
+            'en' => [
+                'welcome' => 'Welcome to', 'tagline' => 'Your AI concierge, ready to help you find the perfect stay.',
+                'enter' => 'Enter :name', 'empty' => 'The virtual lobby is being prepared. Please come back soon.',
+                'loading' => 'Preparing your hotel experience…', 'rooms' => 'Explore rooms', 'facilities' => 'See facilities', 'reservation' => 'Plan a reservation', 'staff' => 'Talk to staff',
+            ],
+            'ja' => [
+                'welcome' => 'ようこそ', 'tagline' => 'AIコンシェルジュが、理想のご滞在をお手伝いします。',
+                'enter' => ':name に入る', 'empty' => 'バーチャルロビーは準備中です。しばらくしてからお越しください。',
+                'loading' => 'ホテル体験を準備しています…', 'rooms' => '客室を見る', 'facilities' => '施設を見る', 'reservation' => '予約を計画する', 'staff' => 'スタッフに相談',
+            ],
+            default => [
+                'welcome' => 'Selamat datang di', 'tagline' => 'AI Concierge siap membantu Anda menemukan pengalaman menginap terbaik.',
+                'enter' => 'Masuk ke :name', 'empty' => 'Lobi virtual sedang dipersiapkan. Silakan kembali lagi nanti.',
+                'loading' => 'Menyiapkan pengalaman hotel Anda…', 'rooms' => 'Jelajahi kamar', 'facilities' => 'Lihat fasilitas', 'reservation' => 'Rencanakan reservasi', 'staff' => 'Bicara dengan staf',
+            ],
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function wizardLabels(string $locale): array
+    {
+        return [...ReservationController::MESSAGES[$locale], ...match ($locale) {
+            'en' => [
+                'title' => 'Reservation request', 'intro' => 'A few quick steps. Final availability is confirmed by our team.',
+                'step_of' => 'Step :current of :total', 'steps' => ['Dates', 'Guests', 'Room', 'Your details', 'Summary'],
+                'check_in' => 'Check-in', 'check_out' => 'Check-out', 'nights' => 'night(s)', 'adults' => 'Adults', 'children' => 'Children', 'rooms' => 'Rooms',
+                'choose_room' => 'Choose a room', 'fits' => 'Up to :count guests per room', 'too_small' => 'Too small for your party',
+                'extra_bed' => 'Add an extra bed', 'name' => 'Full name', 'contact_method' => 'How should we contact you?',
+                'whatsapp' => 'WhatsApp', 'phone' => 'Phone', 'email' => 'Email', 'contact_value' => 'Number or email address',
+                'special' => 'Special request (optional)', 'special_placeholder' => 'e.g. high floor, late arrival',
+                'next' => 'Next', 'back' => 'Back', 'edit' => 'Edit', 'submit' => 'Submit reservation request', 'sending' => 'Sending…',
+                'checking' => 'Checking availability…', 'estimated_total' => 'Estimated total', 'guests' => 'Guests', 'room' => 'Room', 'dates' => 'Dates',
+                'contact' => 'Contact', 'disclaimer' => 'This is a reservation request. Final availability and rates are confirmed by hotel staff. No payment is taken now.',
+                'available_instead' => 'Available for your dates instead:', 'done_title' => 'Request received', 'reference' => 'Your reference',
+                'awaiting' => 'Awaiting hotel confirmation', 'done_hint' => 'Send your request to our team to speed up confirmation.',
+                'send_whatsapp' => 'Send to WhatsApp', 'call_hotel' => 'Call the hotel', 'email_hotel' => 'Email the hotel', 'new_request' => 'New request',
+                'error_network' => 'Connection problem. Your details are saved — please try again or contact hotel staff.',
+                'error_generic' => 'Something went wrong. Please try again or contact hotel staff.', 'select_room' => 'Please choose a room.',
+                'contact_staff' => 'Contact hotel staff',
+            ],
+            'ja' => [
+                'title' => 'ご予約リクエスト', 'intro' => 'かんたんな手順です。空室状況はスタッフが最終確認いたします。',
+                'step_of' => 'ステップ :current / :total', 'steps' => ['日程', '人数', '客室', 'ご連絡先', '確認'],
+                'check_in' => 'チェックイン', 'check_out' => 'チェックアウト', 'nights' => '泊', 'adults' => '大人', 'children' => '子ども', 'rooms' => '客室数',
+                'choose_room' => '客室を選ぶ', 'fits' => '1室あたり最大:count名', 'too_small' => '人数に対応できません',
+                'extra_bed' => 'エキストラベッドを追加', 'name' => 'お名前', 'contact_method' => 'ご連絡方法',
+                'whatsapp' => 'WhatsApp', 'phone' => '電話', 'email' => 'メール', 'contact_value' => '番号またはメールアドレス',
+                'special' => 'ご要望（任意）', 'special_placeholder' => '例：高層階、遅い到着',
+                'next' => '次へ', 'back' => '戻る', 'edit' => '編集', 'submit' => '予約リクエストを送信', 'sending' => '送信中…',
+                'checking' => '空室を確認中…', 'estimated_total' => '概算合計', 'guests' => '人数', 'room' => '客室', 'dates' => '日程',
+                'contact' => 'ご連絡先', 'disclaimer' => 'これは予約リクエストです。空室状況と料金はスタッフが最終確認します。現時点でお支払いは発生しません。',
+                'available_instead' => 'ご希望の日程で空いている客室：', 'done_title' => 'リクエストを受け付けました', 'reference' => '予約番号',
+                'awaiting' => 'ホテルの確認待ち', 'done_hint' => 'リクエストをスタッフに送ると、確認がスムーズです。',
+                'send_whatsapp' => 'WhatsAppで送る', 'call_hotel' => 'ホテルに電話', 'email_hotel' => 'ホテルにメール', 'new_request' => '新しいリクエスト',
+                'error_network' => '接続に問題があります。入力内容は保存されています。もう一度お試しいただくか、スタッフにご連絡ください。',
+                'error_generic' => 'エラーが発生しました。もう一度お試しいただくか、スタッフにご連絡ください。', 'select_room' => '客室を選択してください。',
+                'contact_staff' => 'スタッフに連絡',
+            ],
+            default => [
+                'title' => 'Permintaan reservasi', 'intro' => 'Hanya beberapa langkah singkat. Ketersediaan final dikonfirmasi oleh tim kami.',
+                'step_of' => 'Langkah :current dari :total', 'steps' => ['Tanggal', 'Tamu', 'Kamar', 'Data Anda', 'Ringkasan'],
+                'check_in' => 'Check-in', 'check_out' => 'Check-out', 'nights' => 'malam', 'adults' => 'Dewasa', 'children' => 'Anak', 'rooms' => 'Jumlah kamar',
+                'choose_room' => 'Pilih kamar', 'fits' => 'Maks. :count tamu per kamar', 'too_small' => 'Tidak cukup untuk rombongan Anda',
+                'extra_bed' => 'Tambah extra bed', 'name' => 'Nama lengkap', 'contact_method' => 'Bagaimana kami menghubungi Anda?',
+                'whatsapp' => 'WhatsApp', 'phone' => 'Telepon', 'email' => 'Email', 'contact_value' => 'Nomor atau alamat email',
+                'special' => 'Permintaan khusus (opsional)', 'special_placeholder' => 'mis. lantai tinggi, tiba larut malam',
+                'next' => 'Lanjut', 'back' => 'Kembali', 'edit' => 'Ubah', 'submit' => 'Kirim permintaan reservasi', 'sending' => 'Mengirim…',
+                'checking' => 'Memeriksa ketersediaan…', 'estimated_total' => 'Perkiraan total', 'guests' => 'Tamu', 'room' => 'Kamar', 'dates' => 'Tanggal',
+                'contact' => 'Kontak', 'disclaimer' => 'Ini adalah permintaan reservasi. Ketersediaan dan tarif final dikonfirmasi oleh staf hotel. Belum ada pembayaran yang diambil.',
+                'available_instead' => 'Tersedia di tanggal Anda:', 'done_title' => 'Permintaan diterima', 'reference' => 'Nomor referensi',
+                'awaiting' => 'Menunggu konfirmasi hotel', 'done_hint' => 'Kirim permintaan ke tim kami agar konfirmasi lebih cepat.',
+                'send_whatsapp' => 'Kirim ke WhatsApp', 'call_hotel' => 'Telepon hotel', 'email_hotel' => 'Email hotel', 'new_request' => 'Permintaan baru',
+                'error_network' => 'Koneksi bermasalah. Data Anda tersimpan — coba lagi atau hubungi staf hotel.',
+                'error_generic' => 'Terjadi kesalahan. Coba lagi atau hubungi staf hotel.', 'select_room' => 'Silakan pilih kamar.',
+                'contact_staff' => 'Hubungi staf hotel',
+            ],
+        }];
     }
 
     private function lobbyLabels(string $locale): array
@@ -67,6 +191,17 @@ class HotelPageController extends Controller
                 'check_in' => 'Check-in', 'check_out' => 'Check-out', 'location' => 'Find us',
                 'connection_error' => 'Chat could not connect. Please reload to try again.',
                 'rooms_empty' => 'Room information will be available soon. Please ask our team.',
+                'menu_info' => 'Hotel information', 'info_about' => 'About the hotel', 'info_policies' => 'Policies', 'info_faq' => 'Frequently asked questions',
+                'info_address' => 'Address', 'info_hours' => 'Check-in / check-out', 'info_contact' => 'Contact', 'info_map' => 'Open in Maps', 'info_ask' => 'Ask about the hotel',
+                'facility_counter' => 'Facility', 'prev_facility' => 'Previous', 'next_facility' => 'Next', 'ask_facility' => 'Ask about this facility', 'back_facilities' => 'All facilities', 'open_facility' => 'Read more', 'ask_facility_q' => 'Tell me more about :name.',
+                'loading' => 'Preparing your hotel experience…',
+                'room_scene' => 'Room details', 'room_counter' => 'Room', 'gallery' => 'Photo gallery', 'photo' => 'Photo',
+                'no_photo' => 'Photos coming soon', 'prev_room' => 'Previous room', 'next_room' => 'Next room',
+                'ask_room' => 'Ask about this room', 'reserve_room' => 'Request reservation', 'breakfast_excluded' => 'Room only', 'breakfast' => 'Breakfast',
+                'size' => 'Size', 'bed' => 'Bed', 'guests' => 'Guests', 'view' => 'View', 'extra_bed' => 'Extra bed',
+                'extra_bed_yes' => 'Available', 'extra_bed_no' => 'Not available', 'amenities' => 'In the room',
+                'availability_note' => 'Final availability and rates are confirmed by hotel staff.',
+                'ask_room_q' => 'Tell me more about the :name.',
             ],
             'ja' => [
                 'welcome' => 'ようこそ', 'lobby' => 'バーチャルロビー',
@@ -81,6 +216,17 @@ class HotelPageController extends Controller
                 'check_in' => 'チェックイン', 'check_out' => 'チェックアウト', 'location' => 'アクセス',
                 'connection_error' => 'チャットに接続できませんでした。再読み込みしてください。',
                 'rooms_empty' => '客室情報は準備中です。スタッフにお尋ねください。',
+                'menu_info' => 'ホテル情報', 'info_about' => 'ホテルについて', 'info_policies' => 'ご利用規定', 'info_faq' => 'よくあるご質問',
+                'info_address' => '所在地', 'info_hours' => 'チェックイン / チェックアウト', 'info_contact' => 'お問い合わせ', 'info_map' => '地図で開く', 'info_ask' => 'ホテルについて聞く',
+                'facility_counter' => '施設', 'prev_facility' => '前へ', 'next_facility' => '次へ', 'ask_facility' => 'この施設について聞く', 'back_facilities' => '施設一覧', 'open_facility' => '詳しく見る', 'ask_facility_q' => ':name について詳しく教えてください。',
+                'loading' => 'ホテル体験を準備しています…',
+                'room_scene' => '客室のご案内', 'room_counter' => '客室', 'gallery' => 'フォトギャラリー', 'photo' => '写真',
+                'no_photo' => '写真は準備中です', 'prev_room' => '前の客室', 'next_room' => '次の客室',
+                'ask_room' => 'この客室について聞く', 'reserve_room' => '予約をリクエスト', 'breakfast_excluded' => '朝食なし', 'breakfast' => '朝食',
+                'size' => '広さ', 'bed' => 'ベッド', 'guests' => '定員', 'view' => '眺望', 'extra_bed' => 'エキストラベッド',
+                'extra_bed_yes' => '利用可', 'extra_bed_no' => '利用不可', 'amenities' => '客室設備',
+                'availability_note' => '空室状況と料金は、ホテルスタッフが最終確認いたします。',
+                'ask_room_q' => ':name について詳しく教えてください。',
             ],
             default => [
                 'welcome' => 'Selamat datang di', 'lobby' => 'lobi virtual Anda',
@@ -95,6 +241,17 @@ class HotelPageController extends Controller
                 'check_in' => 'Check-in', 'check_out' => 'Check-out', 'location' => 'Lokasi hotel',
                 'connection_error' => 'Chat belum tersambung. Muat ulang halaman untuk mencoba lagi.',
                 'rooms_empty' => 'Informasi kamar segera tersedia. Silakan tanyakan kepada staf kami.',
+                'menu_info' => 'Informasi hotel', 'info_about' => 'Tentang hotel', 'info_policies' => 'Kebijakan', 'info_faq' => 'Pertanyaan yang sering diajukan',
+                'info_address' => 'Alamat', 'info_hours' => 'Check-in / check-out', 'info_contact' => 'Kontak', 'info_map' => 'Buka di Maps', 'info_ask' => 'Tanya tentang hotel',
+                'facility_counter' => 'Fasilitas', 'prev_facility' => 'Sebelumnya', 'next_facility' => 'Berikutnya', 'ask_facility' => 'Tanya tentang fasilitas ini', 'back_facilities' => 'Semua fasilitas', 'open_facility' => 'Selengkapnya', 'ask_facility_q' => 'Ceritakan lebih banyak tentang :name.',
+                'loading' => 'Menyiapkan pengalaman hotel Anda…',
+                'room_scene' => 'Detail kamar', 'room_counter' => 'Kamar', 'gallery' => 'Galeri foto', 'photo' => 'Foto',
+                'no_photo' => 'Foto segera tersedia', 'prev_room' => 'Kamar sebelumnya', 'next_room' => 'Kamar berikutnya',
+                'ask_room' => 'Tanya tentang kamar ini', 'reserve_room' => 'Ajukan reservasi', 'breakfast_excluded' => 'Tanpa sarapan', 'breakfast' => 'Sarapan',
+                'size' => 'Ukuran', 'bed' => 'Tempat tidur', 'guests' => 'Kapasitas', 'view' => 'Pemandangan', 'extra_bed' => 'Extra bed',
+                'extra_bed_yes' => 'Tersedia', 'extra_bed_no' => 'Tidak tersedia', 'amenities' => 'Fasilitas kamar',
+                'availability_note' => 'Ketersediaan dan tarif final dikonfirmasi oleh staf hotel.',
+                'ask_room_q' => 'Ceritakan lebih banyak tentang :name.',
             ],
         };
     }
@@ -116,6 +273,7 @@ class HotelPageController extends Controller
                 'max_guests' => 'guests',
                 'handed_over' => 'A staff member has joined this conversation and will reply shortly.',
                 'thinking' => 'Thinking…',
+                'chat_error' => "I'm having trouble responding right now. Please try again or contact hotel staff.", 'chat_slow' => 'You are sending messages very quickly. Please wait a moment and try again.', 'chat_retry' => 'Retry',
                 'view_details' => 'View details',
                 'book_now' => 'Book this room',
                 'menu_heading' => 'Start here',
@@ -142,6 +300,7 @@ class HotelPageController extends Controller
                 'max_guests' => '名まで',
                 'handed_over' => 'スタッフがこの会話に参加しました。まもなく返信いたします。',
                 'thinking' => '入力中…',
+                'chat_error' => '現在うまくお答えできません。もう一度お試しいただくか、スタッフにご連絡ください。', 'chat_slow' => 'メッセージが多すぎます。少し待ってからもう一度お試しください。', 'chat_retry' => '再試行',
                 'view_details' => '詳細を見る',
                 'book_now' => 'この部屋を予約',
                 'menu_heading' => 'ここから始める',
@@ -168,6 +327,7 @@ class HotelPageController extends Controller
                 'max_guests' => 'tamu',
                 'handed_over' => 'Staf kami telah bergabung dalam percakapan ini dan akan segera membalas.',
                 'thinking' => 'Sedang mengetik…',
+                'chat_error' => 'Saya sedang kesulitan menjawab. Silakan coba lagi atau hubungi staf hotel.', 'chat_slow' => 'Pesan terlalu cepat. Mohon tunggu sebentar lalu coba lagi.', 'chat_retry' => 'Coba lagi',
                 'view_details' => 'Lihat detail',
                 'book_now' => 'Pesan kamar ini',
                 'menu_heading' => 'Mulai dari sini',

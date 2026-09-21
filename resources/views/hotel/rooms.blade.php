@@ -1,4 +1,4 @@
-        <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mt-6 grid grid-cols-1 gap-6 @lg:grid-cols-2 @4xl:grid-cols-3">
             @foreach ($roomTypes as $roomType)
                 @php $thumbnail = $roomType->images->first(); @endphp
                 <article
@@ -39,10 +39,14 @@
                             </p>
                         </div>
 
+                        <a href="#room/{{ $roomType->slug }}" class="mt-4 flex w-full items-center justify-center rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50">
+                            {{ $labels['view_details'] }}
+                        </a>
+
                         <button
                             type="button"
                             data-ask-ai-button
-                            class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-400 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                            class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-400 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
                         >
                             <x-ai-mark size="4" class="!rounded !bg-white/20 !shadow-none" />
                             {{ $labels['ask_ai'] }}

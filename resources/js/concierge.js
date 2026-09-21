@@ -25,6 +25,10 @@ function initConcierge() {
             viewDetails: root.dataset.labelViewDetails,
             bookNow: root.dataset.labelBookNow,
             menuHeading: root.dataset.labelMenuHeading,
+            staff: root.dataset.labelStaff,
+            error: root.dataset.labelError,
+            slow: root.dataset.labelSlow,
+            retry: root.dataset.labelRetry,
         },
     };
 
@@ -33,39 +37,27 @@ function initConcierge() {
     const inputEl = root.querySelector('[data-chat-input]');
     const submitEl = root.querySelector('[data-chat-submit]');
     const statusBanner = root.querySelector('[data-status-banner]');
-    const toggleButton = widget.querySelector('[data-chat-toggle]');
     const closeButton = widget.querySelector('[data-chat-close]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
-    const inline = root.dataset.inline === 'true';
     let ready = false;
     let busy = false;
     let handedOver = false;
     let knownMessageCount = 0;
     let pollTimer = null;
-    let isOpen = inline;
+    let isOpen = false;
 
     function openPanel() {
-        if (inline) {
-            root.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            inputEl.focus({ preventScroll: true });
-            return;
-        }
-        if (isOpen) return;
         isOpen = true;
-        root.classList.remove('hidden');
-        root.classList.add('flex');
+        root.classList.add('is-open');
         scrollToBottom();
-        inputEl.focus();
     }
 
     function closePanel() {
         isOpen = false;
-        root.classList.add('hidden');
-        root.classList.remove('flex');
+        root.classList.remove('is-open');
     }
 
-    toggleButton?.addEventListener('click', () => (isOpen ? closePanel() : openPanel()));
     closeButton?.addEventListener('click', closePanel);
 
     function money(value) {
@@ -86,7 +78,9 @@ function initConcierge() {
 
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
-            throw new Error(payload.message || `Request failed (${response.status})`);
+            const error = new Error(payload.message || `Request failed (${response.status})`);
+            error.status = response.status;
+            throw error;
         }
 
         return response.json();
@@ -307,6 +301,8 @@ function initConcierge() {
                 messagesEl.appendChild(bubble('assistant', message.content));
             }
             renderUiPayload(message.ui_payload);
+            const chips = actionChips(message.suggested_actions);
+            if (chips) messagesEl.appendChild(chips);
         } else if (message.role === 'staff') {
             messagesEl.appendChild(card([staffBubble(message.content)]));
         } else if (message.role === 'system') {
@@ -349,25 +345,108 @@ function initConcierge() {
         return el;
     }
 
-    async function sendMessage(text) {
+    const sceneNames = { home: 'reception', info: 'reception', rooms: 'rooms', room: 'room_detail', facilities: 'facilities', facility: 'facility_detail', reservation: 'reservation', staff: 'handover' };
+
+    /**
+     * Where the guest is in the lobby, so the concierge can answer for "this
+     * room" or the reservation on screen. Never includes name or contact data.
+     */
+    function uiContext() {
+        const [page, param] = (window.location.hash.slice(1) || 'home').split('/');
+        const context = { scene: sceneNames[page] || 'reception' };
+
+        if (page === 'facility' && Number(param) > 0) context.selected_facility = Number(param);
+
+        if ((page === 'room' || page === 'reservation') && param) context.selected_room = param;
+
+        if (page === 'reservation') {
+            try {
+                const draft = JSON.parse(sessionStorage.getItem(`reservation_draft_${root.dataset.hotelSlug}`) || 'null');
+                const { check_in, check_out, adults, children, rooms, room_type_slug } = draft?.values || {};
+                context.reservation = { check_in, check_out, adults, children, rooms, room_type_slug };
+                if (!param && room_type_slug) context.selected_room = room_type_slug;
+            } catch { /* no draft to share */ }
+        }
+
+        return context;
+    }
+
+    function actionChips(actions) {
+        if (!actions || !actions.length) return null;
+
+        const targets = {
+            view_room: [config.labels.viewDetails, (action) => `#room/${action.room}`],
+            reserve: [config.labels.bookNow, (action) => `#reservation/${action.room}`],
+            staff: [config.labels.staff, () => '#staff'],
+        };
+
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-wrap gap-2 pl-10';
+
+        actions.forEach((action) => {
+            const target = targets[action.action];
+            if (!target) return;
+            const link = document.createElement('a');
+            link.href = target[1](action);
+            link.className = 'rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50';
+            link.textContent = target[0];
+            link.addEventListener('click', closePanel);
+            wrap.appendChild(link);
+        });
+
+        return wrap.childElementCount ? wrap : null;
+    }
+
+    function errorCard(text, err) {
+        const el = document.createElement('div');
+        el.className = 'rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900';
+
+        const message = document.createElement('p');
+        message.textContent = err.status === 429 ? config.labels.slow : config.labels.error;
+
+        const actions = document.createElement('div');
+        actions.className = 'mt-3 flex flex-wrap gap-2';
+
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-white';
+        retry.textContent = config.labels.retry;
+        retry.addEventListener('click', () => {
+            el.remove();
+            sendMessage(text, { retry: true });
+        });
+
+        const staff = document.createElement('a');
+        staff.href = '#staff';
+        staff.className = 'rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-900';
+        staff.textContent = config.labels.staff;
+        staff.addEventListener('click', closePanel);
+
+        actions.append(retry, staff);
+        el.append(message, actions);
+        return el;
+    }
+
+    async function sendMessage(text, { retry = false } = {}) {
         if (!text.trim() || handedOver || busy || !ready) return;
 
         const guestToken = localStorage.getItem(config.storageKey);
         if (!guestToken) return;
 
-        messagesEl.appendChild(bubble('guest', text));
+        openPanel();
+        if (!retry) messagesEl.appendChild(bubble('guest', text));
         scrollToBottom();
         setBusy(true);
 
         try {
-            const data = await api(config.messageUrl, { guest_token: guestToken, message: text });
+            const data = await api(config.messageUrl, { guest_token: guestToken, message: text, ...uiContext() });
             renderMessage(data.message);
             knownMessageCount += 2; // the guest message just sent + the reply just rendered
             if (data.status === 'handed_over') {
                 showHandedOverBanner();
             }
         } catch (err) {
-            messagesEl.appendChild(bubble('assistant', err.message || 'Something went wrong. Please try again.'));
+            messagesEl.appendChild(errorCard(text, err));
         } finally {
             setBusy(false);
             scrollToBottom();
@@ -442,8 +521,6 @@ function initConcierge() {
         });
     });
 
-    document.querySelector('[data-focus-chat]')?.addEventListener('click', openPanel);
-
     setBusy(true);
     boot().then(() => {
         ready = true;
@@ -463,12 +540,30 @@ function initLobbyNavigation() {
     if (!panels.length) return;
     const links = [...document.querySelectorAll('[data-lobby-link]')];
 
+    const scenes = [...document.querySelectorAll('[data-room-scene], [data-facility-scene]')];
+    const sceneId = (scene) => scene.dataset.roomScene ?? scene.dataset.facilityScene;
+    const sceneParents = { room: 'rooms', facility: 'facilities' };
+
     function showPage(focus = false) {
-        const requested = window.location.hash.slice(1) || 'home';
-        const page = panels.some((panel) => panel.dataset.lobbyPanel === requested) ? requested : 'home';
+        const [requested, routeParam] = (window.location.hash.slice(1) || 'home').split('/');
+        let page = panels.some((panel) => panel.dataset.lobbyPanel === requested) ? requested : 'home';
+        const activeScene = page in sceneParents
+            ? scenes.find((scene) => sceneId(scene) === routeParam && (page === 'room') === ('roomScene' in scene.dataset))
+            : null;
+        if (page in sceneParents && !activeScene) page = sceneParents[page];
+
+        document.querySelector('[data-lobby]')?.setAttribute('data-page', page);
         panels.forEach((panel) => { panel.hidden = panel.dataset.lobbyPanel !== page; });
+        scenes.forEach((scene) => { scene.hidden = scene !== activeScene; });
+
+        if (page === 'reservation' && routeParam) {
+            window.dispatchEvent(new CustomEvent('reservation:preselect', { detail: routeParam }));
+        }
+
+        // Room and facility scenes belong to their list's journey, so keep that nav item active.
+        const activeLink = sceneParents[page] ?? page;
         links.forEach((link) => {
-            if (link.dataset.lobbyLink === page) link.setAttribute('aria-current', 'page');
+            if (link.dataset.lobbyLink === activeLink) link.setAttribute('aria-current', 'page');
             else link.removeAttribute('aria-current');
         });
         if (focus && page !== 'home') {
@@ -481,3 +576,21 @@ function initLobbyNavigation() {
 }
 
 document.addEventListener('DOMContentLoaded', initLobbyNavigation);
+
+function initRoomGallery() {
+    document.querySelectorAll('[data-room-gallery]').forEach((gallery) => {
+        const main = gallery.querySelector('[data-room-gallery-main]');
+        const thumbs = [...gallery.querySelectorAll('[data-room-thumb]')];
+        if (!main) return;
+
+        thumbs.forEach((thumb) => {
+            thumb.addEventListener('click', () => {
+                main.src = thumb.dataset.src;
+                main.alt = thumb.dataset.alt || '';
+                thumbs.forEach((other) => other.toggleAttribute('aria-current', other === thumb));
+            });
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initRoomGallery);

@@ -2,15 +2,13 @@
 
 namespace App\Services\Concierge;
 
-use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\HandoverRequest;
 use App\Models\Hotel;
 use App\Models\HotelKnowledgeItem;
-use App\Models\RoomInventory;
 use App\Models\RoomType;
+use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -24,6 +22,7 @@ class HotelConciergeTools
         private readonly Hotel $hotel,
         private readonly Conversation $conversation,
         private readonly string $locale,
+        private readonly ReservationService $reservations = new ReservationService,
     ) {}
 
     /**
@@ -103,6 +102,7 @@ class HotelConciergeTools
                             'check_out' => ['type' => 'string'],
                             'adults' => ['type' => 'integer'],
                             'children' => ['type' => 'integer'],
+                            'rooms' => ['type' => 'integer', 'minimum' => 1, 'description' => 'Number of rooms, default 1'],
                             'extra_bed' => ['type' => 'boolean'],
                             'guest_name' => ['type' => 'string'],
                             'guest_email' => ['type' => 'string'],
@@ -188,7 +188,7 @@ class HotelConciergeTools
 
     private function searchRooms(array $input): array
     {
-        [$checkIn, , $nights] = $this->parseStay($input['check_in'], $input['check_out']);
+        [$checkIn, $checkOut, $nights] = $this->parseStay($input['check_in'], $input['check_out']);
         $adults = (int) $input['adults'];
         $children = (int) ($input['children'] ?? 0);
         $viewType = $input['view_type'] ?? null;
@@ -200,12 +200,12 @@ class HotelConciergeTools
         $candidates = $this->hotel->roomTypes()
             ->where('is_active', true)
             ->get()
-            ->filter(fn (RoomType $rt) => $rt->max_adults >= $adults && ($rt->max_adults + $rt->max_children) >= ($adults + $children))
+            ->filter(fn (RoomType $rt) => $this->reservations->fitsOccupancy($rt, $adults, $children, 1))
             ->when($viewType, fn ($c) => $c->filter(fn (RoomType $rt) => $rt->view_type === $viewType));
 
         $matches = [];
         foreach ($candidates as $roomType) {
-            $stay = $this->priceStay($roomType, $checkIn, $nights);
+            $stay = $this->reservations->quote($roomType, $checkIn, $checkOut);
             if (! $stay) {
                 continue;
             }
@@ -221,7 +221,7 @@ class HotelConciergeTools
                 'max_children' => $roomType->max_children,
                 'breakfast_included' => $roomType->breakfast_included,
                 'nights' => $nights,
-                'total_price' => $stay['total_price'],
+                'total_price' => $stay['room_total'],
                 'currency' => $this->hotel->currency,
                 'min_available_units' => $stay['min_available_units'],
                 'thumbnail_url' => $thumbnail?->image_source,
@@ -302,7 +302,8 @@ class HotelConciergeTools
             return ['text' => 'check_out must be after check_in.', 'ui' => null];
         }
 
-        $stay = $this->priceStay($roomType, $checkIn, $nights);
+        $extraBed = (bool) ($input['extra_bed'] ?? false);
+        $stay = $this->reservations->quote($roomType, $checkIn, $checkOut, extraBed: $extraBed);
 
         if (! $stay) {
             return [
@@ -315,9 +316,6 @@ class HotelConciergeTools
             ];
         }
 
-        $extraBed = (bool) ($input['extra_bed'] ?? false);
-        $extraBedTotal = $extraBed && $roomType->extra_bed_available ? (float) $roomType->extra_bed_price * $nights : 0;
-
         $result = [
             'available' => true,
             'room_type_slug' => $roomType->slug,
@@ -326,9 +324,9 @@ class HotelConciergeTools
             'check_out' => $checkOut->toDateString(),
             'nights' => $nights,
             'nightly_breakdown' => $stay['nightly'],
-            'room_total' => $stay['total_price'],
-            'extra_bed_total' => $extraBedTotal,
-            'grand_total' => $stay['total_price'] + $extraBedTotal,
+            'room_total' => $stay['room_total'],
+            'extra_bed_total' => $stay['extra_bed_total'],
+            'grand_total' => $stay['grand_total'],
             'currency' => $this->hotel->currency,
             'min_available_units' => $stay['min_available_units'],
         ];
@@ -351,60 +349,40 @@ class HotelConciergeTools
             return ['text' => 'check_out must be after check_in.', 'ui' => null];
         }
 
-        $extraBed = (bool) ($input['extra_bed'] ?? false);
-        $outcome = null;
+        $rooms = max(1, (int) ($input['rooms'] ?? 1));
 
-        DB::transaction(function () use (&$outcome, $roomType, $checkIn, $checkOut, $nights, $input, $extraBed) {
-            $stay = $this->priceStay($roomType, $checkIn, $nights, lockForUpdate: true);
-
-            if (! $stay) {
-                $outcome = [
-                    'ok' => false,
-                    'message' => 'Room is no longer available for these exact dates — availability may have just changed. Call check_availability again or offer alternative dates.',
-                ];
-
-                return;
-            }
-
-            $extraBedTotal = $extraBed && $roomType->extra_bed_available ? (float) $roomType->extra_bed_price * $nights : 0;
-
-            $booking = Booking::create([
-                'hotel_id' => $this->hotel->id,
-                'room_type_id' => $roomType->id,
-                'conversation_id' => $this->conversation->id,
-                'guest_name' => $input['guest_name'],
-                'guest_email' => $input['guest_email'] ?? null,
-                'guest_phone' => $input['guest_phone'],
-                'check_in' => $checkIn->toDateString(),
-                'check_out' => $checkOut->toDateString(),
-                'adults' => $input['adults'],
-                'children' => $input['children'] ?? 0,
-                'extra_bed' => $extraBed,
-                'total_price' => $stay['total_price'] + $extraBedTotal,
-                'status' => Booking::STATUS_PENDING,
-                'notes' => $input['notes'] ?? null,
-            ]);
-
-            RoomInventory::where('room_type_id', $roomType->id)
-                ->whereDate('stay_date', '>=', $checkIn->toDateString())
-                ->whereDate('stay_date', '<=', $checkOut->subDay()->toDateString())
-                ->increment('booked_units');
-
-            $outcome = ['ok' => true, 'booking' => $booking];
-        });
-
-        if (! $outcome['ok']) {
-            return ['text' => $outcome['message'], 'ui' => null];
+        if (! $this->reservations->fitsOccupancy($roomType, (int) $input['adults'], (int) ($input['children'] ?? 0), $rooms)) {
+            return ['text' => 'This party does not fit that room type for the requested number of rooms. Suggest another room type or more rooms.', 'ui' => null];
         }
 
-        $booking = $outcome['booking'];
+        $booking = $this->reservations->createRequest($this->hotel, $roomType, [
+            'check_in' => $checkIn,
+            'check_out' => $checkOut,
+            'adults' => (int) $input['adults'],
+            'children' => (int) ($input['children'] ?? 0),
+            'rooms' => $rooms,
+            'extra_bed' => (bool) ($input['extra_bed'] ?? false),
+            'guest_name' => $input['guest_name'],
+            'guest_email' => $input['guest_email'] ?? null,
+            'guest_phone' => $input['guest_phone'],
+            'notes' => $input['notes'] ?? null,
+        ], $this->conversation);
+
+        if (! $booking) {
+            return [
+                'text' => 'Room is no longer available for these exact dates — availability may have just changed. Call check_availability again or offer alternative dates.',
+                'ui' => null,
+            ];
+        }
+
         $payload = [
-            'booking_reference' => 'BK-'.str_pad((string) $booking->id, 6, '0', STR_PAD_LEFT),
+            'booking_reference' => $booking->reference,
             'room_type_slug' => $roomType->slug,
             'name' => $roomType->translatedName($this->locale),
             'check_in' => $checkIn->toDateString(),
             'check_out' => $checkOut->toDateString(),
             'nights' => $nights,
+            'rooms' => $rooms,
             'total_price' => (float) $booking->total_price,
             'currency' => $this->hotel->currency,
             'status' => 'pending_confirmation',
@@ -458,50 +436,5 @@ class HotelConciergeTools
         $out = CarbonImmutable::parse($checkOut)->startOfDay();
 
         return [$in, $out, $in->diffInDays($out)];
-    }
-
-    /**
-     * Prices a stay across every night in range; returns null if any night
-     * lacks inventory or availability. This is the one place price and
-     * availability truth comes from — never the model.
-     *
-     * @return array{nightly: array, total_price: float, min_available_units: int}|null
-     */
-    private function priceStay(RoomType $roomType, CarbonImmutable $checkIn, int $nights, bool $lockForUpdate = false): ?array
-    {
-        $query = RoomInventory::where('room_type_id', $roomType->id)
-            ->whereDate('stay_date', '>=', $checkIn->toDateString())
-            ->whereDate('stay_date', '<=', $checkIn->addDays($nights - 1)->toDateString())
-            ->orderBy('stay_date');
-
-        if ($lockForUpdate) {
-            $query->lockForUpdate();
-        }
-
-        $rows = $query->get();
-
-        if ($rows->count() < $nights) {
-            return null;
-        }
-
-        $nightly = [];
-        $total = 0.0;
-        $minAvailable = PHP_INT_MAX;
-
-        foreach ($rows as $row) {
-            if (! $row->isAvailable()) {
-                return null;
-            }
-
-            $nightly[] = ['date' => $row->stay_date->toDateString(), 'price' => (float) $row->price];
-            $total += (float) $row->price;
-            $minAvailable = min($minAvailable, $row->availableUnits());
-        }
-
-        return [
-            'nightly' => $nightly,
-            'total_price' => $total,
-            'min_available_units' => $minAvailable,
-        ];
     }
 }

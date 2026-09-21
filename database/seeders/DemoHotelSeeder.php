@@ -23,10 +23,12 @@ class DemoHotelSeeder extends Seeder
             ]
         );
 
+        Hotel::where('name', 'Samudra Bali Resort')->update(['name' => 'FTS Hotel AI', 'slug' => 'fts-hotel-ai']);
+
         $hotel = Hotel::firstOrCreate(
-            ['name' => 'Samudra Bali Resort'],
+            ['name' => 'FTS Hotel AI'],
             [
-                'slug' => Hotel::generateUniqueSlug('Samudra Bali Resort'),
+                'slug' => Hotel::generateUniqueSlug('FTS Hotel AI'),
                 'description' => 'Resort tepi pantai di Nusa Dua, Bali, dengan kolam renang infinity dan akses langsung ke pantai.',
                 'translations' => [
                     'id' => [

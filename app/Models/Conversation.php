@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'locale',
     'status',
     'handover_summary',
+    'current_scene',
+    'selected_room_type_id',
+    'selected_facility_id',
+    'reservation_state',
     'last_message_at',
 ])]
 class Conversation extends Model
@@ -26,16 +30,32 @@ class Conversation extends Model
 
     public const STATUS_CLOSED = 'closed';
 
+    /**
+     * The UI scenes the guest can be in while talking to the concierge.
+     */
+    public const SCENES = ['lobby', 'reception', 'rooms', 'room_detail', 'facilities', 'facility_detail', 'reservation', 'handover'];
+
     protected function casts(): array
     {
         return [
             'last_message_at' => 'datetime',
+            'reservation_state' => 'array',
         ];
     }
 
     public function hotel(): BelongsTo
     {
         return $this->belongsTo(Hotel::class);
+    }
+
+    public function selectedRoomType(): BelongsTo
+    {
+        return $this->belongsTo(RoomType::class, 'selected_room_type_id');
+    }
+
+    public function selectedFacility(): BelongsTo
+    {
+        return $this->belongsTo(HotelKnowledgeItem::class, 'selected_facility_id');
     }
 
     public function messages(): HasMany

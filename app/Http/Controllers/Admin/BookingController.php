@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Services\Reservation\ReservationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,6 +13,8 @@ use Illuminate\View\View;
 class BookingController extends Controller
 {
     use ResolvesCurrentHotel;
+
+    public function __construct(private readonly ReservationService $reservations) {}
 
     public function index(Request $request): View
     {
@@ -41,19 +44,11 @@ class BookingController extends Controller
         ]);
 
         if ($data['status'] === Booking::STATUS_CANCELLED && $booking->status !== Booking::STATUS_CANCELLED) {
-            $this->releaseInventory($booking);
+            $this->reservations->releaseInventory($booking);
         }
 
         $booking->update(['status' => $data['status']]);
 
-        return back()->with('status', "Booking #{$booking->id} marked as {$data['status']}.");
-    }
-
-    private function releaseInventory(Booking $booking): void
-    {
-        \App\Models\RoomInventory::where('room_type_id', $booking->room_type_id)
-            ->whereDate('stay_date', '>=', $booking->check_in->toDateString())
-            ->whereDate('stay_date', '<=', $booking->check_out->copy()->subDay()->toDateString())
-            ->decrement('booked_units');
+        return back()->with('status', "Booking {$booking->reference} marked as {$data['status']}.");
     }
 }

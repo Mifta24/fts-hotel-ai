@@ -1,5 +1,5 @@
         <div id="concierge-app"
-            class="lobby-chat"
+            class="stage-chat"
             data-inline="true"
             data-label-connection-error="{{ $lobby['connection_error'] }}"
             data-hotel-slug="{{ $hotel->slug }}"
@@ -16,25 +16,31 @@
             data-label-view-details="{{ $labels['view_details'] }}"
             data-label-book-now="{{ $labels['book_now'] }}"
             data-label-menu-heading="{{ $labels['menu_heading'] }}"
+            data-label-staff="{{ $labels['menu_staff'] }}"
+            data-label-error="{{ $labels['chat_error'] }}"
+            data-label-slow="{{ $labels['chat_slow'] }}"
+            data-label-retry="{{ $labels['chat_retry'] }}"
             data-currency="{{ $hotel->currency }}"
         >
-            <div class="flex items-center gap-2.5 border-b border-stone-200 bg-gradient-to-r from-amber-50 to-yellow-50 px-4 py-3">
-                <span class="chat-host-avatar" aria-hidden="true"></span>
-                <div class="min-w-0 flex-1">
-                    <p class="flex items-center gap-1.5 font-semibold text-stone-900">
-                        {{ $labels['chat_heading'] }}
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                    </p>
-                    <p class="truncate text-xs text-stone-500">{{ $labels['chat_subtitle'] }}</p>
-                </div>
+            <section class="chat-log" aria-label="{{ $labels['chat_heading'] }}">
+                <header class="chat-log-header">
+                    <span class="chat-host-avatar" aria-hidden="true"></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="flex items-center gap-1.5 font-semibold text-stone-900">
+                            {{ $labels['chat_heading'] }}
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        </p>
+                        <p class="truncate text-xs text-stone-500">{{ $labels['chat_subtitle'] }}</p>
+                    </div>
+                    <button type="button" data-chat-close class="chat-log-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></button>
+                </header>
 
-            </div>
+                <div data-messages role="log" aria-live="polite" aria-label="{{ $labels['chat_heading'] }}" class="chat-log-messages space-y-3"></div>
 
-            <div data-messages role="log" aria-live="polite" aria-label="{{ $labels['chat_heading'] }}" class="flex-1 space-y-3 overflow-y-auto px-4 py-4"></div>
+                <div data-status-banner class="hidden border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-800"></div>
+            </section>
 
-            <div data-status-banner class="hidden border-t border-rose-200 bg-rose-50 px-4 py-2 text-xs text-rose-800"></div>
-
-            <form data-chat-form class="flex items-center gap-2 border-t border-stone-200 p-3">
+            <form data-chat-form class="chat-bar">
                 <input
                     type="text"
                     data-chat-input
@@ -42,12 +48,13 @@
                     maxlength="4000"
                     placeholder="{{ $labels['chat_placeholder'] }}"
                     autocomplete="off"
-                    class="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
                 >
-                <button
-                    type="submit"
-                    data-chat-submit
-                    class="rounded-lg bg-gradient-to-r from-amber-600 to-amber-400 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-                >{{ $labels['chat_send'] }}</button>
+                <button type="submit" data-chat-submit>{{ $labels['chat_send'] }}</button>
             </form>
+
+            <ul class="chat-chips" aria-label="{{ $labels['menu_heading'] }}">
+                @foreach ([[$labels['menu_rooms'], $labels['menu_rooms_q']], [$labels['menu_facilities'], $labels['menu_facilities_q']], [$labels['menu_policies'], $labels['menu_policies_q']], [$lobby['start_booking'], $lobby['reservation_q']], [$labels['menu_staff'], $labels['menu_staff_q']]] as [$chip, $question])
+                    <li><button type="button" data-hero-quick-message="{{ $question }}">{{ $chip }} <span aria-hidden="true">›</span></button></li>
+                @endforeach
+            </ul>
         </div>

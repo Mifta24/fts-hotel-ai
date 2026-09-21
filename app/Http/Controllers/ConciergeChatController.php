@@ -9,6 +9,7 @@ use App\Services\Concierge\ConciergeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ConciergeChatController extends Controller
@@ -40,9 +41,26 @@ class ConciergeChatController extends Controller
         $data = $request->validate([
             'guest_token' => ['required', 'uuid'],
             'message' => ['required', 'string', 'max:2000'],
+            'scene' => ['nullable', Rule::in(Conversation::SCENES)],
+            'selected_room' => ['nullable', 'string', 'max:120'],
+            'selected_facility' => ['nullable', 'integer', 'min:1'],
+            'reservation' => ['nullable', 'array'],
+            'reservation.check_in' => ['nullable', 'date_format:Y-m-d'],
+            'reservation.check_out' => ['nullable', 'date_format:Y-m-d'],
+            'reservation.adults' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'reservation.children' => ['nullable', 'integer', 'min:0', 'max:10'],
+            'reservation.rooms' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'reservation.room_type_slug' => ['nullable', 'string', 'max:120'],
         ]);
 
         $conversation = $this->findConversation($hotel, $data['guest_token']);
+
+        $this->concierge->rememberContext($hotel, $conversation, [
+            'scene' => $data['scene'] ?? null,
+            'selected_facility' => $data['selected_facility'] ?? null,
+            'selected_room' => $data['selected_room'] ?? ($data['reservation']['room_type_slug'] ?? null),
+            ...array_key_exists('reservation', $data) ? ['reservation' => array_filter($data['reservation'] ?? [], fn ($value) => $value !== null && $value !== '')] : [],
+        ]);
 
         try {
             $assistantMessage = $this->concierge->reply($hotel, $conversation, $data['message']);
@@ -112,7 +130,36 @@ class ConciergeChatController extends Controller
             'role' => $message->role,
             'content' => $message->content,
             'ui_payload' => $message->ui_payload,
+            'suggested_actions' => $this->suggestedActions($message->ui_payload),
             'created_at' => $message->created_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Interface actions that follow from what the concierge just showed, so
+     * the guest can step into the matching scene instead of typing again.
+     *
+     * @param  list<array<string, mixed>>|null  $uiPayload
+     * @return list<array{action: string, room?: string}>
+     */
+    private function suggestedActions(?array $uiPayload): array
+    {
+        $actions = [];
+
+        foreach ($uiPayload ?? [] as $payload) {
+            $type = $payload['type'] ?? null;
+            $room = $payload['room']['room_type_slug'] ?? $payload['quote']['room_type_slug'] ?? null;
+
+            if ($type === 'room_detail' && $room) {
+                $actions[] = ['action' => 'view_room', 'room' => $room];
+                $actions[] = ['action' => 'reserve', 'room' => $room];
+            } elseif ($type === 'availability' && ($payload['available'] ?? false) && $room) {
+                $actions[] = ['action' => 'reserve', 'room' => $room];
+            } elseif ($type === 'handover') {
+                $actions[] = ['action' => 'staff'];
+            }
+        }
+
+        return collect($actions)->unique(fn (array $action) => $action['action'].($action['room'] ?? ''))->values()->all();
     }
 }
