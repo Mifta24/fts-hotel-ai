@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Hotel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class HotelLobbyTest extends TestCase
@@ -279,5 +280,32 @@ class HotelLobbyTest extends TestCase
         $this->get('/?lang=id')->assertOk()->assertSee('Suara aktif')->assertSee('Suara mati');
         $this->get('/demo?lang=en')->assertOk()->assertSee('data-sound-toggle', false)->assertSee('data-label-off="Sound off"', false);
         $this->get('/demo?lang=ja')->assertOk()->assertSee('サウンドオン');
+    }
+
+    public function test_the_rooms_scenes_swap_the_menu_for_a_room_index(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true, 'sort_order' => 0]);
+        $hotel->roomTypes()->create(['name' => 'Family Suite', 'slug' => 'family-suite', 'base_price' => 2200000, 'max_adults' => 4, 'max_children' => 0, 'is_active' => true, 'sort_order' => 1]);
+        $hotel->roomTypes()->create(['name' => 'Retired Room', 'slug' => 'retired', 'base_price' => 1, 'max_adults' => 1, 'max_children' => 0, 'is_active' => false]);
+
+        $this->get('/demo/rooms/family-suite?lang=id')
+            ->assertOk()
+            ->assertSee('class="room-nav"', false)
+            ->assertSee('mulai dari IDR 950.000 / malam')
+            ->assertDontSee('Retired Room')
+            // the way back to the main menu stays in the card
+            ->assertSee('class="stage-menu-back"', false)
+            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
+            ->assertDontSee('data-lobby-link="facilities"', false);
+
+        // the open room is marked as current in the index, the others are not
+        $index = $this->get('/demo/rooms/family-suite?lang=id')->getContent();
+        $navigation = Str::between($index, '<nav class="room-nav">', '</nav>');
+        $this->assertStringContainsString('aria-current="page"', Str::after($navigation, 'roomSlug=family-suite') ?: $navigation);
+        $this->assertSame(1, substr_count($navigation, 'aria-current'));
+
+        // the lobby keeps the ordinary menu
+        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="facilities"', false)->assertDontSee('class="room-nav"', false);
     }
 }

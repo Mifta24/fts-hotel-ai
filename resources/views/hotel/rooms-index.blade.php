@@ -1,4 +1,8 @@
 <x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems" :title="$labels['rooms_heading'].' · '.$hotel->name">
+    @if($roomTypes->isNotEmpty())
+        <x-slot:sidebar>@include('hotel.room-nav')</x-slot:sidebar>
+    @endif
+
     <div class="stage-panels">
         <section class="lobby-content @container" aria-label="{{ $labels['rooms_heading'] }}">
             <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" data-stage-exit data-tour-line="{{ $narration['tour_lobby'] }}" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>

@@ -1,4 +1,4 @@
-@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'title' => null, 'welcome' => null])
+@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'title' => null, 'welcome' => null, 'sidebar' => null])
 {{-- The fixed full-screen stage every scene shares: backdrop, header, menu and the concierge chat dock. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}">
@@ -34,6 +34,9 @@
 
         {{ $welcome }}
 
+@if($sidebar)
+        {{ $sidebar }}
+@else
         <aside class="stage-menu" aria-label="{{ $lobby['explore'] }}">
             <p class="lobby-eyebrow">{{ $lobby['explore'] }}</p>
             <nav class="lobby-navigation">
@@ -47,6 +50,7 @@
             </nav>
             <span class="stage-menu-footer">{{ $lobby['available'] }} · POWERED BY FTS</span>
         </aside>
+@endif
 
         {{ $slot }}
 

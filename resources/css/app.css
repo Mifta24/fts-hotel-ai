@@ -30,7 +30,7 @@
 .stage[data-page]:not([data-page="home"]) .stage-welcome { display: none; }
 
 .stage-menu, .opening-panel { border: 1px solid #ffffff38; background: #18312dc7; backdrop-filter: blur(18px); box-shadow: 0 10px 34px #0003; border-radius: 18px; }
-.stage-menu { position: absolute; z-index: 4; right: 24px; top: var(--header); width: var(--col); display: flex; flex-direction: column; padding: 24px 20px 20px; }
+.stage-menu { position: absolute; z-index: 4; right: 24px; top: var(--header); width: var(--col); max-height: calc(100% - var(--header) - 24px); display: flex; flex-direction: column; padding: 24px 20px 20px; }
 .stage-menu > .lobby-eyebrow { color: #f4e6c4; }
 .lobby-navigation { display: flex; flex-direction: column; margin-top: 14px; }
 .lobby-navigation a { display: flex; align-items: center; justify-content: space-between; min-height: 58px; padding: 0 12px; border-bottom: 1px solid #ffffff26; font-size: 14px; transition: background .2s; }
@@ -38,8 +38,30 @@
 .lobby-navigation a:hover { background: #ffffff1a; }
 .lobby-navigation a[aria-current] { background: #f4e6c42e; }
 .nav-arrow { opacity: .7; font-size: 20px; }
+.stage-menu-back { align-self: flex-start; margin-bottom: 14px; font-size: 12px; color: #f4e6c4; }
+.stage-menu-back:hover { text-decoration: underline; }
+.room-nav { display: flex; flex-direction: column; min-height: 0; margin-top: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff4d transparent; }
+.room-nav::-webkit-scrollbar { width: 6px; }
+.room-nav::-webkit-scrollbar-thumb { border-radius: 3px; background: #ffffff4d; }
+.room-nav a { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; padding: 13px 12px; border-bottom: 1px solid #ffffff26; transition: background .2s; }
+.room-nav a:last-child { border-bottom: 0; }
+.room-nav a:hover { background: #ffffff1a; }
+.room-nav a[aria-current] { background: #f4e6c42e; }
+.room-nav-name { font-size: 14px; }
+.room-nav-price { font-size: 11px; color: #ffffffb3; }
 .stage-menu-footer { margin-top: auto; padding-top: 18px; font-size: 8px; letter-spacing: .14em; color: #ffffff99; }
 .stage:has(.stage-chat.is-open) .stage-menu { display: none; }
+/* On the rooms scenes the right column is the room index, so while the guest
+   is chatting it shares the column with the transcript instead of vanishing —
+   the concierge can name a room and they can open it straight away. */
+@media (min-height: 760px) {
+    .stage[data-scene="rooms"]:has(.stage-chat.is-open) .stage-menu,
+    .stage[data-scene="room"]:has(.stage-chat.is-open) .stage-menu { display: flex; height: 320px; padding-bottom: 12px; }
+    .stage[data-scene="rooms"]:has(.stage-chat.is-open) .stage-menu-footer,
+    .stage[data-scene="room"]:has(.stage-chat.is-open) .stage-menu-footer { display: none; }
+    .stage[data-scene="rooms"]:has(.stage-chat.is-open) .chat-log,
+    .stage[data-scene="room"]:has(.stage-chat.is-open) .chat-log { top: calc(var(--header) + 332px); }
+}
 
 .stage-panels, [data-chat-widget], .stage-chat { display: contents; }
 .lobby-content { position: absolute; z-index: 3; left: 24px; right: calc(var(--col) + 48px); top: var(--header); bottom: var(--dock); overflow-y: auto; overscroll-behavior: contain; padding: 32px; border-radius: 18px; background: #eeece5; color: #26312f; box-shadow: 0 10px 34px #0004; }
@@ -102,6 +124,13 @@
     .stage-menu > .lobby-eyebrow, .stage-menu-footer { display: none; }
     .lobby-navigation { flex-direction: row; gap: 8px; margin: 0; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
     .lobby-navigation a { flex-shrink: 0; min-height: 42px; gap: 8px; padding: 0 16px; border: 1px solid #ffffff38; border-radius: 999px; background: #18312dcc; white-space: nowrap; }
+    .stage-menu-back { position: absolute; top: -34px; left: 12px; margin: 0; }
+    .room-nav { flex-direction: row; gap: 8px; margin: 0; padding-bottom: 4px; overflow-x: auto; scrollbar-width: none; }
+    .room-nav::-webkit-scrollbar { display: none; }
+    .room-nav a { justify-content: center; min-height: 42px; gap: 2px; padding: 4px 16px; border: 1px solid #ffffff38; border-bottom: 1px solid #ffffff38; border-radius: 999px; background: #18312dcc; white-space: nowrap; }
+    .room-nav a:last-child { border-bottom: 1px solid #ffffff38; }
+    .room-nav-name { font-size: 12px; }
+    .room-nav-price { font-size: 10px; }
     .nav-arrow { display: none; }
     .lobby-content { left: 12px; right: 12px; top: calc(var(--header) + 56px); padding: 20px; border-radius: 16px; }
     .lobby-content h2 { font-size: 28px; }
