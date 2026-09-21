@@ -21,6 +21,8 @@
             data-label-slow="{{ $labels['chat_slow'] }}"
             data-label-retry="{{ $labels['chat_retry'] }}"
             data-currency="{{ $hotel->currency }}"
+            data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
+            data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
         >
             <section class="chat-log" aria-label="{{ $labels['chat_heading'] }}">
                 <header class="chat-log-header">

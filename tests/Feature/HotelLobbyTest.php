@@ -56,7 +56,7 @@ class HotelLobbyTest extends TestCase
         $this->get('/draft')->assertNotFound();
     }
 
-    public function test_room_scene_renders_only_active_rooms_of_the_current_hotel_with_navigation(): void
+    public function test_the_rooms_page_lists_only_active_rooms_of_the_current_hotel(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
         $first = $hotel->roomTypes()->create([
@@ -71,32 +71,70 @@ class HotelLobbyTest extends TestCase
         $other = Hotel::create(['name' => 'Other', 'slug' => 'other', 'public_status' => 'published']);
         $other->roomTypes()->create(['name' => 'Foreign Room', 'slug' => 'foreign-room', 'base_price' => 1, 'max_adults' => 1, 'max_children' => 0, 'is_active' => true]);
 
-        $this->get('/demo?lang=en')
+        $this->get('/demo/rooms?lang=en')
             ->assertOk()
-            ->assertSee('data-room-scene="deluxe-king"', false)
-            ->assertSee('data-room-scene="family-suite"', false)
-            ->assertDontSee('retired-room')
-            ->assertDontSee('foreign-room')
-            ->assertSee('href="#room/family-suite"', false)
-            ->assertSee('href="#room/deluxe-king"', false)
-            ->assertSee('King bed')
-            ->assertSee('Garden view')
-            ->assertSee('Final availability and rates are confirmed by hotel staff.')
-            ->assertSee('https://example.test/two.jpg', false);
+            ->assertSee('Deluxe King')
+            ->assertSee('Family Suite')
+            ->assertSee('href="'.route('hotel.room', ['hotelSlug' => 'demo', 'roomSlug' => 'deluxe-king', 'lang' => 'en']).'"', false)
+            ->assertDontSee('Retired Room')
+            ->assertDontSee('Foreign Room');
     }
 
-    public function test_room_scene_is_localised_and_hidden_without_rooms(): void
+    public function test_a_room_page_shows_its_details_gallery_and_neighbouring_rooms(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $first = $hotel->roomTypes()->create([
+            'name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'size_sqm' => 32, 'max_adults' => 2, 'max_children' => 1,
+            'bed_config' => [['type' => 'king', 'count' => 1]], 'view_type' => 'garden', 'amenities' => ['wifi', 'balcony'],
+            'breakfast_included' => true, 'is_active' => true, 'sort_order' => 0,
+        ]);
+        $first->images()->create(['image_url' => 'https://example.test/one.jpg', 'alt_text' => 'King bed', 'sort_order' => 0]);
+        $first->images()->create(['image_url' => 'https://example.test/two.jpg', 'alt_text' => 'Bathroom', 'sort_order' => 1]);
+        $hotel->roomTypes()->create(['name' => 'Family Suite', 'slug' => 'family-suite', 'base_price' => 1800000, 'max_adults' => 3, 'max_children' => 2, 'is_active' => true, 'sort_order' => 1]);
+
+        $suiteUrl = route('hotel.room', ['hotelSlug' => 'demo', 'roomSlug' => 'family-suite', 'lang' => 'en']);
+
+        $this->get('/demo/rooms/deluxe-king?lang=en')
+            ->assertOk()
+            ->assertSee('Room 1 / 2')
+            ->assertSee('King bed')
+            ->assertSee('Garden view')
+            ->assertSee('https://example.test/two.jpg', false)
+            ->assertSee('Final availability and rates are confirmed by hotel staff.')
+            // both neighbours wrap around to the only other room
+            ->assertSee('rel="prev"', false)
+            ->assertSee($suiteUrl, false);
+
+        $this->get('/demo/rooms/retired-or-unknown')->assertNotFound();
+        $this->get('/demo/rooms/deluxe-king?lang=id')->assertOk()->assertSee('Pemandangan taman');
+    }
+
+    public function test_rooms_pages_follow_the_hotel_publication_and_room_state(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
-        $this->get('/demo')->assertOk()->assertDontSee('data-lobby-panel="room"', false);
+        $hotel->roomTypes()->create(['name' => 'Hidden', 'slug' => 'hidden', 'base_price' => 1, 'max_adults' => 1, 'max_children' => 0, 'is_active' => false]);
+        Hotel::create(['name' => 'Draft', 'slug' => 'draft']);
 
-        $hotel->roomTypes()->create([
-            'name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 0,
-            'view_type' => 'ocean', 'is_active' => true,
-        ]);
+        $this->get('/demo/rooms?lang=en')->assertOk()->assertSee('Room information will be available soon.');
+        $this->get('/demo/rooms/hidden')->assertNotFound();
+        $this->get('/draft/rooms')->assertNotFound();
+    }
 
-        $this->get('/demo?lang=id')->assertOk()->assertSee('Pemandangan laut')->assertSee('Tanya tentang kamar ini');
-        $this->get('/demo?lang=ja')->assertOk()->assertSee('オーシャンビュー');
+    public function test_the_lobby_walks_the_guest_to_the_rooms_page(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+        $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+
+        $this->get('/demo?lang=id')
+            ->assertOk()
+            ->assertSee('href="'.route('hotel.rooms', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
+            ->assertSee('data-tour-line="Mari, saya antar ke kamar-kamar kami."', false)
+            ->assertDontSee('data-lobby-panel="rooms"', false);
+
+        $this->get('/demo/rooms?lang=id')
+            ->assertOk()
+            ->assertSee('data-tour-line="Mari saya antar kembali ke lobi."', false)
+            ->assertSee('data-scene="rooms"', false);
     }
 
     public function test_reservation_wizard_and_staff_channels_render_from_hotel_data(): void
@@ -112,13 +150,16 @@ class HotelLobbyTest extends TestCase
             ->assertSee('data-step="5"', false)
             ->assertSee('value="deluxe-king"', false)
             ->assertSee('Step :current of :total', false)
-            ->assertSee('href="#reservation/deluxe-king"', false)
             ->assertSee(route('reservation.store', 'demo'), false)
             ->assertSee('https://wa.me/6281200001111?text=', false)
             ->assertSee('tel:+62361000', false)
             ->assertSee('mailto:front@demo.test', false);
 
         $this->get('/demo?lang=id')->assertOk()->assertSee('Langkah :current dari :total', false);
+
+        $this->get('/demo/rooms/deluxe-king?lang=en')
+            ->assertOk()
+            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation/deluxe-king"', false);
     }
 
     public function test_facility_scenes_link_each_active_facility_with_previous_and_next(): void
@@ -176,21 +217,27 @@ class HotelLobbyTest extends TestCase
         ]);
         $hotel->roomTypes()->create(['name' => 'Family Suite', 'slug' => 'family-suite', 'base_price' => 2200000, 'max_adults' => 2, 'max_children' => 2, 'breakfast_included' => false, 'is_active' => true, 'sort_order' => 1]);
 
-        $this->get('/demo?lang=en')
+        $this->get('/demo/rooms?lang=en')
             ->assertOk()
             ->assertSee('data-narrator', false)
-            ->assertSee('We have 2 room types, starting from IDR 950.000 per night.')
-            ->assertSee('Deluxe King. A calm room with a garden outlook. It offers 32 m² for up to 3 guests. Garden view. Breakfast is included. Rates start from IDR 950.000 per night.')
+            ->assertSee('We have 2 room types, from IDR 950.000 per night.');
+
+        $this->get('/demo/rooms/deluxe-king?lang=en')
+            ->assertOk()
+            ->assertSee('Deluxe King. A calm room with a garden outlook. It offers 32 m² for up to 3 guests. Garden view. Breakfast is included. Rates start from IDR 950.000 per night.');
+
+        $this->get('/demo/rooms/family-suite?lang=en')
+            ->assertOk()
             ->assertSee('Family Suite. It welcomes up to 4 guests. Rates start from IDR 2.200.000 per night. Final availability and rates are confirmed by our team.');
 
-        $this->get('/demo?lang=id')->assertOk()->assertSee('Kami memiliki 2 tipe kamar, mulai dari IDR 950.000 per malam.');
+        $this->get('/demo/rooms?lang=id')->assertOk()->assertSee('Ada 2 tipe kamar, mulai dari IDR 950.000 per malam.');
     }
 
     public function test_no_rooms_narration_is_shown_when_the_hotel_has_no_rooms(): void
     {
         Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
 
-        $this->get('/demo?lang=en')->assertOk()->assertDontSee('data-key="rooms"', false)->assertDontSee('Welcome to our Rooms');
+        $this->get('/demo/rooms?lang=en')->assertOk()->assertDontSee('data-key="rooms"', false)->assertDontSee('Here are our rooms');
     }
 
     public function test_the_concierge_introduces_facilities_and_hotel_information_from_stored_data(): void

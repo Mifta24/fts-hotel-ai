@@ -1,68 +1,13 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', $locale) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $hotel->name }} · AI Concierge</title>
-    @fonts
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="stage-page antialiased" style="--concierge-image: url('{{ asset('images/concierge-lobby.png') }}')">
-    <main class="stage" data-lobby>
-        <div class="stage-loader" data-stage-loader role="status"><span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span><p>{{ $lobby['loading'] }}</p></div>
-        <img src="{{ asset('images/concierge-lobby.png') }}" alt="{{ $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
-        <div class="stage-shade"></div>
-
-        <header class="stage-header">
-            <a href="{{ route('hotel.show', $hotel->slug) }}#home" class="flex min-w-0 items-center gap-3">
-                <span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span>
-                <span class="min-w-0"><span class="block truncate font-semibold tracking-tight">{{ $hotel->name }}</span><span class="block truncate text-xs opacity-75">{{ $hotel->city }} · {{ $hotel->country }}</span></span>
-            </a>
-            <div class="stage-tools">
-                <x-sound-toggle :on="$lobby['sound_on']" :off="$lobby['sound_off']" />
-                <nav aria-label="Language" class="stage-lang">
-                    @foreach ($supportedLocales as $code)
-                        <a href="?lang={{ $code }}" lang="{{ $code }}" aria-label="{{ ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語'][$code] }}" @if($code === $locale) aria-current="true" @endif>{{ $code }}</a>
-                    @endforeach
-                </nav>
-            </div>
-        </header>
-
+<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :scene-image="$sceneImage" :menu-items="$menuItems">
+    <x-slot:welcome>
         <div class="stage-welcome">
             <span class="lobby-eyebrow">{{ $hotel->name }}</span>
             <h1>{{ $lobby['welcome'] }}<br><em>{{ $lobby['lobby'] }}.</em></h1>
             <p>{{ $lobby['intro'] }}</p>
         </div>
-
-        <aside class="stage-menu" aria-label="{{ $lobby['explore'] }}">
-            <p class="lobby-eyebrow">{{ $lobby['explore'] }}</p>
-            <nav class="lobby-navigation">
-                @foreach ([['rooms', $labels['rooms_heading']], ['facilities', $labels['menu_facilities']], ['info', $lobby['menu_info']], ['reservation', $lobby['reservation']], ['staff', $labels['menu_staff']]] as [$page, $label])
-                    <a href="#{{ $page }}" data-lobby-link="{{ $page }}" aria-controls="lobby-{{ $page }}">
-                        <span>{{ $label }}</span><span class="nav-arrow" aria-hidden="true">›</span>
-                    </a>
-                @endforeach
-            </nav>
-            <span class="stage-menu-footer">{{ $lobby['available'] }} · POWERED BY FTS</span>
-        </aside>
+    </x-slot:welcome>
 
         <div class="stage-panels">
-            <section id="lobby-rooms" data-lobby-panel="rooms" class="lobby-content @container" hidden tabindex="-1">
-                <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
-                <p class="lobby-eyebrow">{{ $lobby['explore'] }}</p>
-                <h2>{{ $labels['rooms_heading'] }}</h2>
-                @if($roomNarrations['rooms'])
-                    @include('hotel.narrator', ['text' => $roomNarrations['rooms'], 'key' => 'rooms'])
-                @endif
-                @include('hotel.rooms')
-                @if($roomTypes->isEmpty())<p class="mt-6 text-stone-500">{{ $lobby['rooms_empty'] }}</p>@endif
-            </section>
-
-            @if($roomTypes->isNotEmpty())
-                @include('hotel.room-scene')
-            @endif
-
             <section id="lobby-facilities" data-lobby-panel="facilities" class="lobby-content @container" hidden tabindex="-1">
                 <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
                 <p class="lobby-eyebrow">{{ $hotel->name }}</p>
@@ -113,10 +58,4 @@
 
         </div>
 
-        <div data-chat-widget>
-            @include('hotel.chat')
-        </div>
-        <noscript><p class="stage-noscript">Aktifkan JavaScript untuk menggunakan navigasi dan AI Concierge. {{ $hotel->phone }}</p></noscript>
-    </main>
-</body>
-</html>
+</x-hotel-stage>

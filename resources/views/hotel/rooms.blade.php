@@ -39,7 +39,7 @@
                             </p>
                         </div>
 
-                        <a href="#room/{{ $roomType->slug }}" class="mt-4 flex w-full items-center justify-center rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50">
+                        <a href="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => $roomType->slug, 'lang' => $locale]) }}" data-stage-exit class="mt-4 flex w-full items-center justify-center rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50">
                             {{ $labels['view_details'] }}
                         </a>
 

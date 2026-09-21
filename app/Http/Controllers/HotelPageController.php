@@ -25,8 +25,8 @@ class HotelPageController extends Controller
      */
     private const NARRATION = [
         'en' => [
-            'rooms' => 'Welcome to our Rooms & Suites. We have :count room types, starting from :price per night. Choose a room to see its photos and details, or ask me anything.',
-            'rooms_one' => 'Welcome to our Rooms & Suites. We have one room type, from :price per night. Open it to see its photos and details, or ask me anything.',
+            'rooms' => 'Here are our rooms. We have :count room types, from :price per night. Open any of them and I will walk you through it, or ask me anything.',
+            'rooms_one' => 'Here is our room. We have one room type, from :price per night. Open it and I will walk you through it, or ask me anything.',
             'size_guests' => 'It offers :size m² for up to :guests guests.',
             'guests' => 'It welcomes up to :guests guests.',
             'breakfast' => 'Breakfast is included.',
@@ -37,11 +37,13 @@ class HotelPageController extends Controller
             'info_place' => 'We are located in :location.',
             'info_hours' => 'Check-in is from :in and check-out is at :out.',
             'info_more' => 'Below you will find the address, our policies and frequently asked questions — or just ask me.',
+            'tour_rooms' => 'This way — let me show you our rooms.',
+            'tour_lobby' => 'Let me walk you back to the lobby.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
         'id' => [
-            'rooms' => 'Selamat datang di Kamar & Suite kami. Kami memiliki :count tipe kamar, mulai dari :price per malam. Pilih kamar untuk melihat foto dan detailnya, atau tanyakan apa saja kepada saya.',
-            'rooms_one' => 'Selamat datang di Kamar & Suite kami. Kami memiliki satu tipe kamar, mulai dari :price per malam. Buka untuk melihat foto dan detailnya, atau tanyakan apa saja kepada saya.',
+            'rooms' => 'Inilah kamar-kamar kami. Ada :count tipe kamar, mulai dari :price per malam. Buka salah satu, nanti saya jelaskan — atau tanyakan apa saja kepada saya.',
+            'rooms_one' => 'Inilah kamar kami. Ada satu tipe kamar, mulai dari :price per malam. Buka kamarnya, nanti saya jelaskan — atau tanyakan apa saja kepada saya.',
             'size_guests' => 'Luasnya :size m² untuk maksimal :guests tamu.',
             'guests' => 'Kamar ini untuk maksimal :guests tamu.',
             'breakfast' => 'Sudah termasuk sarapan.',
@@ -52,11 +54,13 @@ class HotelPageController extends Controller
             'info_place' => 'Kami berada di :location.',
             'info_hours' => 'Check-in mulai pukul :in dan check-out pukul :out.',
             'info_more' => 'Di bawah ini ada alamat, kebijakan, dan pertanyaan yang sering diajukan — atau tanyakan langsung kepada saya.',
+            'tour_rooms' => 'Mari, saya antar ke kamar-kamar kami.',
+            'tour_lobby' => 'Mari saya antar kembali ke lobi.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
         'ja' => [
-            'rooms' => '客室・スイートへようこそ。:count タイプのお部屋をご用意しています。1泊 :price からです。お部屋を選ぶと写真と詳細をご覧いただけます。ご質問もお気軽にどうぞ。',
-            'rooms_one' => '客室・スイートへようこそ。1タイプのお部屋をご用意しています。1泊 :price からです。写真と詳細をご覧ください。ご質問もお気軽にどうぞ。',
+            'rooms' => 'こちらが客室です。:count タイプ、1泊 :price からご用意しています。お部屋を開いていただければ、ご案内いたします。ご質問もお気軽にどうぞ。',
+            'rooms_one' => 'こちらが客室です。1タイプ、1泊 :price からご用意しています。お部屋を開いていただければ、ご案内いたします。ご質問もお気軽にどうぞ。',
             'size_guests' => '広さは:size m²、最大:guests名様までご利用いただけます。',
             'guests' => '最大:guests名様までご利用いただけます。',
             'breakfast' => '朝食付きです。',
@@ -67,6 +71,8 @@ class HotelPageController extends Controller
             'info_place' => '所在地は:locationです。',
             'info_hours' => 'チェックインは:in以降、チェックアウトは:outまでです。',
             'info_more' => '以下に、所在地、ご利用規定、よくあるご質問をご案内しています。お気軽にお尋ねください。',
+            'tour_rooms' => 'こちらへどうぞ。客室へご案内します。',
+            'tour_lobby' => 'ロビーへご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
     ];
@@ -112,6 +118,42 @@ class HotelPageController extends Controller
 
     public function show(Request $request, string $hotelSlug): View
     {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.show', $this->stageData($hotel, $locale, 'lobby'));
+    }
+
+    public function rooms(Request $request, string $hotelSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.rooms-index', $this->stageData($hotel, $locale, 'rooms'));
+    }
+
+    public function room(Request $request, string $hotelSlug, string $roomSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        $data = $this->stageData($hotel, $locale, 'room');
+        $rooms = $data['roomTypes'];
+        $index = $rooms->search(fn (RoomType $roomType) => $roomType->slug === $roomSlug);
+
+        abort_if($index === false, 404);
+
+        return view('hotel.room-detail', [
+            ...$data,
+            'roomType' => $rooms[$index],
+            'roomIndex' => $index,
+            'previousRoom' => $rooms[($index - 1 + $rooms->count()) % $rooms->count()],
+            'nextRoom' => $rooms[($index + 1) % $rooms->count()],
+        ]);
+    }
+
+    /**
+     * @return array{0: Hotel, 1: string}
+     */
+    private function resolveStage(Request $request, string $hotelSlug): array
+    {
         $hotel = Hotel::where('slug', $hotelSlug)->firstOrFail();
 
         abort_if(! $hotel->isPublished(), 404);
@@ -120,23 +162,41 @@ class HotelPageController extends Controller
             ? $request->query('lang')
             : $hotel->default_locale;
 
+        return [$hotel, $locale];
+    }
+
+    /**
+     * Everything the shared stage shell needs, for whichever scene the guest
+     * has walked into.
+     *
+     * @return array<string, mixed>
+     */
+    private function stageData(Hotel $hotel, string $locale, string $scene): array
+    {
         $roomTypes = $hotel->roomTypes()
             ->where('is_active', true)
             ->with(['images' => fn ($q) => $q->orderBy('sort_order')])
             ->orderBy('sort_order')
-            ->get();
+            ->get()
+            ->values();
 
         $facilities = $hotel->knowledgeItems()->where('is_active', true)
             ->whereIn('category', ['facilities', 'dining', 'transport'])
             ->orderBy('sort_order')->get();
 
-        return view('hotel.show', [
+        $labels = $this->labels($locale);
+        $lobby = $this->lobbyLabels($locale);
+
+        return [
             'hotel' => $hotel,
             'roomTypes' => $roomTypes,
             'locale' => $locale,
+            'scene' => $scene,
+            'sceneImage' => $this->sceneImage($scene),
+            'menuItems' => $this->stageMenu($hotel, $locale, $labels, $lobby, $scene),
             'supportedLocales' => self::SUPPORTED_LOCALES,
-            'labels' => $this->labels($locale),
-            'lobby' => $this->lobbyLabels($locale),
+            'labels' => $labels,
+            'lobby' => $lobby,
             'roomTerms' => self::ROOM_TERMS[$locale],
             'wizard' => $this->wizardLabels($locale),
             'narration' => self::NARRATION[$locale],
@@ -148,7 +208,56 @@ class HotelPageController extends Controller
                 ->orderBy('sort_order')->get()->groupBy('category'),
             'facilities' => $facilities,
             'sceneNarrations' => $this->sceneNarrations($hotel, $facilities, $locale),
-        ]);
+        ];
+    }
+
+    /**
+     * Each scene has its own backdrop of the concierge. Until a hotel supplies
+     * one, the lobby backdrop stands in so the scene still renders.
+     */
+    private function sceneImage(string $scene): string
+    {
+        $file = match ($scene) {
+            'rooms', 'room' => 'images/concierge-rooms.png',
+            default => 'images/concierge-lobby.png',
+        };
+
+        return asset(file_exists(public_path($file)) ? $file : 'images/concierge-lobby.png');
+    }
+
+    /**
+     * The main menu. Sections that live on another page are marked so the
+     * stage can fade out, as if the concierge were walking the guest over.
+     *
+     * @param  array<string, string>  $labels
+     * @param  array<string, string>  $lobby
+     * @return list<array{key: string, label: string, href: string, exit: bool, tour: ?string}>
+     */
+    private function stageMenu(Hotel $hotel, string $locale, array $labels, array $lobby, string $scene): array
+    {
+        $lobbyUrl = route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+        $roomsUrl = route('hotel.rooms', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+        $onLobby = $scene === 'lobby';
+        $tour = self::NARRATION[$locale];
+
+        $items = [['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']]];
+
+        foreach ([
+            ['facilities', $labels['menu_facilities']],
+            ['info', $lobby['menu_info']],
+            ['reservation', $lobby['reservation']],
+            ['staff', $labels['menu_staff']],
+        ] as [$key, $label]) {
+            $items[] = [
+                'key' => $key,
+                'label' => $label,
+                'href' => ($onLobby ? '' : $lobbyUrl).'#'.$key,
+                'exit' => ! $onLobby,
+                'tour' => $onLobby ? null : $tour['tour_lobby'],
+            ];
+        }
+
+        return $items;
     }
 
     /**

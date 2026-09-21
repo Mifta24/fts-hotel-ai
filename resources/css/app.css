@@ -204,8 +204,8 @@
 .stage-loader.is-ready { opacity: 0; visibility: hidden; animation: none; transition: opacity .3s ease; }
 @keyframes loader-in { to { opacity: 1; } }
 @keyframes loader-out { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
-.stage.is-leaving .stage-image { transform: scale(1.06); filter: brightness(.65); transition: transform .4s ease, filter .4s ease; animation: none; }
-.stage.is-leaving > :not(.stage-image, .stage-shade, .stage-loader) { opacity: 0; transition: opacity .25s ease; }
+.stage.is-leaving .stage-image { transform: scale(1.16); filter: brightness(.6); transition: transform 1s cubic-bezier(.3, .1, .3, 1), filter .8s ease; animation: none; }
+.stage.is-leaving > :not(.stage-image, .stage-shade, .stage-loader, .stage-tour) { opacity: 0; animation: none; transition: opacity .3s ease; }
 .stage-menu, .stage-welcome, .opening-panel, .opening-enter { animation: stage-rise .6s ease .15s both; }
 .chat-bar, .chat-chips { animation: stage-fade .6s ease .3s both; }
 @keyframes stage-rise { from { opacity: 0; translate: 0 14px; } to { opacity: 1; translate: 0 0; } }
@@ -256,3 +256,10 @@
 .sound-toggle.is-muted .sound-mute { display: block; }
 .sound-toggle.is-muted .sound-waves { display: none; }
 .sound-toggle.is-muted { color: #ffffffb3; }
+
+/* What the concierge says while she walks the guest to the next scene */
+.stage-tour { position: absolute; z-index: 20; inset: auto 0 clamp(90px, 22vh, 220px); padding: 0 24px; color: white; font: italic clamp(18px, 2.2vw, 28px)/1.4 Georgia, serif; text-align: center; text-shadow: 0 2px 20px #0009; opacity: 0; pointer-events: none; }
+.stage-tour:empty { display: none; }
+.stage-tour.is-visible { animation: tour-rise .45s ease both; }
+@keyframes tour-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .stage-tour.is-visible { animation: none; opacity: 1; } }

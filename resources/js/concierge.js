@@ -16,6 +16,8 @@ function initConcierge() {
         storageKey: root.dataset.storageKey,
         locale: root.dataset.locale,
         currency: root.dataset.currency,
+        lobbyUrl: root.dataset.lobbyUrl,
+        roomUrlTemplate: root.dataset.roomUrl,
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
@@ -354,7 +356,10 @@ function initConcierge() {
      */
     function uiContext() {
         const [page, param] = (window.location.hash.slice(1) || 'home').split('/');
-        const context = { scene: sceneNames[page] || 'reception' };
+        const pageScene = document.querySelector('[data-lobby]')?.dataset.scene;
+        const context = { scene: (pageScene && pageScene !== 'lobby' ? sceneNames[pageScene] : null) || sceneNames[page] || 'reception' };
+
+        if (pageScene === 'room') context.selected_room = window.location.pathname.split('/').pop();
 
         if (page === 'facility' && Number(param) > 0) context.selected_facility = Number(param);
 
@@ -375,10 +380,11 @@ function initConcierge() {
     function actionChips(actions) {
         if (!actions || !actions.length) return null;
 
+        const roomUrl = (slug) => config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(slug));
         const targets = {
-            view_room: [config.labels.viewDetails, (action) => `#room/${action.room}`],
-            reserve: [config.labels.bookNow, (action) => `#reservation/${action.room}`],
-            staff: [config.labels.staff, () => '#staff'],
+            view_room: [config.labels.viewDetails, (action) => roomUrl(action.room)],
+            reserve: [config.labels.bookNow, (action) => `${config.lobbyUrl}#reservation/${action.room}`],
+            staff: [config.labels.staff, () => `${config.lobbyUrl}#staff`],
         };
 
         const wrap = document.createElement('div');
@@ -391,7 +397,16 @@ function initConcierge() {
             link.href = target[1](action);
             link.className = 'rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50';
             link.textContent = target[0];
-            link.addEventListener('click', closePanel);
+            link.addEventListener('click', (event) => {
+                closePanel();
+
+                // Another page: walk there the way the menu does. A panel on
+                // this page is just a hash change, so leave it to the browser.
+                if (link.pathname !== window.location.pathname && window.hotelStage) {
+                    event.preventDefault();
+                    window.hotelStage.leave(link.href);
+                }
+            });
             wrap.appendChild(link);
         });
 
