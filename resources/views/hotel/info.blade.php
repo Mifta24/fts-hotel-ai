@@ -9,6 +9,7 @@
     <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
     <p class="lobby-eyebrow">{{ $hotel->name }}</p>
     <h2>{{ $lobby['menu_info'] }}</h2>
+    @include('hotel.narrator', ['text' => $sceneNarrations['info'], 'key' => 'info'])
 
     @if ($about)
         <p class="mt-4 max-w-2xl leading-relaxed text-stone-600">{{ $about }}</p>

@@ -49,6 +49,9 @@
                 <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
                 <p class="lobby-eyebrow">{{ $lobby['explore'] }}</p>
                 <h2>{{ $labels['rooms_heading'] }}</h2>
+                @if($roomNarrations['rooms'])
+                    @include('hotel.narrator', ['text' => $roomNarrations['rooms'], 'key' => 'rooms'])
+                @endif
                 @include('hotel.rooms')
                 @if($roomTypes->isEmpty())<p class="mt-6 text-stone-500">{{ $lobby['rooms_empty'] }}</p>@endif
             </section>
@@ -61,6 +64,9 @@
                 <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
                 <p class="lobby-eyebrow">{{ $hotel->name }}</p>
                 <h2>{{ $labels['menu_facilities'] }}</h2>
+                @if($sceneNarrations['facilities'])
+                    @include('hotel.narrator', ['text' => $sceneNarrations['facilities'], 'key' => 'facilities'])
+                @endif
                 <div class="mt-6 grid gap-4 @lg:grid-cols-2">
                     @forelse($facilities as $facility)
                         <a href="#facility/{{ $facility->id }}" class="group block rounded-2xl border border-stone-200 bg-white p-6 transition hover:border-amber-600">

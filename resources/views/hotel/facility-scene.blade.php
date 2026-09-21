@@ -18,7 +18,7 @@
                 @endif
             </div>
             <h2 class="mt-6">{{ $title }}</h2>
-            <p class="mt-5 max-w-2xl whitespace-pre-line leading-relaxed text-stone-600">{{ $facility->translatedBody($locale) }}</p>
+            @include('hotel.narrator', ['text' => $facility->translatedBody($locale), 'key' => 'facility-'.$facility->id])
             <div class="mt-8 flex flex-wrap gap-3">
                 <button type="button" class="lobby-action" data-hero-quick-message="{{ str_replace(':name', $title, $lobby['ask_facility_q']) }}" data-facility-id="{{ $facility->id }}">{{ $lobby['ask_facility'] }} <span aria-hidden="true">↗</span></button>
                 <a href="#facilities" class="room-scene-step">{{ $lobby['back_facilities'] }}</a>

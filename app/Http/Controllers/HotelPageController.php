@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hotel;
+use App\Models\HotelKnowledgeItem;
+use App\Models\RoomType;
 use App\Services\Reservation\ReservationHandover;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class HotelPageController extends Controller
@@ -12,6 +16,60 @@ class HotelPageController extends Controller
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
 
     public function __construct(private readonly ReservationHandover $handover) {}
+
+    /**
+     * What the AI concierge says when the guest steps into the rooms scenes.
+     * Every sentence is built from stored hotel data, never generated.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const NARRATION = [
+        'en' => [
+            'rooms' => 'Welcome to our Rooms & Suites. We have :count room types, starting from :price per night. Choose a room to see its photos and details, or ask me anything.',
+            'rooms_one' => 'Welcome to our Rooms & Suites. We have one room type, from :price per night. Open it to see its photos and details, or ask me anything.',
+            'size_guests' => 'It offers :size m² for up to :guests guests.',
+            'guests' => 'It welcomes up to :guests guests.',
+            'breakfast' => 'Breakfast is included.',
+            'price' => 'Rates start from :price per night. Final availability and rates are confirmed by our team.',
+            'facilities' => 'We have :count facilities and services, including :examples. Choose one to read the details, or ask me anything.',
+            'facilities_one' => 'We offer :examples. Open it to read the details, or ask me anything.',
+            'info_welcome' => 'Welcome to :hotel.',
+            'info_place' => 'We are located in :location.',
+            'info_hours' => 'Check-in is from :in and check-out is at :out.',
+            'info_more' => 'Below you will find the address, our policies and frequently asked questions — or just ask me.',
+            'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
+        ],
+        'id' => [
+            'rooms' => 'Selamat datang di Kamar & Suite kami. Kami memiliki :count tipe kamar, mulai dari :price per malam. Pilih kamar untuk melihat foto dan detailnya, atau tanyakan apa saja kepada saya.',
+            'rooms_one' => 'Selamat datang di Kamar & Suite kami. Kami memiliki satu tipe kamar, mulai dari :price per malam. Buka untuk melihat foto dan detailnya, atau tanyakan apa saja kepada saya.',
+            'size_guests' => 'Luasnya :size m² untuk maksimal :guests tamu.',
+            'guests' => 'Kamar ini untuk maksimal :guests tamu.',
+            'breakfast' => 'Sudah termasuk sarapan.',
+            'price' => 'Tarif mulai dari :price per malam. Ketersediaan dan tarif final dikonfirmasi oleh tim kami.',
+            'facilities' => 'Kami memiliki :count fasilitas dan layanan, di antaranya :examples. Pilih salah satu untuk membaca detailnya, atau tanyakan apa saja kepada saya.',
+            'facilities_one' => 'Kami memiliki :examples. Buka untuk membaca detailnya, atau tanyakan apa saja kepada saya.',
+            'info_welcome' => 'Selamat datang di :hotel.',
+            'info_place' => 'Kami berada di :location.',
+            'info_hours' => 'Check-in mulai pukul :in dan check-out pukul :out.',
+            'info_more' => 'Di bawah ini ada alamat, kebijakan, dan pertanyaan yang sering diajukan — atau tanyakan langsung kepada saya.',
+            'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
+        ],
+        'ja' => [
+            'rooms' => '客室・スイートへようこそ。:count タイプのお部屋をご用意しています。1泊 :price からです。お部屋を選ぶと写真と詳細をご覧いただけます。ご質問もお気軽にどうぞ。',
+            'rooms_one' => '客室・スイートへようこそ。1タイプのお部屋をご用意しています。1泊 :price からです。写真と詳細をご覧ください。ご質問もお気軽にどうぞ。',
+            'size_guests' => '広さは:size m²、最大:guests名様までご利用いただけます。',
+            'guests' => '最大:guests名様までご利用いただけます。',
+            'breakfast' => '朝食付きです。',
+            'price' => '料金は1泊 :price からです。空室状況と料金は、スタッフが最終確認いたします。',
+            'facilities' => ':count件の施設・サービスをご用意しています。:examples などです。選ぶと詳細をご覧いただけます。ご質問もどうぞ。',
+            'facilities_one' => ':examples をご用意しています。詳細をご覧ください。ご質問もどうぞ。',
+            'info_welcome' => 'ようこそ、:hotel へ。',
+            'info_place' => '所在地は:locationです。',
+            'info_hours' => 'チェックインは:in以降、チェックアウトは:outまでです。',
+            'info_more' => '以下に、所在地、ご利用規定、よくあるご質問をご案内しています。お気軽にお尋ねください。',
+            'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
+        ],
+    ];
 
     /**
      * Guest-facing names for the coded room values stored in the database.
@@ -68,6 +126,10 @@ class HotelPageController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        $facilities = $hotel->knowledgeItems()->where('is_active', true)
+            ->whereIn('category', ['facilities', 'dining', 'transport'])
+            ->orderBy('sort_order')->get();
+
         return view('hotel.show', [
             'hotel' => $hotel,
             'roomTypes' => $roomTypes,
@@ -77,15 +139,100 @@ class HotelPageController extends Controller
             'lobby' => $this->lobbyLabels($locale),
             'roomTerms' => self::ROOM_TERMS[$locale],
             'wizard' => $this->wizardLabels($locale),
+            'narration' => self::NARRATION[$locale],
+            'roomNarrations' => $this->roomNarrations($hotel, $roomTypes, $locale),
             'staffLinks' => $this->handover->forStaff($hotel, $locale),
             'today' => now($hotel->timezone)->toDateString(),
             'infoItems' => $hotel->knowledgeItems()->where('is_active', true)
                 ->whereIn('category', ['general', 'policies', 'faq'])
                 ->orderBy('sort_order')->get()->groupBy('category'),
-            'facilities' => $hotel->knowledgeItems()->where('is_active', true)
-                ->whereIn('category', ['facilities', 'dining', 'transport'])
-                ->orderBy('sort_order')->get(),
+            'facilities' => $facilities,
+            'sceneNarrations' => $this->sceneNarrations($hotel, $facilities, $locale),
         ]);
+    }
+
+    /**
+     * Intros for the facilities list and the hotel information scene, built
+     * only from stored hotel data.
+     *
+     * @param  Collection<int, HotelKnowledgeItem>  $facilities
+     * @return array{facilities: ?string, info: string}
+     */
+    private function sceneNarrations(Hotel $hotel, Collection $facilities, string $locale): array
+    {
+        $templates = self::NARRATION[$locale];
+        $separator = $locale === 'ja' ? '、' : '; ';
+        $time = fn (?string $value) => $value ? substr($value, 0, 5) : null;
+
+        $intro = null;
+
+        if ($facilities->isNotEmpty()) {
+            $examples = $facilities->take(3)->map(fn ($item) => $item->translatedTitle($locale))->implode($separator);
+            $intro = str_replace(
+                [':count', ':examples'],
+                [(string) $facilities->count(), $examples],
+                $templates[$facilities->count() === 1 ? 'facilities_one' : 'facilities']
+            );
+        }
+
+        $location = collect([$hotel->city, $hotel->country])->filter()->implode($locale === 'ja' ? '、' : ', ');
+        $parts = [str_replace(':hotel', $hotel->name, $templates['info_welcome'])];
+
+        if ($location !== '') {
+            $parts[] = str_replace(':location', $location, $templates['info_place']);
+        }
+
+        if ($time($hotel->check_in_time) && $time($hotel->check_out_time)) {
+            $parts[] = str_replace([':in', ':out'], [$time($hotel->check_in_time), $time($hotel->check_out_time)], $templates['info_hours']);
+        }
+
+        $parts[] = $templates['info_more'];
+
+        return ['facilities' => $intro, 'info' => implode(' ', $parts)];
+    }
+
+    /**
+     * @param  Collection<int, RoomType>  $roomTypes
+     * @return array{rooms: ?string, room: array<string, string>}
+     */
+    private function roomNarrations(Hotel $hotel, Collection $roomTypes, string $locale): array
+    {
+        $templates = self::NARRATION[$locale];
+        $terms = self::ROOM_TERMS[$locale];
+        $money = fn ($value) => $hotel->currency.' '.number_format((float) $value, 0, ',', '.');
+        $sentence = fn (string $text) => preg_match('/[.!?。！？]$/u', $text) ? $text : $text.($locale === 'ja' ? '。' : '.');
+
+        if ($roomTypes->isEmpty()) {
+            return ['rooms' => null, 'room' => []];
+        }
+
+        $intro = str_replace(
+            [':count', ':price'],
+            [(string) $roomTypes->count(), $money($roomTypes->min('base_price'))],
+            $templates[$roomTypes->count() === 1 ? 'rooms_one' : 'rooms']
+        );
+
+        $rooms = $roomTypes->mapWithKeys(function ($roomType) use ($templates, $terms, $money, $sentence, $locale) {
+            $parts = [$roomType->translatedName($locale).'.', filled($roomType->translatedDescription($locale)) ? $sentence(trim($roomType->translatedDescription($locale))) : null];
+
+            $parts[] = $roomType->size_sqm
+                ? str_replace([':size', ':guests'], [(string) $roomType->size_sqm, (string) $roomType->maxOccupancy()], $templates['size_guests'])
+                : str_replace(':guests', (string) $roomType->maxOccupancy(), $templates['guests']);
+
+            if ($roomType->view_type) {
+                $parts[] = $sentence($terms['view'][$roomType->view_type] ?? Str::headline($roomType->view_type));
+            }
+
+            if ($roomType->breakfast_included) {
+                $parts[] = $templates['breakfast'];
+            }
+
+            $parts[] = str_replace(':price', $money($roomType->base_price), $templates['price']);
+
+            return [$roomType->slug => implode(' ', array_filter($parts))];
+        })->all();
+
+        return ['rooms' => $intro, 'room' => $rooms];
     }
 
     /**

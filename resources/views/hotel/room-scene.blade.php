@@ -22,6 +22,8 @@
                 @endif
             </div>
 
+            @include('hotel.narrator', ['text' => $roomNarrations['room'][$roomType->slug], 'key' => 'room-'.$roomType->slug])
+
             <div class="mt-5 grid gap-7 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <div data-room-gallery>
                     <div class="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-stone-200">

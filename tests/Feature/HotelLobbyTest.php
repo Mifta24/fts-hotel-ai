@@ -166,4 +166,61 @@ class HotelLobbyTest extends TestCase
         $this->get('/demo?lang=id')->assertOk()->assertSee('data-stage-loader', false)->assertSee('Menyiapkan pengalaman hotel Anda');
         $this->get('/?lang=en')->assertOk()->assertSee('data-stage-exit', false)->assertSee('Preparing your hotel experience');
     }
+
+    public function test_the_concierge_introduces_rooms_using_only_stored_hotel_data(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $hotel->roomTypes()->create([
+            'name' => 'Deluxe King', 'slug' => 'deluxe-king', 'description' => 'A calm room with a garden outlook', 'base_price' => 950000, 'size_sqm' => 32,
+            'max_adults' => 2, 'max_children' => 1, 'view_type' => 'garden', 'breakfast_included' => true, 'is_active' => true, 'sort_order' => 0,
+        ]);
+        $hotel->roomTypes()->create(['name' => 'Family Suite', 'slug' => 'family-suite', 'base_price' => 2200000, 'max_adults' => 2, 'max_children' => 2, 'breakfast_included' => false, 'is_active' => true, 'sort_order' => 1]);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('data-narrator', false)
+            ->assertSee('We have 2 room types, starting from IDR 950.000 per night.')
+            ->assertSee('Deluxe King. A calm room with a garden outlook. It offers 32 m² for up to 3 guests. Garden view. Breakfast is included. Rates start from IDR 950.000 per night.')
+            ->assertSee('Family Suite. It welcomes up to 4 guests. Rates start from IDR 2.200.000 per night. Final availability and rates are confirmed by our team.');
+
+        $this->get('/demo?lang=id')->assertOk()->assertSee('Kami memiliki 2 tipe kamar, mulai dari IDR 950.000 per malam.');
+    }
+
+    public function test_no_rooms_narration_is_shown_when_the_hotel_has_no_rooms(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo?lang=en')->assertOk()->assertDontSee('data-key="rooms"', false)->assertDontSee('Welcome to our Rooms');
+    }
+
+    public function test_the_concierge_introduces_facilities_and_hotel_information_from_stored_data(): void
+    {
+        $hotel = Hotel::create([
+            'name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'city' => 'Bali', 'country' => 'Indonesia',
+            'check_in_time' => '14:00', 'check_out_time' => '12:00',
+        ]);
+        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Garden pool', 'body' => "Open 07:00 to 20:00.\nTowels included.", 'is_active' => true, 'sort_order' => 0]);
+        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Gym', 'body' => 'Open 24 hours.', 'is_active' => true, 'sort_order' => 1]);
+        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Hidden spa', 'body' => 'Private.', 'is_active' => false, 'sort_order' => 2]);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('We have 2 facilities and services, including Garden pool; Gym.')
+            ->assertDontSee('including Garden pool; Gym; Hidden spa')
+            ->assertSee('Welcome to Demo. We are located in Bali, Indonesia. Check-in is from 14:00 and check-out is at 12:00.')
+            ->assertSee('data-key="facility-', false)
+            ->assertSee('data-text="Open 07:00 to 20:00.', false);
+
+        $this->get('/demo?lang=id')->assertOk()->assertSee('Selamat datang di Demo. Kami berada di Bali, Indonesia.');
+    }
+
+    public function test_hotel_information_narration_skips_missing_data(): void
+    {
+        Hotel::create(['name' => 'Bare', 'slug' => 'bare', 'public_status' => 'published']);
+
+        $this->get('/bare?lang=en')
+            ->assertOk()
+            ->assertSee('Welcome to Bare. Check-in is from 14:00 and check-out is at 12:00. Below you will find the address')
+            ->assertDontSee('We are located in');
+    }
 }
