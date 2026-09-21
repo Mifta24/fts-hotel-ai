@@ -32,7 +32,11 @@ function initStage() {
 
             event.preventDefault();
             stage.classList.add('is-leaving');
-            window.setTimeout(() => { window.location.href = link.href; }, reducedMotion ? 0 : 380);
+
+            // Let the lobby bell ring out while the scene fades, when sound is on.
+            const chime = window.hotelSound?.isEnabled() ?? false;
+            if (chime) window.hotelSound.play('enter');
+            window.setTimeout(() => { window.location.href = link.href; }, chime ? 700 : reducedMotion ? 0 : 380);
         });
     });
 }

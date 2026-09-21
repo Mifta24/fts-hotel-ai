@@ -247,3 +247,12 @@
     .stage[data-page]:not([data-page="home"]) .lobby-content:not([hidden]) { animation: none; }
     .narrator.is-speaking .narrator-avatar, .narrator.is-speaking .narrator-avatar::after, .narrator.is-speaking .narrator-wave i, .narrator.is-speaking .narrator-text::after { animation: none; }
 }
+
+/* Sound toggle */
+.stage-tools { display: flex; align-items: center; gap: 10px; }
+.sound-toggle { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #ffffff40; border-radius: 50%; background: #18312d80; color: white; backdrop-filter: blur(12px); cursor: pointer; transition: background .2s; }
+.sound-toggle:hover { background: #18312db3; }
+.sound-toggle .sound-mute { display: none; }
+.sound-toggle.is-muted .sound-mute { display: block; }
+.sound-toggle.is-muted .sound-waves { display: none; }
+.sound-toggle.is-muted { color: #ffffffb3; }

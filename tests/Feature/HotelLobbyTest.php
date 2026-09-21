@@ -223,4 +223,14 @@ class HotelLobbyTest extends TestCase
             ->assertSee('Welcome to Bare. Check-in is from 14:00 and check-out is at 12:00. Below you will find the address')
             ->assertDontSee('We are located in');
     }
+
+    public function test_the_sound_toggle_is_available_on_the_opening_screen_and_the_lobby_in_every_language(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/?lang=en')->assertOk()->assertSee('data-sound-toggle', false)->assertSee('Sound on')->assertSee('Sound off');
+        $this->get('/?lang=id')->assertOk()->assertSee('Suara aktif')->assertSee('Suara mati');
+        $this->get('/demo?lang=en')->assertOk()->assertSee('data-sound-toggle', false)->assertSee('data-label-off="Sound off"', false);
+        $this->get('/demo?lang=ja')->assertOk()->assertSee('サウンドオン');
+    }
 }

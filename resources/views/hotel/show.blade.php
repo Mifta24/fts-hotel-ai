@@ -19,11 +19,14 @@
                 <span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span>
                 <span class="min-w-0"><span class="block truncate font-semibold tracking-tight">{{ $hotel->name }}</span><span class="block truncate text-xs opacity-75">{{ $hotel->city }} · {{ $hotel->country }}</span></span>
             </a>
-            <nav aria-label="Language" class="stage-lang">
-                @foreach ($supportedLocales as $code)
-                    <a href="?lang={{ $code }}" lang="{{ $code }}" aria-label="{{ ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語'][$code] }}" @if($code === $locale) aria-current="true" @endif>{{ $code }}</a>
-                @endforeach
-            </nav>
+            <div class="stage-tools">
+                <x-sound-toggle :on="$lobby['sound_on']" :off="$lobby['sound_off']" />
+                <nav aria-label="Language" class="stage-lang">
+                    @foreach ($supportedLocales as $code)
+                        <a href="?lang={{ $code }}" lang="{{ $code }}" aria-label="{{ ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語'][$code] }}" @if($code === $locale) aria-current="true" @endif>{{ $code }}</a>
+                    @endforeach
+                </nav>
+            </div>
         </header>
 
         <div class="stage-welcome">

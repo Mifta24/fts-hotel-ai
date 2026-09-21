@@ -281,6 +281,7 @@ function initConcierge() {
 
             if (data.messages.length > knownMessageCount) {
                 data.messages.slice(knownMessageCount).forEach(renderMessage);
+                window.hotelSound?.play('incoming');
                 knownMessageCount = data.messages.length;
                 scrollToBottom();
             }
@@ -435,12 +436,14 @@ function initConcierge() {
 
         openPanel();
         if (!retry) messagesEl.appendChild(bubble('guest', text));
+        window.hotelSound?.play('sent');
         scrollToBottom();
         setBusy(true);
 
         try {
             const data = await api(config.messageUrl, { guest_token: guestToken, message: text, ...uiContext() });
             renderMessage(data.message);
+            window.hotelSound?.play('incoming');
             knownMessageCount += 2; // the guest message just sent + the reply just rendered
             if (data.status === 'handed_over') {
                 showHandedOverBanner();

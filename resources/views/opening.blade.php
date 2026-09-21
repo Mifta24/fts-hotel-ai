@@ -18,11 +18,14 @@
                 <span class="hotel-monogram" aria-hidden="true">F</span>
                 <span class="block truncate font-semibold tracking-tight">FTS Hotel AI</span>
             </span>
-            <nav aria-label="Language" class="stage-lang">
-                @foreach ($supportedLocales as $code)
-                    <a href="?lang={{ $code }}" lang="{{ $code }}" aria-label="{{ ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語'][$code] }}" @if($code === $locale) aria-current="true" @endif>{{ $code }}</a>
-                @endforeach
-            </nav>
+            <div class="stage-tools">
+                <x-sound-toggle :on="$opening['sound_on']" :off="$opening['sound_off']" />
+                <nav aria-label="Language" class="stage-lang">
+                    @foreach ($supportedLocales as $code)
+                        <a href="?lang={{ $code }}" lang="{{ $code }}" aria-label="{{ ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => '日本語'][$code] }}" @if($code === $locale) aria-current="true" @endif>{{ $code }}</a>
+                    @endforeach
+                </nav>
+            </div>
         </header>
 
         <section class="opening-panel" aria-labelledby="opening-title">

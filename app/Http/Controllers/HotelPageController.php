@@ -244,17 +244,17 @@ class HotelPageController extends Controller
             'en' => [
                 'welcome' => 'Welcome to', 'tagline' => 'Your AI concierge, ready to help you find the perfect stay.',
                 'enter' => 'Enter :name', 'empty' => 'The virtual lobby is being prepared. Please come back soon.',
-                'loading' => 'Preparing your hotel experience…', 'rooms' => 'Explore rooms', 'facilities' => 'See facilities', 'reservation' => 'Plan a reservation', 'staff' => 'Talk to staff',
+                'loading' => 'Preparing your hotel experience…', 'sound_on' => 'Sound on', 'sound_off' => 'Sound off', 'rooms' => 'Explore rooms', 'facilities' => 'See facilities', 'reservation' => 'Plan a reservation', 'staff' => 'Talk to staff',
             ],
             'ja' => [
                 'welcome' => 'ようこそ', 'tagline' => 'AIコンシェルジュが、理想のご滞在をお手伝いします。',
                 'enter' => ':name に入る', 'empty' => 'バーチャルロビーは準備中です。しばらくしてからお越しください。',
-                'loading' => 'ホテル体験を準備しています…', 'rooms' => '客室を見る', 'facilities' => '施設を見る', 'reservation' => '予約を計画する', 'staff' => 'スタッフに相談',
+                'loading' => 'ホテル体験を準備しています…', 'sound_on' => 'サウンドオン', 'sound_off' => 'サウンドオフ', 'rooms' => '客室を見る', 'facilities' => '施設を見る', 'reservation' => '予約を計画する', 'staff' => 'スタッフに相談',
             ],
             default => [
                 'welcome' => 'Selamat datang di', 'tagline' => 'AI Concierge siap membantu Anda menemukan pengalaman menginap terbaik.',
                 'enter' => 'Masuk ke :name', 'empty' => 'Lobi virtual sedang dipersiapkan. Silakan kembali lagi nanti.',
-                'loading' => 'Menyiapkan pengalaman hotel Anda…', 'rooms' => 'Jelajahi kamar', 'facilities' => 'Lihat fasilitas', 'reservation' => 'Rencanakan reservasi', 'staff' => 'Bicara dengan staf',
+                'loading' => 'Menyiapkan pengalaman hotel Anda…', 'sound_on' => 'Suara aktif', 'sound_off' => 'Suara mati', 'rooms' => 'Jelajahi kamar', 'facilities' => 'Lihat fasilitas', 'reservation' => 'Rencanakan reservasi', 'staff' => 'Bicara dengan staf',
             ],
         };
     }
@@ -342,6 +342,7 @@ class HotelPageController extends Controller
                 'info_address' => 'Address', 'info_hours' => 'Check-in / check-out', 'info_contact' => 'Contact', 'info_map' => 'Open in Maps', 'info_ask' => 'Ask about the hotel',
                 'facility_counter' => 'Facility', 'prev_facility' => 'Previous', 'next_facility' => 'Next', 'ask_facility' => 'Ask about this facility', 'back_facilities' => 'All facilities', 'open_facility' => 'Read more', 'ask_facility_q' => 'Tell me more about :name.',
                 'loading' => 'Preparing your hotel experience…',
+                'sound_on' => 'Sound on', 'sound_off' => 'Sound off',
                 'room_scene' => 'Room details', 'room_counter' => 'Room', 'gallery' => 'Photo gallery', 'photo' => 'Photo',
                 'no_photo' => 'Photos coming soon', 'prev_room' => 'Previous room', 'next_room' => 'Next room',
                 'ask_room' => 'Ask about this room', 'reserve_room' => 'Request reservation', 'breakfast_excluded' => 'Room only', 'breakfast' => 'Breakfast',
@@ -367,6 +368,7 @@ class HotelPageController extends Controller
                 'info_address' => '所在地', 'info_hours' => 'チェックイン / チェックアウト', 'info_contact' => 'お問い合わせ', 'info_map' => '地図で開く', 'info_ask' => 'ホテルについて聞く',
                 'facility_counter' => '施設', 'prev_facility' => '前へ', 'next_facility' => '次へ', 'ask_facility' => 'この施設について聞く', 'back_facilities' => '施設一覧', 'open_facility' => '詳しく見る', 'ask_facility_q' => ':name について詳しく教えてください。',
                 'loading' => 'ホテル体験を準備しています…',
+                'sound_on' => 'サウンドオン', 'sound_off' => 'サウンドオフ',
                 'room_scene' => '客室のご案内', 'room_counter' => '客室', 'gallery' => 'フォトギャラリー', 'photo' => '写真',
                 'no_photo' => '写真は準備中です', 'prev_room' => '前の客室', 'next_room' => '次の客室',
                 'ask_room' => 'この客室について聞く', 'reserve_room' => '予約をリクエスト', 'breakfast_excluded' => '朝食なし', 'breakfast' => '朝食',
@@ -392,6 +394,7 @@ class HotelPageController extends Controller
                 'info_address' => 'Alamat', 'info_hours' => 'Check-in / check-out', 'info_contact' => 'Kontak', 'info_map' => 'Buka di Maps', 'info_ask' => 'Tanya tentang hotel',
                 'facility_counter' => 'Fasilitas', 'prev_facility' => 'Sebelumnya', 'next_facility' => 'Berikutnya', 'ask_facility' => 'Tanya tentang fasilitas ini', 'back_facilities' => 'Semua fasilitas', 'open_facility' => 'Selengkapnya', 'ask_facility_q' => 'Ceritakan lebih banyak tentang :name.',
                 'loading' => 'Menyiapkan pengalaman hotel Anda…',
+                'sound_on' => 'Suara aktif', 'sound_off' => 'Suara mati',
                 'room_scene' => 'Detail kamar', 'room_counter' => 'Kamar', 'gallery' => 'Galeri foto', 'photo' => 'Foto',
                 'no_photo' => 'Foto segera tersedia', 'prev_room' => 'Kamar sebelumnya', 'next_room' => 'Kamar berikutnya',
                 'ask_room' => 'Tanya tentang kamar ini', 'reserve_room' => 'Ajukan reservasi', 'breakfast_excluded' => 'Tanpa sarapan', 'breakfast' => 'Sarapan',
