@@ -8,31 +8,6 @@
     </x-slot:welcome>
 
         <div class="stage-panels">
-            <section id="lobby-facilities" data-lobby-panel="facilities" class="lobby-content @container" hidden tabindex="-1">
-                <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
-                <p class="lobby-eyebrow">{{ $hotel->name }}</p>
-                <h2>{{ $labels['menu_facilities'] }}</h2>
-                @if($sceneNarrations['facilities'])
-                    @include('hotel.narrator', ['text' => $sceneNarrations['facilities'], 'key' => 'facilities'])
-                @endif
-                <div class="mt-6 grid gap-4 @lg:grid-cols-2">
-                    @forelse($facilities as $facility)
-                        <a href="#facility/{{ $facility->id }}" class="group block rounded-2xl border border-stone-200 bg-white p-6 transition hover:border-amber-600">
-                            <h3 class="font-semibold">{{ $facility->translatedTitle($locale) }}</h3>
-                            <p class="mt-3 line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-stone-600">{{ $facility->translatedBody($locale) }}</p>
-                            <span class="mt-4 inline-flex items-center gap-2 text-xs font-medium text-amber-800">{{ $lobby['open_facility'] }} <span aria-hidden="true" class="transition group-hover:translate-x-1">→</span></span>
-                        </a>
-                    @empty
-                        <p class="text-stone-500">{{ $lobby['empty'] }}</p>
-                    @endforelse
-                </div>
-                <button type="button" data-hero-quick-message="{{ $labels['menu_facilities_q'] }}" class="lobby-action mt-6">{{ $labels['ask_ai'] }} <span aria-hidden="true">↗</span></button>
-            </section>
-
-            @if($facilities->isNotEmpty())
-                @include('hotel.facility-scene')
-            @endif
-
             @include('hotel.info')
 
             @include('hotel.reservation')

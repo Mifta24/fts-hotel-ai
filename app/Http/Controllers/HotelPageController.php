@@ -45,6 +45,7 @@ class HotelPageController extends Controller
             'info_hours' => 'Check-in is from :in and check-out is at :out.',
             'info_more' => 'Below you will find the address, our policies and frequently asked questions — or just ask me.',
             'tour_rooms' => 'This way — let me show you our rooms.',
+            'tour_facilities' => 'Come, let me show you the hotel facilities.',
             'tour_lobby' => 'Let me walk you back to the lobby.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
@@ -62,6 +63,7 @@ class HotelPageController extends Controller
             'info_hours' => 'Check-in mulai pukul :in dan check-out pukul :out.',
             'info_more' => 'Di bawah ini ada alamat, kebijakan, dan pertanyaan yang sering diajukan — atau tanyakan langsung kepada saya.',
             'tour_rooms' => 'Mari, saya antar ke kamar-kamar kami.',
+            'tour_facilities' => 'Mari, saya antar ke fasilitas hotel kami.',
             'tour_lobby' => 'Mari saya antar kembali ke lobi.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
@@ -79,6 +81,7 @@ class HotelPageController extends Controller
             'info_hours' => 'チェックインは:in以降、チェックアウトは:outまでです。',
             'info_more' => '以下に、所在地、ご利用規定、よくあるご質問をご案内しています。お気軽にお尋ねください。',
             'tour_rooms' => 'こちらへどうぞ。客室へご案内します。',
+            'tour_facilities' => 'こちらへどうぞ。ホテルの施設へご案内します。',
             'tour_lobby' => 'ロビーへご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
@@ -156,6 +159,32 @@ class HotelPageController extends Controller
         ]);
     }
 
+    public function facilities(Request $request, string $hotelSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.facilities-index', $this->stageData($hotel, $locale, 'facilities'));
+    }
+
+    public function facility(Request $request, string $hotelSlug, int $facilityId): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        $data = $this->stageData($hotel, $locale, 'facility');
+        $facilities = $data['facilities'];
+        $index = $facilities->search(fn (HotelKnowledgeItem $item) => $item->id === $facilityId);
+
+        abort_if($index === false, 404);
+
+        return view('hotel.facility-detail', [
+            ...$data,
+            'facility' => $facilities[$index],
+            'facilityIndex' => $index,
+            'previousFacility' => $facilities[($index - 1 + $facilities->count()) % $facilities->count()],
+            'nextFacility' => $facilities[($index + 1) % $facilities->count()],
+        ]);
+    }
+
     /**
      * @return array{0: Hotel, 1: string}
      */
@@ -189,7 +218,7 @@ class HotelPageController extends Controller
 
         $facilities = $hotel->knowledgeItems()->where('is_active', true)
             ->whereIn('category', ['facilities', 'dining', 'transport'])
-            ->orderBy('sort_order')->get();
+            ->orderBy('sort_order')->get()->values();
 
         $labels = $this->labels($locale);
         $lobby = $this->lobbyLabels($locale);
@@ -224,7 +253,7 @@ class HotelPageController extends Controller
      * one cut-out of her (transparent PNG/WebP) that is layered in front, so
      * she can be placed clear of the panels and reused across scenes.
      *
-     * @return array{image: string, focus: string, character: ?string, anchor: string, avatarZoom: string, avatarFocus: string}
+     * @return array{image: string, focus: string, focusMobile: string, character: ?string, anchor: string, text: string, avatarZoom: string, avatarFocus: string}
      */
     private function sceneBackdrop(string $scene): array
     {
@@ -233,21 +262,37 @@ class HotelPageController extends Controller
                 'combined' => 'images/suite.png',
                 'background' => 'images/rooms-bg.png',
                 'focus' => 'center 26%',
+                'focusMobile' => '50% 14%',
                 'anchor' => 'right',
+                'text' => 'top',
                 'avatarZoom' => '500%',
                 'avatarFocus' => '52% 10%',
+            ],
+            'facilities' => [
+                'combined' => 'images/facility.png',
+                'background' => 'images/facilities-bg.png',
+                'focus' => 'center 30%',
+                'focusMobile' => '24% 18%',
+                // She stands on the left of this artwork, so the scene text
+                // sits low and leaves her face clear.
+                'anchor' => 'left',
+                'text' => 'bottom',
+                'avatarZoom' => '500%',
+                'avatarFocus' => '17% 11%',
             ],
             'lobby' => [
                 'combined' => 'images/concierge-lobby.png',
                 'background' => 'images/lobby-bg.png',
                 'focus' => 'center 22%',
+                'focusMobile' => '50% 15%',
                 'anchor' => 'center',
+                'text' => 'top',
                 'avatarZoom' => '315%',
                 'avatarFocus' => '51% 19%',
             ],
         ];
 
-        $artwork = $scenes[$scene === 'room' ? 'rooms' : $scene] ?? $scenes['lobby'];
+        $artwork = $scenes[['room' => 'rooms', 'facility' => 'facilities'][$scene] ?? $scene] ?? $scenes['lobby'];
 
         $character = file_exists(public_path(self::CHARACTER_IMAGE)) ? self::CHARACTER_IMAGE : null;
         $background = $character && file_exists(public_path($artwork['background'])) ? $artwork['background'] : null;
@@ -262,8 +307,10 @@ class HotelPageController extends Controller
         return [
             'image' => asset($background),
             'focus' => $artwork['focus'],
+            'focusMobile' => $artwork['focusMobile'],
             'character' => $character ? asset($character) : null,
             'anchor' => $artwork['anchor'],
+            'text' => $artwork['text'],
             // The avatars crop the concierge out of whichever picture holds her.
             'avatarZoom' => $character ? self::CHARACTER_AVATAR_ZOOM : $artwork['avatarZoom'],
             'avatarFocus' => $character ? self::CHARACTER_AVATAR_FOCUS : $artwork['avatarFocus'],
@@ -285,10 +332,14 @@ class HotelPageController extends Controller
         $onLobby = $scene === 'lobby';
         $tour = self::NARRATION[$locale];
 
-        $items = [['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']]];
+        $facilitiesUrl = route('hotel.facilities', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+
+        $items = [
+            ['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']],
+            ['key' => 'facilities', 'label' => $labels['menu_facilities'], 'href' => $facilitiesUrl, 'exit' => true, 'tour' => $tour['tour_facilities']],
+        ];
 
         foreach ([
-            ['facilities', $labels['menu_facilities']],
             ['info', $lobby['menu_info']],
             ['reservation', $lobby['reservation']],
             ['staff', $labels['menu_staff']],

@@ -108,4 +108,24 @@ class AdminAccessTest extends TestCase
 
         $this->post(route('admin.login.store'), ['email' => $this->staff->email, 'password' => 'wrong'])->assertTooManyRequests();
     }
+
+    public function test_staff_can_give_a_facility_a_photo_and_only_a_real_url_is_accepted(): void
+    {
+        $item = $this->hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Garden pool', 'body' => 'Open until 8pm.', 'is_active' => true]);
+        $form = ['category' => 'facilities', 'title' => 'Garden pool', 'body' => 'Open until 8pm.', 'is_active' => 1];
+
+        $this->actingAs($this->staff)
+            ->put(route('admin.knowledge-items.update', $item), [...$form, 'image_url' => 'javascript:alert(1)'])
+            ->assertSessionHasErrors('image_url');
+
+        $this->actingAs($this->staff)
+            ->put(route('admin.knowledge-items.update', $item), [...$form, 'image_url' => 'ftp://example.test/pool.jpg'])
+            ->assertSessionHasErrors('image_url');
+
+        $this->actingAs($this->staff)
+            ->put(route('admin.knowledge-items.update', $item), [...$form, 'image_url' => 'https://example.test/pool.jpg'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('https://example.test/pool.jpg', $item->fresh()->image_url);
+    }
 }

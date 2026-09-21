@@ -222,8 +222,10 @@ class DemoHotelSeeder extends Seeder
             $booked = ($i * 7 + $roomType->id * 3) % ($totalUnits + 2);
             $booked = min($booked, $totalUnits);
 
+            // Match on the same value the date cast stores, so re-seeding
+            // updates the existing night instead of colliding with it.
             RoomInventory::updateOrCreate(
-                ['room_type_id' => $roomType->id, 'stay_date' => $date->toDateString()],
+                ['room_type_id' => $roomType->id, 'stay_date' => $date],
                 [
                     'total_units' => $totalUnits,
                     'booked_units' => $booked,
@@ -269,6 +271,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_FACILITIES,
                 'title' => 'Kolam renang',
+                'image_url' => 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Kolam renang infinity menghadap laut buka setiap hari pukul 07:00–19:00. Tidak beroperasi di malam hari untuk alasan keamanan. Handuk kolam disediakan gratis di pool bar.',
                 'translations' => [
                     'en' => ['title' => 'Swimming pool', 'body' => 'The ocean-facing infinity pool is open daily from 7:00 AM to 7:00 PM. It does not operate at night for safety reasons. Pool towels are provided free of charge at the pool bar.'],
@@ -279,6 +282,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_FACILITIES,
                 'title' => 'Gym, spa, dan area bisnis',
+                'image_url' => 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Pusat kebugaran buka 24 jam untuk tamu menginap. Spa buka pukul 10:00–21:00 dengan reservasi terlebih dahulu. Area bisnis dengan Wi-Fi cepat tersedia di lobi lantai 1.',
                 'translations' => [
                     'en' => ['title' => 'Gym, spa, and business area', 'body' => 'The fitness center is open 24 hours for in-house guests. The spa is open from 10:00 AM to 9:00 PM by advance reservation. A business area with fast Wi-Fi is available in the ground-floor lobby.'],
@@ -289,6 +293,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_FACILITIES,
                 'title' => 'Parkir dan Wi-Fi',
+                'image_url' => 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Parkir mobil dan motor tersedia gratis bagi tamu menginap. Wi-Fi gratis tersedia di seluruh area kamar dan fasilitas umum dengan kecepatan yang memadai untuk video call.',
                 'translations' => [
                     'en' => ['title' => 'Parking and Wi-Fi', 'body' => 'Free car and motorbike parking is available for in-house guests. Complimentary Wi-Fi covers all rooms and public areas, fast enough for video calls.'],
@@ -299,6 +304,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_DINING,
                 'title' => 'Sarapan',
+                'image_url' => 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Sarapan prasmanan disajikan di Restoran Samudra pukul 06:30–10:30, mencakup menu Indonesia dan internasional. Sarapan sudah termasuk pada semua tipe kamar kecuali disebutkan lain.',
                 'translations' => [
                     'en' => ['title' => 'Breakfast', 'body' => 'Buffet breakfast is served at Samudra Restaurant from 6:30 AM to 10:30 AM, with both Indonesian and international dishes. Breakfast is included with every room type unless stated otherwise.'],
@@ -329,6 +335,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_TRANSPORT,
                 'title' => 'Antar-jemput bandara',
+                'image_url' => 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Layanan antar-jemput dari dan ke Bandara Internasional Ngurah Rai tersedia dengan biaya tambahan, sekitar 30–40 menit perjalanan. Pemesanan harus dilakukan minimal 24 jam sebelum kedatangan dengan mengirimkan nomor penerbangan.',
                 'translations' => [
                     'en' => ['title' => 'Airport transfer', 'body' => 'Airport transfer to and from Ngurah Rai International Airport is available for an extra fee, about a 30-40 minute drive. Please book at least 24 hours in advance and share your flight number.'],
@@ -339,6 +346,7 @@ class DemoHotelSeeder extends Seeder
             [
                 'category' => HotelKnowledgeItem::CATEGORY_TRANSPORT,
                 'title' => 'Atraksi terdekat',
+                'image_url' => 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2?auto=format&fit=crop&w=800&q=80',
                 'body' => 'Pantai Nusa Dua dapat dicapai dengan berjalan kaki 2 menit. Water Blow Nusa Dua sekitar 5 menit berkendara, dan Pura Uluwatu berjarak sekitar 45 menit berkendara ke arah selatan.',
                 'translations' => [
                     'en' => ['title' => 'Nearby attractions', 'body' => 'Nusa Dua Beach is a 2-minute walk away. Water Blow Nusa Dua is about a 5-minute drive, and Uluwatu Temple is roughly a 45-minute drive to the south.'],
@@ -377,6 +385,7 @@ class DemoHotelSeeder extends Seeder
                     'body' => $item['body'],
                     'translations' => $item['translations'],
                     'tags' => $item['tags'],
+                    'image_url' => $item['image_url'] ?? null,
                     'is_active' => true,
                     'sort_order' => $sort++,
                 ]

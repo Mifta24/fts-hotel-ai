@@ -85,6 +85,7 @@ class KnowledgeItemController extends Controller
             'translations.ja.title' => ['nullable', 'string'],
             'translations.ja.body' => ['nullable', 'string'],
             'tags' => ['nullable', 'string'],
+            'image_url' => ['nullable', 'url:http,https', 'max:2048'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -98,6 +99,7 @@ class KnowledgeItemController extends Controller
                 'ja' => ['title' => $data['translations']['ja']['title'] ?? null, 'body' => $data['translations']['ja']['body'] ?? null],
             ],
             'tags' => collect(explode(',', (string) ($data['tags'] ?? '')))->map(fn ($t) => trim($t))->filter()->values()->all(),
+            'image_url' => $data['image_url'] ?? null,
             'is_active' => $request->boolean('is_active'),
             'sort_order' => $data['sort_order'] ?? 0,
         ];

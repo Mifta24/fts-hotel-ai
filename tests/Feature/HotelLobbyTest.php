@@ -38,15 +38,24 @@ class HotelLobbyTest extends TestCase
         $this->get('/?lang=en')->assertOk()->assertSee('The virtual lobby is being prepared');
     }
 
-    public function test_lobby_shows_only_active_facilities_for_the_current_hotel(): void
+    public function test_the_facilities_page_lists_only_active_facilities_of_the_current_hotel(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
-        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Garden pool', 'body' => 'Open until 8pm.', 'is_active' => true]);
+        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Garden pool', 'body' => 'Open until 8pm.', 'is_active' => true, 'image_url' => 'https://example.test/pool.jpg']);
         $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Hidden spa', 'body' => 'Private.', 'is_active' => false]);
         $other = Hotel::create(['name' => 'Other', 'slug' => 'other', 'public_status' => 'published']);
         $other->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Other pool', 'body' => 'Other hotel.', 'is_active' => true]);
 
-        $this->get('/demo')->assertOk()->assertSee('Garden pool')->assertDontSee('Hidden spa')->assertDontSee('Other pool');
+        $this->get('/demo/facilities')
+            ->assertOk()
+            ->assertSee('Garden pool')
+            ->assertDontSee('Hidden spa')
+            ->assertDontSee('Other pool')
+            // photo cards replace the menu card, which would cover the right-hand panel
+            ->assertSee('class="facility-card"', false)
+            ->assertSee('https://example.test/pool.jpg', false)
+            ->assertSee('class="lobby-content stage-panel-right', false)
+            ->assertDontSee('class="lobby-navigation"', false);
         $this->get('/demo?lang=en')->assertOk()->assertSee('Welcome to your')->assertSee('virtual lobby');
         $this->get('/demo?lang=ja')->assertOk()->assertSee('バーチャルロビー');
     }
@@ -135,7 +144,10 @@ class HotelLobbyTest extends TestCase
             ->assertOk()
             ->assertSee('href="'.route('hotel.rooms', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
             ->assertSee('data-tour-line="Mari, saya antar ke kamar-kamar kami."', false)
-            ->assertDontSee('data-lobby-panel="rooms"', false);
+            ->assertSee('href="'.route('hotel.facilities', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
+            ->assertSee('data-tour-line="Mari, saya antar ke fasilitas hotel kami."', false)
+            ->assertDontSee('data-lobby-panel="rooms"', false)
+            ->assertDontSee('data-lobby-panel="facilities"', false);
 
         $this->get('/demo/rooms?lang=id')
             ->assertOk()
@@ -168,20 +180,34 @@ class HotelLobbyTest extends TestCase
             ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation/deluxe-king"', false);
     }
 
-    public function test_facility_scenes_link_each_active_facility_with_previous_and_next(): void
+    public function test_each_facility_has_its_own_page_with_neighbours_and_an_index(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
         $pool = $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Garden pool', 'body' => 'Open 07:00 to 20:00.', 'is_active' => true, 'sort_order' => 0]);
         $gym = $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Gym', 'body' => 'Open 24 hours.', 'is_active' => true, 'sort_order' => 1]);
         $hidden = $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Hidden spa', 'body' => 'Private.', 'is_active' => false]);
 
-        $this->get('/demo?lang=en')
+        $url = fn ($item) => route('hotel.facility', ['hotelSlug' => 'demo', 'facilityId' => $item->id, 'lang' => 'en']);
+
+        $this->get('/demo/facilities?lang=en')
             ->assertOk()
-            ->assertSee('data-facility-scene="'.$pool->id.'"', false)
-            ->assertSee('data-facility-scene="'.$gym->id.'"', false)
-            ->assertDontSee('data-facility-scene="'.$hidden->id.'"', false)
-            ->assertSee('href="#facility/'.$gym->id.'"', false)
-            ->assertSee('Ask about this facility');
+            ->assertSee('data-scene="facilities"', false)
+            ->assertSee($url($pool), false)
+            ->assertSee($url($gym), false)
+            ->assertDontSee($url($hidden), false);
+
+        $this->get($url($pool))
+            ->assertOk()
+            ->assertSee('Facility 1 / 2')
+            ->assertSee('Open 07:00 to 20:00.')
+            ->assertSee('Ask about this facility')
+            // both neighbours wrap around to the only other facility
+            ->assertSee('rel="prev"', false)
+            ->assertSee($url($gym), false);
+
+        $this->get($url($hidden))->assertNotFound();
+        $this->get('/demo/facilities/999999')->assertNotFound();
+        $this->get('/draft/facilities')->assertNotFound();
     }
 
     public function test_hotel_information_panel_lists_only_approved_about_policy_and_faq_entries(): void
@@ -256,13 +282,21 @@ class HotelLobbyTest extends TestCase
         $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Gym', 'body' => 'Open 24 hours.', 'is_active' => true, 'sort_order' => 1]);
         $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Hidden spa', 'body' => 'Private.', 'is_active' => false, 'sort_order' => 2]);
 
-        $this->get('/demo?lang=en')
+        $pool = $hotel->knowledgeItems()->where('title', 'Garden pool')->firstOrFail();
+
+        $this->get('/demo/facilities?lang=en')
             ->assertOk()
             ->assertSee('We have 2 facilities and services, including Garden pool; Gym.')
-            ->assertDontSee('including Garden pool; Gym; Hidden spa')
-            ->assertSee('Welcome to Demo. We are located in Bali, Indonesia. Check-in is from 14:00 and check-out is at 12:00.')
+            ->assertDontSee('including Garden pool; Gym; Hidden spa');
+
+        $this->get(route('hotel.facility', ['hotelSlug' => 'demo', 'facilityId' => $pool->id, 'lang' => 'en']))
+            ->assertOk()
             ->assertSee('data-key="facility-', false)
             ->assertSee('data-text="Open 07:00 to 20:00.', false);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('Welcome to Demo. We are located in Bali, Indonesia. Check-in is from 14:00 and check-out is at 12:00.');
 
         $this->get('/demo?lang=id')->assertOk()->assertSee('Selamat datang di Demo. Kami berada di Bali, Indonesia.');
     }
@@ -302,7 +336,7 @@ class HotelLobbyTest extends TestCase
             // the way back to the main menu stays in the card
             ->assertSee('class="stage-menu-back"', false)
             ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
-            ->assertDontSee('data-lobby-link="facilities"', false);
+            ->assertDontSee('data-lobby-link="rooms"', false);
 
         // the open room is marked as current in the index, the others are not
         $index = $this->get('/demo/rooms/family-suite?lang=id')->getContent();
@@ -311,7 +345,7 @@ class HotelLobbyTest extends TestCase
         $this->assertSame(1, substr_count($navigation, 'aria-current'));
 
         // the lobby keeps the ordinary menu
-        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="facilities"', false)->assertDontSee('class="room-nav"', false);
+        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="info"', false)->assertDontSee('class="room-nav"', false);
     }
 
     public function test_a_scene_layers_a_cut_out_concierge_when_a_plain_background_is_supplied(): void
@@ -351,5 +385,20 @@ class HotelLobbyTest extends TestCase
             @unlink($character);
             @unlink($background);
         }
+    }
+
+    public function test_facility_icons_follow_what_the_entry_is_about(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+        $icon = fn (string $title, array $tags = []) => $hotel->knowledgeItems()->make(['category' => 'facilities', 'title' => $title, 'body' => '-', 'tags' => $tags])->iconName();
+
+        $this->assertSame('pool', $icon('Kolam renang'));
+        $this->assertSame('gym', $icon('Fitness centre'));
+        $this->assertSame('parking', $icon('Parkir dan Wi-Fi'));
+        $this->assertSame('dining', $icon('Breakfast'));
+        $this->assertSame('transport', $icon('Antar-jemput bandara'));
+        $this->assertSame('place', $icon('Atraksi terdekat'));
+        $this->assertSame('wifi', $icon('Internet', ['wifi']));
+        $this->assertSame('star', $icon('Kids club'));
     }
 }

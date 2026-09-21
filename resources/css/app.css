@@ -33,8 +33,9 @@
 .stage-welcome h1 { margin-top: 14px; font: clamp(28px, 3vw, 46px)/1.15 Georgia, serif; letter-spacing: -.025em; }
 .stage-welcome h1 em { font-weight: 400; }
 .stage-welcome p { margin-top: 16px; max-width: 280px; font-size: 14px; line-height: 1.8; color: #ffffffe6; }
-.stage-welcome-rooms { width: min(440px, 42vw); }
-.stage-welcome-rooms h1 { font-size: clamp(26px, 2.4vw, 38px); }
+.stage-welcome-scene { width: min(440px, 42vw); }
+.stage-welcome-scene h1 { font-size: clamp(26px, 2.4vw, 38px); }
+.stage-welcome-scene[data-anchor="bottom"] { top: auto; bottom: calc(var(--dock) + 36px); }
 .stage[data-scene="lobby"][data-page]:not([data-page="home"]) .stage-welcome { display: none; }
 
 .stage-menu, .opening-panel { border: 1px solid #ffffff38; background: #18312dc7; backdrop-filter: blur(18px); box-shadow: 0 10px 34px #0003; border-radius: 18px; }
@@ -129,7 +130,7 @@
 @media (max-width: 899px) {
     .stage { --header: 68px; --dock: 128px; }
     .stage-header { padding: 0 16px; }
-    .stage-image { object-position: 50% 15%; }
+    .stage-image { object-position: var(--stage-focus-mobile, 50% 15%); }
     .stage-character { height: 58%; max-width: 78%; }
     .stage-character[data-anchor="center"], .stage-character[data-anchor="left"] { left: auto; right: -6%; translate: none; }
     .stage-shade { background: linear-gradient(0deg, #0f1d1bea 0, #0f1d1b70 26%, transparent 48%), linear-gradient(180deg, #0f1d1b99, transparent 30%); }
@@ -316,3 +317,29 @@
 .stage-tour.is-visible { animation: tour-rise .45s ease both; }
 @keyframes tour-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .stage-tour.is-visible { animation: none; opacity: 1; } }
+
+/* Facilities: a wide panel on the right, leaving the concierge in view on the left */
+.lobby-content.stage-panel-right { left: 34%; right: 24px; background: #f7f4eef5; backdrop-filter: blur(12px); }
+.stage:has(.stage-chat.is-open) .lobby-content.stage-panel-right { right: calc(var(--col) + 48px); }
+.stage-panel-right h2 { font-size: clamp(30px, 3vw, 44px); }
+.narrator-inline { margin: 10px 0 0; padding: 0; border: 0; background: none; }
+.narrator-inline .narrator-avatar, .narrator-inline .narrator-name { display: none; }
+.narrator-inline .narrator-text { min-height: 0; margin-top: 0; max-width: 620px; font-size: 16px; color: #3d4640; }
+.facility-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 24px; }
+@container (min-width: 28rem) { .facility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (min-width: 50rem) { .facility-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.facility-card { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: 14px; background: white; box-shadow: 0 2px 10px #26312f14; transition: transform .2s, box-shadow .2s; }
+.facility-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px #26312f24; }
+.facility-card-photo { position: relative; display: block; flex-shrink: 0; min-height: 0; aspect-ratio: 16 / 10; background: #e4dfd3; }
+.facility-card-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.facility-card-icon { position: absolute; left: 12px; bottom: -20px; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: white; color: #26312f; box-shadow: 0 3px 10px #26312f26; }
+.facility-card-body { display: flex; flex-direction: column; gap: 6px; padding: 28px 52px 16px 14px; }
+.facility-card-title { font-size: 16px; font-weight: 600; color: #26312f; }
+.facility-card-text { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 12.5px; line-height: 1.55; color: #5d635a; }
+.facility-card-go { position: absolute; right: 12px; bottom: 16px; display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #cfc9bb; border-radius: 50%; color: #26312f; font-size: 18px; line-height: 1; transition: background .2s; }
+.facility-card:hover .facility-card-go { background: #26312f; color: white; border-color: #26312f; }
+.facility-hero { position: relative; height: clamp(170px, 28vh, 260px); }
+.facility-hero img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+.facility-hero .facility-card-icon { left: 18px; bottom: -20px; }
+.lobby-content .facility-hero + h2 { margin-top: 34px; }
+@media (max-width: 899px) { .lobby-content.stage-panel-right { left: 12px; right: 12px; } }

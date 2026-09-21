@@ -348,7 +348,7 @@ function initConcierge() {
         return el;
     }
 
-    const sceneNames = { home: 'reception', info: 'reception', rooms: 'rooms', room: 'room_detail', facilities: 'facilities', facility: 'facility_detail', reservation: 'reservation', staff: 'handover' };
+    const sceneNames = { home: 'reception', lobby: 'reception', info: 'reception', rooms: 'rooms', room: 'room_detail', facilities: 'facilities', facility: 'facility_detail', reservation: 'reservation', staff: 'handover' };
 
     /**
      * Where the guest is in the lobby, so the concierge can answer for "this
@@ -359,7 +359,9 @@ function initConcierge() {
         const pageScene = document.querySelector('[data-lobby]')?.dataset.scene;
         const context = { scene: (pageScene && pageScene !== 'lobby' ? sceneNames[pageScene] : null) || sceneNames[page] || 'reception' };
 
-        if (pageScene === 'room') context.selected_room = window.location.pathname.split('/').pop();
+        const lastSegment = decodeURIComponent(window.location.pathname.split('/').pop());
+        if (pageScene === 'room') context.selected_room = lastSegment;
+        if (pageScene === 'facility') context.selected_facility = Number(lastSegment);
 
         if (page === 'facility' && Number(param) > 0) context.selected_facility = Number(param);
 
@@ -558,27 +560,18 @@ function initLobbyNavigation() {
     if (!panels.length) return;
     const links = [...document.querySelectorAll('[data-lobby-link]')];
 
-    const scenes = [...document.querySelectorAll('[data-room-scene], [data-facility-scene]')];
-    const sceneId = (scene) => scene.dataset.roomScene ?? scene.dataset.facilityScene;
-    const sceneParents = { room: 'rooms', facility: 'facilities' };
+    const sceneParents = {};
 
     function showPage(focus = false) {
         const [requested, routeParam] = (window.location.hash.slice(1) || 'home').split('/');
         let page = panels.some((panel) => panel.dataset.lobbyPanel === requested) ? requested : 'home';
-        const activeScene = page in sceneParents
-            ? scenes.find((scene) => sceneId(scene) === routeParam && (page === 'room') === ('roomScene' in scene.dataset))
-            : null;
-        if (page in sceneParents && !activeScene) page = sceneParents[page];
-
         document.querySelector('[data-lobby]')?.setAttribute('data-page', page);
         panels.forEach((panel) => { panel.hidden = panel.dataset.lobbyPanel !== page; });
-        scenes.forEach((scene) => { scene.hidden = scene !== activeScene; });
 
         if (page === 'reservation' && routeParam) {
             window.dispatchEvent(new CustomEvent('reservation:preselect', { detail: routeParam }));
         }
 
-        // Room and facility scenes belong to their list's journey, so keep that nav item active.
         const activeLink = sceneParents[page] ?? page;
         links.forEach((link) => {
             if (link.dataset.lobbyLink === activeLink) link.setAttribute('aria-current', 'page');
