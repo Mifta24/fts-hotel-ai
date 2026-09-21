@@ -313,4 +313,43 @@ class HotelLobbyTest extends TestCase
         // the lobby keeps the ordinary menu
         $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="facilities"', false)->assertDontSee('class="room-nav"', false);
     }
+
+    public function test_a_scene_layers_a_cut_out_concierge_when_a_plain_background_is_supplied(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+
+        $pixel = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+        $character = public_path('images/character.png');
+        $background = public_path('images/rooms-bg.png');
+
+        try {
+            // Only the cut-out: the scene keeps the artwork that already has her in it.
+            file_put_contents($character, $pixel);
+
+            $this->get('/demo/rooms')
+                ->assertOk()
+                ->assertSee('images/suite.png', false)
+                ->assertDontSee('class="stage-character"', false);
+
+            // Cut-out plus a plain background: she is layered in front instead.
+            file_put_contents($background, $pixel);
+
+            $this->get('/demo/rooms')
+                ->assertOk()
+                ->assertSee('class="stage-character"', false)
+                ->assertSee('images/rooms-bg.png', false)
+                ->assertSee('images/character.png', false)
+                ->assertDontSee('images/suite.png', false);
+
+            // The lobby has no plain background of its own, so it is unaffected.
+            $this->get('/demo')
+                ->assertOk()
+                ->assertSee('images/concierge-lobby.png', false)
+                ->assertDontSee('class="stage-character"', false);
+        } finally {
+            @unlink($character);
+            @unlink($background);
+        }
+    }
 }

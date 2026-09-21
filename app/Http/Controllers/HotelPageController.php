@@ -15,6 +15,13 @@ class HotelPageController extends Controller
 {
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
 
+    /** A cut-out of the concierge, layered in front of a scene's background when present. */
+    private const CHARACTER_IMAGE = 'images/character.png';
+
+    private const CHARACTER_AVATAR_ZOOM = '280%';
+
+    private const CHARACTER_AVATAR_FOCUS = '50% 7%';
+
     public function __construct(private readonly ReservationHandover $handover) {}
 
     /**
@@ -212,30 +219,54 @@ class HotelPageController extends Controller
     }
 
     /**
-     * Each scene has its own backdrop of the concierge, plus how to frame her
-     * face for the small avatars. Until a hotel supplies a scene's artwork,
-     * the lobby backdrop stands in so the scene still renders.
+     * Artwork for a scene. A hotel can supply either a single picture with
+     * the concierge already in it, or — preferred — a plain background plus
+     * one cut-out of her (transparent PNG/WebP) that is layered in front, so
+     * she can be placed clear of the panels and reused across scenes.
      *
-     * @return array{image: string, focus: string, avatarZoom: string, avatarFocus: string}
+     * @return array{image: string, focus: string, character: ?string, anchor: string, avatarZoom: string, avatarFocus: string}
      */
     private function sceneBackdrop(string $scene): array
     {
-        $backdrops = [
-            'rooms' => ['file' => 'images/suite.png', 'focus' => 'center 26%', 'avatarZoom' => '500%', 'avatarFocus' => '52% 10%'],
-            'lobby' => ['file' => 'images/concierge-lobby.png', 'focus' => 'center 22%', 'avatarZoom' => '315%', 'avatarFocus' => '51% 19%'],
+        $scenes = [
+            'rooms' => [
+                'combined' => 'images/suite.png',
+                'background' => 'images/rooms-bg.png',
+                'focus' => 'center 26%',
+                'anchor' => 'right',
+                'avatarZoom' => '500%',
+                'avatarFocus' => '52% 10%',
+            ],
+            'lobby' => [
+                'combined' => 'images/concierge-lobby.png',
+                'background' => 'images/lobby-bg.png',
+                'focus' => 'center 22%',
+                'anchor' => 'center',
+                'avatarZoom' => '315%',
+                'avatarFocus' => '51% 19%',
+            ],
         ];
 
-        $backdrop = $backdrops[$scene === 'room' ? 'rooms' : $scene] ?? $backdrops['lobby'];
+        $artwork = $scenes[$scene === 'room' ? 'rooms' : $scene] ?? $scenes['lobby'];
 
-        if (! file_exists(public_path($backdrop['file']))) {
-            $backdrop = $backdrops['lobby'];
+        $character = file_exists(public_path(self::CHARACTER_IMAGE)) ? self::CHARACTER_IMAGE : null;
+        $background = $character && file_exists(public_path($artwork['background'])) ? $artwork['background'] : null;
+
+        if ($background === null) {
+            // No separate background for this scene, so use the picture that
+            // already has her in it — and do not layer her on top of herself.
+            $character = null;
+            $background = file_exists(public_path($artwork['combined'])) ? $artwork['combined'] : $scenes['lobby']['combined'];
         }
 
         return [
-            'image' => asset($backdrop['file']),
-            'focus' => $backdrop['focus'],
-            'avatarZoom' => $backdrop['avatarZoom'],
-            'avatarFocus' => $backdrop['avatarFocus'],
+            'image' => asset($background),
+            'focus' => $artwork['focus'],
+            'character' => $character ? asset($character) : null,
+            'anchor' => $artwork['anchor'],
+            // The avatars crop the concierge out of whichever picture holds her.
+            'avatarZoom' => $character ? self::CHARACTER_AVATAR_ZOOM : $artwork['avatarZoom'],
+            'avatarFocus' => $character ? self::CHARACTER_AVATAR_FOCUS : $artwork['avatarFocus'],
         ];
     }
 

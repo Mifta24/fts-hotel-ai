@@ -15,6 +15,12 @@
 .stage-page { height: 100dvh; overflow: hidden; background: #142321; color: white; }
 .stage { --header: 84px; --col: clamp(300px, 26vw, 380px); --dock: 156px; position: relative; height: 100dvh; overflow: hidden; isolation: isolate; }
 .stage-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--stage-focus, center 22%); transform-origin: 62% 38%; transition: transform 1s cubic-bezier(.2, .7, .2, 1), filter 1s ease; animation: lobby-arrive 1.4s ease-out backwards; z-index: -2; }
+.stage-character { position: absolute; z-index: 0; bottom: 0; height: min(94%, 1000px); width: auto; max-width: 62%; object-fit: contain; object-position: bottom; pointer-events: none; animation: character-arrive .8s ease-out .1s both; }
+.stage-character[data-anchor="left"] { left: 2%; }
+.stage-character[data-anchor="right"] { right: 2%; }
+.stage-character[data-anchor="center"] { left: 50%; translate: -50% 0; }
+.stage.is-leaving .stage-character { opacity: 0; transition: opacity .3s ease; }
+@keyframes character-arrive { from { opacity: 0; transform: translateY(18px) scale(.99); } to { opacity: 1; transform: none; } }
 .stage-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #0f1d1bde 0, #0f1d1b70 24%, transparent 46%), linear-gradient(90deg, #0f1d1bb3, transparent 50%); }
 .stage-header { position: absolute; inset: 0 0 auto; z-index: 5; display: flex; height: var(--header); align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; }
 .hotel-monogram { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 46px; border: 1px solid #e6d3a3; border-radius: 16px 16px 3px 3px; color: #f4e6c4; font: 28px Georgia, serif; }
@@ -124,6 +130,8 @@
     .stage { --header: 68px; --dock: 128px; }
     .stage-header { padding: 0 16px; }
     .stage-image { object-position: 50% 15%; }
+    .stage-character { height: 58%; max-width: 78%; }
+    .stage-character[data-anchor="center"], .stage-character[data-anchor="left"] { left: auto; right: -6%; translate: none; }
     .stage-shade { background: linear-gradient(0deg, #0f1d1bea 0, #0f1d1b70 26%, transparent 48%), linear-gradient(180deg, #0f1d1b99, transparent 30%); }
     .stage-welcome { left: 20px; right: 20px; top: auto; bottom: 136px; width: auto; }
     .stage-welcome h1 { margin-top: 8px; font-size: 26px; }
@@ -159,7 +167,7 @@
     .room-scene-step, .lobby-action { min-height: 44px; }
 }
 @media (max-width: 899px) and (max-height: 640px) { .stage-welcome { display: none; } }
-@media (prefers-reduced-motion: reduce) { .stage-image { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .stage-image, .stage-character { animation: none; } }
 
 /* Room scene: one room at a time inside the lobby, with a quick fade between rooms. */
 .lobby-content:not([hidden]) { animation: scene-in .35s ease-out both; }

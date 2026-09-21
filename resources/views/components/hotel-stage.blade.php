@@ -13,8 +13,11 @@
 <body class="stage-page antialiased" style="--concierge-image: url('{{ $backdrop['image'] }}'); --stage-focus: {{ $backdrop['focus'] }}; --concierge-zoom: {{ $backdrop['avatarZoom'] }}; --concierge-focus: {{ $backdrop['avatarFocus'] }}">
     <main class="stage" data-lobby data-scene="{{ $scene }}" data-page="{{ $scene === 'lobby' ? 'home' : $scene }}">
         <div class="stage-loader" data-stage-loader role="status"><span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span><p>{{ $lobby['loading'] }}</p></div>
-        <img src="{{ $backdrop['image'] }}" alt="{{ $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
+        <img src="{{ $backdrop['image'] }}" alt="{{ $backdrop['character'] ? '' : $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
         <div class="stage-shade"></div>
+        @if ($backdrop['character'])
+            <img src="{{ $backdrop['character'] }}" alt="{{ $lobby['assistant'] }}" class="stage-character" data-anchor="{{ $backdrop['anchor'] }}">
+        @endif
         <p class="stage-tour" data-stage-tour aria-live="polite"></p>
 
         <header class="stage-header">
