@@ -14,7 +14,7 @@
  */
 .stage-page { height: 100dvh; overflow: hidden; background: #142321; color: white; }
 .stage { --header: 84px; --col: clamp(300px, 26vw, 380px); --dock: 156px; position: relative; height: 100dvh; overflow: hidden; isolation: isolate; }
-.stage-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; transform-origin: 62% 38%; transition: transform 1s cubic-bezier(.2, .7, .2, 1), filter 1s ease; animation: lobby-arrive 1.4s ease-out backwards; z-index: -2; }
+.stage-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--stage-focus, center 22%); transform-origin: 62% 38%; transition: transform 1s cubic-bezier(.2, .7, .2, 1), filter 1s ease; animation: lobby-arrive 1.4s ease-out backwards; z-index: -2; }
 .stage-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #0f1d1bde 0, #0f1d1b70 24%, transparent 46%), linear-gradient(90deg, #0f1d1bb3, transparent 50%); }
 .stage-header { position: absolute; inset: 0 0 auto; z-index: 5; display: flex; height: var(--header); align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; }
 .hotel-monogram { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 46px; border: 1px solid #e6d3a3; border-radius: 16px 16px 3px 3px; color: #f4e6c4; font: 28px Georgia, serif; }
@@ -58,7 +58,7 @@
 .chat-log-close { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
 .chat-log-close:hover { background: #0000000d; }
 .chat-log-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 18px; overflow-wrap: anywhere; }
-.chat-host-avatar { display: inline-block; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat 51% 20%; background-size: 310%; border: 1px solid #d5c9ad; }
+.chat-host-avatar { display: inline-block; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat var(--concierge-focus, 51% 19%); background-size: var(--concierge-zoom, 315%); border: 1px solid #d5c9ad; }
 
 .chat-bar, .chat-chips { position: absolute; z-index: 5; left: calc((100% - var(--col) - 24px) / 2); width: min(720px, calc(100% - var(--col) - 96px)); transform: translateX(-50%); }
 .chat-bar { bottom: 76px; display: flex; align-items: center; gap: 10px; padding: 7px 7px 7px 26px; border-radius: 999px; background: white; color: #26312f; box-shadow: 0 8px 30px #0004; }
@@ -221,7 +221,7 @@
 .stage[data-page]:not([data-page="home"]) .lobby-content:not([hidden]) { animation-name: panel-slide; animation-duration: .45s; }
 @keyframes panel-slide { from { opacity: 0; translate: -28px 0; } to { opacity: 1; translate: 0 0; } }
 .narrator { display: flex; align-items: flex-start; gap: 16px; margin: 18px 0 8px; padding: 16px 18px; border: 1px solid #d9d4c7; border-radius: 16px; background: #fffdf9; }
-.narrator-avatar { position: relative; flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat 51% 18%; background-size: 320%; border: 2px solid #d5c9ad; }
+.narrator-avatar { position: relative; flex-shrink: 0; width: 64px; height: 64px; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat var(--concierge-focus, 51% 19%); background-size: var(--concierge-zoom, 315%); border: 2px solid #d5c9ad; }
 .narrator-avatar::after { content: ''; position: absolute; inset: -7px; border: 2px solid #b48c42; border-radius: 50%; opacity: 0; }
 .narrator.is-speaking .narrator-avatar { animation: narrator-nod 1.6s ease-in-out infinite; }
 .narrator.is-speaking .narrator-avatar::after { animation: narrator-ring 1.4s ease-out infinite; }

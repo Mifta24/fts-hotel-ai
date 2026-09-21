@@ -192,7 +192,7 @@ class HotelPageController extends Controller
             'roomTypes' => $roomTypes,
             'locale' => $locale,
             'scene' => $scene,
-            'sceneImage' => $this->sceneImage($scene),
+            'backdrop' => $this->sceneBackdrop($scene),
             'menuItems' => $this->stageMenu($hotel, $locale, $labels, $lobby, $scene),
             'supportedLocales' => self::SUPPORTED_LOCALES,
             'labels' => $labels,
@@ -212,17 +212,31 @@ class HotelPageController extends Controller
     }
 
     /**
-     * Each scene has its own backdrop of the concierge. Until a hotel supplies
-     * one, the lobby backdrop stands in so the scene still renders.
+     * Each scene has its own backdrop of the concierge, plus how to frame her
+     * face for the small avatars. Until a hotel supplies a scene's artwork,
+     * the lobby backdrop stands in so the scene still renders.
+     *
+     * @return array{image: string, focus: string, avatarZoom: string, avatarFocus: string}
      */
-    private function sceneImage(string $scene): string
+    private function sceneBackdrop(string $scene): array
     {
-        $file = match ($scene) {
-            'rooms', 'room' => 'images/concierge-rooms.png',
-            default => 'images/concierge-lobby.png',
-        };
+        $backdrops = [
+            'rooms' => ['file' => 'images/suite.png', 'focus' => 'center 26%', 'avatarZoom' => '500%', 'avatarFocus' => '52% 10%'],
+            'lobby' => ['file' => 'images/concierge-lobby.png', 'focus' => 'center 22%', 'avatarZoom' => '315%', 'avatarFocus' => '51% 19%'],
+        ];
 
-        return asset(file_exists(public_path($file)) ? $file : 'images/concierge-lobby.png');
+        $backdrop = $backdrops[$scene === 'room' ? 'rooms' : $scene] ?? $backdrops['lobby'];
+
+        if (! file_exists(public_path($backdrop['file']))) {
+            $backdrop = $backdrops['lobby'];
+        }
+
+        return [
+            'image' => asset($backdrop['file']),
+            'focus' => $backdrop['focus'],
+            'avatarZoom' => $backdrop['avatarZoom'],
+            'avatarFocus' => $backdrop['avatarFocus'],
+        ];
     }
 
     /**

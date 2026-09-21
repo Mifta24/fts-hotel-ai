@@ -1,4 +1,4 @@
-<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :scene-image="$sceneImage" :menu-items="$menuItems">
+<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems">
     <x-slot:welcome>
         <div class="stage-welcome">
             <span class="lobby-eyebrow">{{ $hotel->name }}</span>

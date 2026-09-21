@@ -1,4 +1,4 @@
-@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'sceneImage', 'menuItems', 'title' => null, 'welcome' => null])
+@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'title' => null, 'welcome' => null])
 {{-- The fixed full-screen stage every scene shares: backdrop, header, menu and the concierge chat dock. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}">
@@ -10,10 +10,10 @@
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="stage-page antialiased" style="--concierge-image: url('{{ $sceneImage }}')">
+<body class="stage-page antialiased" style="--concierge-image: url('{{ $backdrop['image'] }}'); --stage-focus: {{ $backdrop['focus'] }}; --concierge-zoom: {{ $backdrop['avatarZoom'] }}; --concierge-focus: {{ $backdrop['avatarFocus'] }}">
     <main class="stage" data-lobby data-scene="{{ $scene }}" data-page="{{ $scene === 'lobby' ? 'home' : $scene }}">
         <div class="stage-loader" data-stage-loader role="status"><span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span><p>{{ $lobby['loading'] }}</p></div>
-        <img src="{{ $sceneImage }}" alt="{{ $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
+        <img src="{{ $backdrop['image'] }}" alt="{{ $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
         <div class="stage-shade"></div>
         <p class="stage-tour" data-stage-tour aria-live="polite"></p>
 
