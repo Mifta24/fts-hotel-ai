@@ -86,7 +86,11 @@
 .chat-log-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 18px; overflow-wrap: anywhere; }
 .chat-host-avatar { display: inline-block; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat var(--concierge-focus, 51% 19%); background-size: var(--concierge-zoom, 315%); border: 1px solid #d5c9ad; }
 
-.chat-bar, .chat-chips { position: absolute; z-index: 5; left: calc((100% - var(--col) - 24px) / 2); width: min(720px, calc(100% - var(--col) - 96px)); transform: translateX(-50%); }
+.chat-bar, .chat-chips { position: absolute; z-index: 5; left: 50%; width: min(720px, calc(100% - 48px)); transform: translateX(-50%); transition: left .3s ease, width .3s ease; }
+/* While the transcript holds the right column, the dock moves over to stay clear of it. */
+.stage:has(.stage-chat.is-open) .chat-bar,
+.stage:has(.stage-chat.is-open) .chat-chips { left: calc((100% - var(--col) - 24px) / 2); width: min(720px, calc(100% - var(--col) - 96px)); }
+@media (prefers-reduced-motion: reduce) { .chat-bar, .chat-chips { transition: none; } }
 .chat-bar { bottom: 76px; display: flex; align-items: center; gap: 10px; padding: 7px 7px 7px 26px; border-radius: 999px; background: white; color: #26312f; box-shadow: 0 8px 30px #0004; }
 .chat-bar:focus-within { outline: 3px solid #b48c42; }
 .chat-bar input { min-width: 0; flex: 1; border: 0; background: transparent; font-size: 15px; outline: none; }
