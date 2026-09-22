@@ -20,7 +20,10 @@ class HotelLobbyTest extends TestCase
             ->assertOk()
             ->assertSee('FTS Hotel AI')
             ->assertSee('Enter Demo')
-            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#rooms"', false)
+            ->assertSee('href="'.route('hotel.rooms', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
+            ->assertSee('href="'.route('hotel.facilities', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
+            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation"', false)
+            ->assertSee('href="'.route('hotel.staff', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
             ->assertDontSee('Draft');
     }
 
@@ -169,15 +172,24 @@ class HotelLobbyTest extends TestCase
             ->assertSee('value="deluxe-king"', false)
             ->assertSee('Step :current of :total', false)
             ->assertSee(route('reservation.store', 'demo'), false)
-            ->assertSee('https://wa.me/6281200001111?text=', false)
-            ->assertSee('tel:+62361000', false)
-            ->assertSee('mailto:front@demo.test', false);
+            ->assertSee('href="'.route('hotel.staff', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
+            ->assertSee('data-tour-line="Let me bring you to our team."', false);
 
         $this->get('/demo?lang=id')->assertOk()->assertSee('Langkah :current dari :total', false);
 
         $this->get('/demo/rooms/deluxe-king?lang=en')
             ->assertOk()
             ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation/deluxe-king"', false);
+
+        $this->get('/demo/staff?lang=en')
+            ->assertOk()
+            ->assertSee('data-scene="staff"', false)
+            ->assertSee('data-tour-line="Let me walk you back to the lobby."', false)
+            ->assertSee('https://wa.me/6281200001111?text=', false)
+            ->assertSee('tel:+62361000', false)
+            ->assertSee('mailto:front@demo.test', false);
+
+        $this->get('/draft/staff')->assertNotFound();
     }
 
     public function test_each_facility_has_its_own_page_with_neighbours_and_an_index(): void

@@ -365,3 +365,13 @@ a.info-fact:hover { background: #f1e9d6; border-color: #d9c9a0; }
 .info-card-item[open] .chevron { transform: rotate(90deg); }
 .info-card-item p { margin: 0 0 14px; padding-left: 40px; font-size: 13px; line-height: 1.6; color: #5c6660; }
 @media (max-width: 899px) { .info-panel { left: 12px; right: 12px; top: calc(var(--header) + 56px); bottom: auto; width: auto; max-height: calc(100dvh - var(--header) - var(--dock) - 72px); border-radius: 18px; } }
+
+/* Talk to staff: she stands centred with her hands clasped, so the card
+   sits low in the corner by the reception desk instead of the middle,
+   leaving her face and her gesture both in view. */
+.staff-panel { left: auto; right: 5%; top: auto; bottom: calc(var(--dock) + 28px); width: min(420px, 42vw); border-radius: 26px; background: #f7f4eef5; backdrop-filter: blur(12px); }
+.staff-panel h2 { font-size: clamp(26px, 2.6vw, 36px); }
+.staff-location { margin-top: 22px; padding-top: 18px; border-top: 1px solid #d9d4c7; }
+.staff-location h3 { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #958467; }
+.staff-location p { margin-top: 6px; font-size: 13px; color: #5c6660; }
+@media (max-width: 899px) { .staff-panel { left: 12px; right: 12px; bottom: calc(var(--dock) + 12px); width: auto; max-height: calc(100dvh - var(--header) - var(--dock) - 96px); border-radius: 18px; } }

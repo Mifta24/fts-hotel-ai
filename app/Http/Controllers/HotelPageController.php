@@ -43,6 +43,7 @@ class HotelPageController extends Controller
             'tour_rooms' => 'This way — let me show you our rooms.',
             'tour_facilities' => 'Come, let me show you the hotel facilities.',
             'tour_info' => 'Let me tell you more about the hotel.',
+            'tour_staff' => 'Let me bring you to our team.',
             'tour_lobby' => 'Let me walk you back to the lobby.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
@@ -62,6 +63,7 @@ class HotelPageController extends Controller
             'tour_rooms' => 'Mari, saya antar ke kamar-kamar kami.',
             'tour_facilities' => 'Mari, saya antar ke fasilitas hotel kami.',
             'tour_info' => 'Mari, saya ceritakan lebih lanjut tentang hotel kami.',
+            'tour_staff' => 'Mari, saya antar Anda bertemu tim kami.',
             'tour_lobby' => 'Mari saya antar kembali ke lobi.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
@@ -81,6 +83,7 @@ class HotelPageController extends Controller
             'tour_rooms' => 'こちらへどうぞ。客室へご案内します。',
             'tour_facilities' => 'こちらへどうぞ。ホテルの施設へご案内します。',
             'tour_info' => 'ホテルについてご案内します。',
+            'tour_staff' => 'スタッフのもとへご案内します。',
             'tour_lobby' => 'ロビーへご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
@@ -191,6 +194,13 @@ class HotelPageController extends Controller
         return view('hotel.info-index', $this->stageData($hotel, $locale, 'info'));
     }
 
+    public function staff(Request $request, string $hotelSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.staff-index', $this->stageData($hotel, $locale, 'staff'));
+    }
+
     /**
      * @return array{0: Hotel, 1: string}
      */
@@ -299,6 +309,19 @@ class HotelPageController extends Controller
                 'avatarZoom' => '300%',
                 'avatarFocus' => '50% 25%',
             ],
+            'staff' => [
+                // A reception lounge backdrop with her grateful cut-out
+                // centred, so the panel floats low and leaves her clear.
+                'combined' => 'images/talk to staff.png',
+                'background' => 'images/talk to staff.png',
+                'character' => 'images/character/character grateful.png',
+                'focus' => 'center 30%',
+                'focusMobile' => '62% 20%',
+                'anchor' => 'center',
+                'text' => 'top',
+                'avatarZoom' => '260%',
+                'avatarFocus' => '50% 12%',
+            ],
             'lobby' => [
                 'combined' => 'images/concierge-lobby.png',
                 'background' => 'images/lobby-bg.png',
@@ -356,16 +379,17 @@ class HotelPageController extends Controller
 
         $facilitiesUrl = route('hotel.facilities', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
         $infoUrl = route('hotel.info', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+        $staffUrl = route('hotel.staff', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
 
         $items = [
             ['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']],
             ['key' => 'facilities', 'label' => $labels['menu_facilities'], 'href' => $facilitiesUrl, 'exit' => true, 'tour' => $tour['tour_facilities']],
             ['key' => 'info', 'label' => $lobby['menu_info'], 'href' => $infoUrl, 'exit' => true, 'tour' => $tour['tour_info']],
+            ['key' => 'staff', 'label' => $labels['menu_staff'], 'href' => $staffUrl, 'exit' => true, 'tour' => $tour['tour_staff']],
         ];
 
         foreach ([
             ['reservation', $lobby['reservation']],
-            ['staff', $labels['menu_staff']],
         ] as [$key, $label]) {
             $items[] = [
                 'key' => $key,

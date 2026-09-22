@@ -18,6 +18,7 @@ function initConcierge() {
         currency: root.dataset.currency,
         lobbyUrl: root.dataset.lobbyUrl,
         roomUrlTemplate: root.dataset.roomUrl,
+        staffUrl: root.dataset.staffUrl,
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
@@ -386,7 +387,7 @@ function initConcierge() {
         const targets = {
             view_room: [config.labels.viewDetails, (action) => roomUrl(action.room)],
             reserve: [config.labels.bookNow, (action) => `${config.lobbyUrl}#reservation/${action.room}`],
-            staff: [config.labels.staff, () => `${config.lobbyUrl}#staff`],
+            staff: [config.labels.staff, () => config.staffUrl],
         };
 
         const wrap = document.createElement('div');
@@ -435,10 +436,17 @@ function initConcierge() {
         });
 
         const staff = document.createElement('a');
-        staff.href = '#staff';
+        staff.href = config.staffUrl;
         staff.className = 'rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-900';
         staff.textContent = config.labels.staff;
-        staff.addEventListener('click', closePanel);
+        staff.addEventListener('click', (event) => {
+            closePanel();
+
+            if (window.hotelStage) {
+                event.preventDefault();
+                window.hotelStage.leave(staff.href);
+            }
+        });
 
         actions.append(retry, staff);
         el.append(message, actions);
