@@ -6,9 +6,4 @@
             <p>{{ $lobby['intro'] }}</p>
         </div>
     </x-slot:welcome>
-
-        <div class="stage-panels">
-            @include('hotel.reservation')
-        </div>
-
 </x-hotel-stage>

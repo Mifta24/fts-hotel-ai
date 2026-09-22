@@ -36,7 +36,6 @@
 .stage-welcome-scene { width: min(440px, 42vw); }
 .stage-welcome-scene h1 { font-size: clamp(26px, 2.4vw, 38px); }
 .stage-welcome-scene[data-anchor="bottom"] { top: auto; bottom: calc(var(--dock) + 36px); }
-.stage[data-scene="lobby"][data-page]:not([data-page="home"]) .stage-welcome { display: none; }
 
 .stage-menu, .opening-panel { border: 1px solid #ffffff38; background: #18312dc7; backdrop-filter: blur(18px); box-shadow: 0 10px 34px #0003; border-radius: 18px; }
 .stage-menu { position: absolute; z-index: 4; right: 24px; top: var(--header); width: var(--col); max-height: calc(100% - var(--header) - 24px); display: flex; flex-direction: column; padding: 24px 20px 20px; }

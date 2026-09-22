@@ -1,7 +1,7 @@
 /**
- * Guided reservation wizard (Scene 4): five short steps inside the lobby
- * panel — dates, guests, room, contact, summary — then a reference number and
- * WhatsApp / phone / email hand-over. Progress survives closing the panel and
+ * Guided reservation wizard: five short steps in its own scene — dates,
+ * guests, room, contact, summary — then a reference number and
+ * WhatsApp / phone / email hand-over. Progress survives leaving the page and
  * switching language (sessionStorage), and every rule is enforced again on the
  * server, which is the only source of price and availability.
  */
@@ -407,7 +407,6 @@ function initReservationWizard() {
     nextButton.addEventListener('click', next);
     backButton.addEventListener('click', () => { clearError(); showStep(Math.max(1, current - 1), true); });
     root.querySelector('[data-wizard-reset]').addEventListener('click', reset);
-    window.addEventListener('reservation:preselect', (event) => preselect(event.detail));
     form.addEventListener('keydown', (event) => {
         if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA' && current < steps.length) {
             event.preventDefault();
@@ -419,7 +418,7 @@ function initReservationWizard() {
     refreshNights();
     refreshRooms();
     showStep(current);
-    preselect(window.location.hash.startsWith('#reservation/') ? window.location.hash.split('/')[1] : '');
+    preselect(root.dataset.preselectRoom || '');
 }
 
 document.addEventListener('DOMContentLoaded', initReservationWizard);

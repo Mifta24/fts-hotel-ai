@@ -36,13 +36,10 @@
             @if ($hotels->count() === 1)
                 @php
                     $hotelSlug = $hotels->first()->slug;
-                    $lobbyUrl = route('hotel.show', ['hotelSlug' => $hotelSlug, 'lang' => $locale]);
-                    // Rooms, facilities and staff walk straight to their own scene;
-                    // the reservation wizard still lives as a panel on the lobby.
                     $openingLinks = [
                         'rooms' => route('hotel.rooms', ['hotelSlug' => $hotelSlug, 'lang' => $locale]),
                         'facilities' => route('hotel.facilities', ['hotelSlug' => $hotelSlug, 'lang' => $locale]),
-                        'reservation' => $lobbyUrl.'#reservation',
+                        'reservation' => route('hotel.reservation', ['hotelSlug' => $hotelSlug, 'lang' => $locale]),
                         'staff' => route('hotel.staff', ['hotelSlug' => $hotelSlug, 'lang' => $locale]),
                     ];
                 @endphp

@@ -55,7 +55,7 @@
                 <p class="mt-1 text-xs text-stone-500">{{ $lobby['availability_note'] }}</p>
 
                 <div class="mt-5 flex flex-wrap gap-3">
-                    <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}#reservation/{{ $roomType->slug }}" data-stage-exit class="lobby-action">{{ $lobby['reserve_room'] }} <span aria-hidden="true">↗</span></a>
+                    <a href="{{ route('hotel.reservation', ['hotelSlug' => $hotel->slug, 'lang' => $locale, 'room' => $roomType->slug]) }}" data-stage-exit data-tour-line="{{ $narration['tour_reservation'] }}" class="lobby-action">{{ $lobby['reserve_room'] }} <span aria-hidden="true">↗</span></a>
                     <button type="button" class="room-scene-step" data-hero-quick-message="{{ str_replace(':name', $roomName, $lobby['ask_room_q']) }}">{{ $lobby['ask_room'] }}</button>
                 </div>
 

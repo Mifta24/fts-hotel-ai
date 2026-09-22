@@ -24,6 +24,7 @@
             data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
             data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
             data-staff-url="{{ route('hotel.staff', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
+            data-reservation-url="{{ route('hotel.reservation', ['hotelSlug' => $hotel->slug, 'lang' => $locale, 'room' => '__SLUG__']) }}"
         >
             <section class="chat-log" aria-label="{{ $labels['chat_heading'] }}">
                 <header class="chat-log-header">

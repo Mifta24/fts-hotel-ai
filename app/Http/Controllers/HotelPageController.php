@@ -44,6 +44,7 @@ class HotelPageController extends Controller
             'tour_facilities' => 'Come, let me show you the hotel facilities.',
             'tour_info' => 'Let me tell you more about the hotel.',
             'tour_staff' => 'Let me bring you to our team.',
+            'tour_reservation' => 'Let me help you plan your stay.',
             'tour_lobby' => 'Let me walk you back to the lobby.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
@@ -64,6 +65,7 @@ class HotelPageController extends Controller
             'tour_facilities' => 'Mari, saya antar ke fasilitas hotel kami.',
             'tour_info' => 'Mari, saya ceritakan lebih lanjut tentang hotel kami.',
             'tour_staff' => 'Mari, saya antar Anda bertemu tim kami.',
+            'tour_reservation' => 'Mari, saya bantu rencanakan menginap Anda.',
             'tour_lobby' => 'Mari saya antar kembali ke lobi.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
@@ -84,6 +86,7 @@ class HotelPageController extends Controller
             'tour_facilities' => 'こちらへどうぞ。ホテルの施設へご案内します。',
             'tour_info' => 'ホテルについてご案内します。',
             'tour_staff' => 'スタッフのもとへご案内します。',
+            'tour_reservation' => 'ご宿泊のご計画をお手伝いします。',
             'tour_lobby' => 'ロビーへご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
@@ -201,6 +204,16 @@ class HotelPageController extends Controller
         return view('hotel.staff-index', $this->stageData($hotel, $locale, 'staff'));
     }
 
+    public function reservationScene(Request $request, string $hotelSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.reservation-index', [
+            ...$this->stageData($hotel, $locale, 'reservation'),
+            'preselectedRoom' => (string) $request->query('room', ''),
+        ]);
+    }
+
     /**
      * @return array{0: Hotel, 1: string}
      */
@@ -245,7 +258,7 @@ class HotelPageController extends Controller
             'locale' => $locale,
             'scene' => $scene,
             'backdrop' => $this->sceneBackdrop($scene),
-            'menuItems' => $this->stageMenu($hotel, $locale, $labels, $lobby, $scene),
+            'menuItems' => $this->stageMenu($hotel, $locale, $labels, $lobby),
             'supportedLocales' => self::SUPPORTED_LOCALES,
             'labels' => $labels,
             'lobby' => $lobby,
@@ -322,6 +335,19 @@ class HotelPageController extends Controller
                 'avatarZoom' => '260%',
                 'avatarFocus' => '50% 12%',
             ],
+            'reservation' => [
+                // She stands on the left holding a tablet with a booking
+                // form, echoing the wizard panel that sits beside her.
+                'combined' => 'images/reservation.png',
+                'background' => 'images/reservation.png',
+                'character' => 'images/character/character reservation.png',
+                'focus' => 'center 30%',
+                'focusMobile' => '24% 18%',
+                'anchor' => 'left',
+                'text' => 'bottom',
+                'avatarZoom' => '300%',
+                'avatarFocus' => '42% 14%',
+            ],
             'lobby' => [
                 'combined' => 'images/concierge-lobby.png',
                 'background' => 'images/lobby-bg.png',
@@ -370,37 +396,23 @@ class HotelPageController extends Controller
      * @param  array<string, string>  $lobby
      * @return list<array{key: string, label: string, href: string, exit: bool, tour: ?string}>
      */
-    private function stageMenu(Hotel $hotel, string $locale, array $labels, array $lobby, string $scene): array
+    private function stageMenu(Hotel $hotel, string $locale, array $labels, array $lobby): array
     {
-        $lobbyUrl = route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
         $roomsUrl = route('hotel.rooms', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
-        $onLobby = $scene === 'lobby';
         $tour = self::NARRATION[$locale];
 
         $facilitiesUrl = route('hotel.facilities', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
         $infoUrl = route('hotel.info', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+        $reservationUrl = route('hotel.reservation', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
         $staffUrl = route('hotel.staff', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
 
-        $items = [
+        return [
             ['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']],
             ['key' => 'facilities', 'label' => $labels['menu_facilities'], 'href' => $facilitiesUrl, 'exit' => true, 'tour' => $tour['tour_facilities']],
             ['key' => 'info', 'label' => $lobby['menu_info'], 'href' => $infoUrl, 'exit' => true, 'tour' => $tour['tour_info']],
+            ['key' => 'reservation', 'label' => $lobby['reservation'], 'href' => $reservationUrl, 'exit' => true, 'tour' => $tour['tour_reservation']],
             ['key' => 'staff', 'label' => $labels['menu_staff'], 'href' => $staffUrl, 'exit' => true, 'tour' => $tour['tour_staff']],
         ];
-
-        foreach ([
-            ['reservation', $lobby['reservation']],
-        ] as [$key, $label]) {
-            $items[] = [
-                'key' => $key,
-                'label' => $label,
-                'href' => ($onLobby ? '' : $lobbyUrl).'#'.$key,
-                'exit' => ! $onLobby,
-                'tour' => $onLobby ? null : $tour['tour_lobby'],
-            ];
-        }
-
-        return $items;
     }
 
     /**

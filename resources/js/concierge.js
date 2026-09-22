@@ -19,6 +19,7 @@ function initConcierge() {
         lobbyUrl: root.dataset.lobbyUrl,
         roomUrlTemplate: root.dataset.roomUrl,
         staffUrl: root.dataset.staffUrl,
+        reservationUrlTemplate: root.dataset.reservationUrl,
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
@@ -356,24 +357,19 @@ function initConcierge() {
      * room" or the reservation on screen. Never includes name or contact data.
      */
     function uiContext() {
-        const [page, param] = (window.location.hash.slice(1) || 'home').split('/');
-        const pageScene = document.querySelector('[data-lobby]')?.dataset.scene;
-        const context = { scene: (pageScene && pageScene !== 'lobby' ? sceneNames[pageScene] : null) || sceneNames[page] || 'reception' };
+        const pageScene = document.querySelector('[data-lobby]')?.dataset.scene || 'lobby';
+        const context = { scene: sceneNames[pageScene] || 'reception' };
 
         const lastSegment = decodeURIComponent(window.location.pathname.split('/').pop());
         if (pageScene === 'room') context.selected_room = lastSegment;
         if (pageScene === 'facility') context.selected_facility = Number(lastSegment);
 
-        if (page === 'facility' && Number(param) > 0) context.selected_facility = Number(param);
-
-        if ((page === 'room' || page === 'reservation') && param) context.selected_room = param;
-
-        if (page === 'reservation') {
+        if (pageScene === 'reservation') {
             try {
                 const draft = JSON.parse(sessionStorage.getItem(`reservation_draft_${root.dataset.hotelSlug}`) || 'null');
                 const { check_in, check_out, adults, children, rooms, room_type_slug } = draft?.values || {};
                 context.reservation = { check_in, check_out, adults, children, rooms, room_type_slug };
-                if (!param && room_type_slug) context.selected_room = room_type_slug;
+                if (room_type_slug) context.selected_room = room_type_slug;
             } catch { /* no draft to share */ }
         }
 
@@ -384,9 +380,10 @@ function initConcierge() {
         if (!actions || !actions.length) return null;
 
         const roomUrl = (slug) => config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(slug));
+        const reservationUrl = (slug) => config.reservationUrlTemplate.replace('__SLUG__', encodeURIComponent(slug));
         const targets = {
             view_room: [config.labels.viewDetails, (action) => roomUrl(action.room)],
-            reserve: [config.labels.bookNow, (action) => `${config.lobbyUrl}#reservation/${action.room}`],
+            reserve: [config.labels.bookNow, (action) => reservationUrl(action.room)],
             staff: [config.labels.staff, () => config.staffUrl],
         };
 
@@ -561,40 +558,6 @@ function initConcierge() {
 }
 
 document.addEventListener('DOMContentLoaded', initConcierge);
-
-
-function initLobbyNavigation() {
-    const panels = [...document.querySelectorAll('[data-lobby-panel]')];
-    if (!panels.length) return;
-    const links = [...document.querySelectorAll('[data-lobby-link]')];
-
-    const sceneParents = {};
-
-    function showPage(focus = false) {
-        const [requested, routeParam] = (window.location.hash.slice(1) || 'home').split('/');
-        let page = panels.some((panel) => panel.dataset.lobbyPanel === requested) ? requested : 'home';
-        document.querySelector('[data-lobby]')?.setAttribute('data-page', page);
-        panels.forEach((panel) => { panel.hidden = panel.dataset.lobbyPanel !== page; });
-
-        if (page === 'reservation' && routeParam) {
-            window.dispatchEvent(new CustomEvent('reservation:preselect', { detail: routeParam }));
-        }
-
-        const activeLink = sceneParents[page] ?? page;
-        links.forEach((link) => {
-            if (link.dataset.lobbyLink === activeLink) link.setAttribute('aria-current', 'page');
-            else link.removeAttribute('aria-current');
-        });
-        if (focus && page !== 'home') {
-            panels.find((panel) => panel.dataset.lobbyPanel === page)?.focus({ preventScroll: true });
-        }
-    }
-
-    window.addEventListener('hashchange', () => showPage(true));
-    showPage();
-}
-
-document.addEventListener('DOMContentLoaded', initLobbyNavigation);
 
 function initRoomGallery() {
     document.querySelectorAll('[data-room-gallery]').forEach((gallery) => {

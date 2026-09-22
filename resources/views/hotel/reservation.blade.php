@@ -1,5 +1,5 @@
-<section id="lobby-reservation" data-lobby-panel="reservation" class="lobby-content @container" hidden tabindex="-1" aria-label="{{ $wizard['title'] }}">
-    <a href="#home" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
+<section class="lobby-content stage-panel-right @container" aria-label="{{ $wizard['title'] }}">
+    <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" data-stage-exit data-tour-line="{{ $narration['tour_lobby'] }}" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>
     <p class="lobby-eyebrow">{{ $hotel->name }}</p>
     <h2>{{ $wizard['title'] }}</h2>
 
@@ -11,6 +11,7 @@
         data-currency="{{ $hotel->currency }}"
         data-today="{{ $today }}"
         data-max-nights="{{ \App\Services\Reservation\ReservationService::MAX_NIGHTS }}"
+        data-preselect-room="{{ $preselectedRoom ?? '' }}"
     >
         <div data-wizard-flow>
             <p class="mt-3 max-w-xl text-sm leading-relaxed text-stone-600">{{ $wizard['intro'] }}</p>
@@ -137,7 +138,7 @@
                 <a class="wizard-secondary" data-done-email hidden>{{ $wizard['email_hotel'] }}</a>
             </div>
             <div class="mt-6 flex flex-wrap gap-3">
-                <a href="#home" class="wizard-secondary">{{ $lobby['back'] }}</a>
+                <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" data-stage-exit class="wizard-secondary">{{ $lobby['back'] }}</a>
                 <button type="button" class="wizard-secondary" data-wizard-reset>{{ $wizard['new_request'] }}</button>
             </div>
         </div>

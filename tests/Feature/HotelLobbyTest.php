@@ -22,7 +22,7 @@ class HotelLobbyTest extends TestCase
             ->assertSee('Enter Demo')
             ->assertSee('href="'.route('hotel.rooms', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
             ->assertSee('href="'.route('hotel.facilities', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
-            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation"', false)
+            ->assertSee('href="'.route('hotel.reservation', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
             ->assertSee('href="'.route('hotel.staff', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
             ->assertDontSee('Draft');
     }
@@ -168,18 +168,29 @@ class HotelLobbyTest extends TestCase
 
         $this->get('/demo?lang=en')
             ->assertOk()
-            ->assertSee('data-step="5"', false)
-            ->assertSee('value="deluxe-king"', false)
-            ->assertSee('Step :current of :total', false)
-            ->assertSee(route('reservation.store', 'demo'), false)
+            ->assertSee('href="'.route('hotel.reservation', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
+            ->assertSee('data-tour-line="Let me help you plan your stay."', false)
             ->assertSee('href="'.route('hotel.staff', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
             ->assertSee('data-tour-line="Let me bring you to our team."', false);
 
-        $this->get('/demo?lang=id')->assertOk()->assertSee('Langkah :current dari :total', false);
+        $this->get('/demo/reservation?lang=en')
+            ->assertOk()
+            ->assertSee('data-scene="reservation"', false)
+            ->assertSee('data-tour-line="Let me walk you back to the lobby."', false)
+            ->assertSee('data-step="5"', false)
+            ->assertSee('value="deluxe-king"', false)
+            ->assertSee('Step :current of :total', false)
+            ->assertSee(route('reservation.store', 'demo'), false);
+
+        $this->get('/demo/reservation?lang=id')->assertOk()->assertSee('Langkah :current dari :total', false);
+
+        $this->get('/demo/reservation?lang=en&room=deluxe-king')
+            ->assertOk()
+            ->assertSee('data-preselect-room="deluxe-king"', false);
 
         $this->get('/demo/rooms/deluxe-king?lang=en')
             ->assertOk()
-            ->assertSee('href="'.route('hotel.show', ['hotelSlug' => 'demo', 'lang' => 'en']).'#reservation/deluxe-king"', false);
+            ->assertSee('href="'.e(route('hotel.reservation', ['hotelSlug' => 'demo', 'lang' => 'en', 'room' => 'deluxe-king'])).'"', false);
 
         $this->get('/demo/staff?lang=en')
             ->assertOk()
@@ -190,6 +201,7 @@ class HotelLobbyTest extends TestCase
             ->assertSee('mailto:front@demo.test', false);
 
         $this->get('/draft/staff')->assertNotFound();
+        $this->get('/draft/reservation')->assertNotFound();
     }
 
     public function test_each_facility_has_its_own_page_with_neighbours_and_an_index(): void
@@ -365,7 +377,10 @@ class HotelLobbyTest extends TestCase
         $this->assertSame(1, substr_count($navigation, 'aria-current'));
 
         // the lobby keeps the ordinary menu
-        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="reservation"', false)->assertDontSee('class="room-nav"', false);
+        $this->get('/demo?lang=id')
+            ->assertOk()
+            ->assertSee('href="'.route('hotel.reservation', ['hotelSlug' => 'demo', 'lang' => 'id']).'"', false)
+            ->assertDontSee('class="room-nav"', false);
     }
 
     public function test_a_scene_layers_a_cut_out_concierge_when_a_plain_background_is_supplied(): void
