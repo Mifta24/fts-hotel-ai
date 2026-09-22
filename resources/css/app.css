@@ -97,6 +97,23 @@
 .stage:has(.stage-chat.is-open) .chat-bar,
 .stage:has(.stage-chat.is-open) .chat-chips { left: calc((100% - var(--col) - 24px) / 2); width: min(720px, calc(100% - var(--col) - 96px)); }
 @media (prefers-reduced-motion: reduce) { .chat-bar, .chat-chips { transition: none; } }
+/* A right-anchored concierge stands where the transcript would normally dock,
+   so here it opens beside the info card instead of over her — same height
+   and shelf as its neighbour, sized to its messages instead of a fixed
+   sidebar height that leaves a short conversation half empty. */
+@media (min-width: 900px) {
+    .stage:has(.stage-character[data-anchor="right"]) {
+        --chat-left: calc(6% + min(440px, 40vw) + 28px);
+        --chat-width: min(420px, 32vw);
+    }
+    .stage:has(.stage-character[data-anchor="right"]) .chat-log {
+        left: var(--chat-left); right: auto; top: calc((100dvh + var(--header) - var(--dock)) / 2); bottom: auto; transform: translateY(-50%);
+        width: var(--chat-width); height: auto; max-height: min(600px, calc(100dvh - var(--header) - var(--dock) - 56px));
+        box-shadow: 0 24px 60px -12px #00000042, 0 2px 8px #0000001f;
+    }
+    .stage:has(.stage-character[data-anchor="right"]):has(.stage-chat.is-open) .chat-bar,
+    .stage:has(.stage-character[data-anchor="right"]):has(.stage-chat.is-open) .chat-chips { left: calc(var(--chat-left) + var(--chat-width) / 2); width: var(--chat-width); }
+}
 .chat-bar { bottom: 76px; display: flex; align-items: center; gap: 10px; padding: 7px 7px 7px 26px; border-radius: 999px; background: white; color: #26312f; box-shadow: 0 8px 30px #0004; }
 .chat-bar:focus-within { outline: 3px solid #b48c42; }
 .chat-bar input { min-width: 0; flex: 1; border: 0; background: transparent; font-size: 15px; outline: none; }
@@ -342,28 +359,54 @@
 .facility-hero .facility-card-icon { left: 18px; bottom: -20px; }
 .lobby-content .facility-hero + h2 { margin-top: 34px; }
 /* Hotel information: she gestures from the right toward the panel, so it
-   floats as a narrower card clear of her, with room to breathe above and
-   below instead of running edge to edge like the wider scene panels. */
-.info-panel { left: 5%; right: auto; top: calc(var(--header) + 28px); bottom: calc(var(--dock) + 28px); width: min(480px, 44vw); border-radius: 26px; background: #f7f4eef5; backdrop-filter: blur(12px); }
-.info-panel h2 { font-size: clamp(28px, 2.8vw, 40px); }
-.info-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+   floats clear of her — centred in the space beside her rather than
+   stretched edge to edge, with the backdrop visible all around it. */
+.info-panel { left: 6%; right: auto; top: calc((100dvh + var(--header) - var(--dock)) / 2); bottom: auto; transform: translateY(-50%); width: min(440px, 40vw); max-height: calc(100dvh - var(--header) - var(--dock) - 56px); border-radius: 26px; background: #f7f4eef5; box-shadow: 0 24px 60px -12px #00000042, 0 2px 8px #0000001f; backdrop-filter: blur(12px); }
+.info-panel h2 { font-size: clamp(26px, 2.6vw, 36px); }
+
+/* Check-in / check-out, read like the two halves of a hotel keycard
+   sleeve — the one number every guest actually comes here to check. */
+.info-stay { display: flex; align-items: stretch; margin-top: 20px; border: 1px solid #e4dfd0; border-radius: 16px; background: linear-gradient(135deg, #fffdf9, #f5efdf); }
+.info-stay-item { flex: 1; padding: 12px 18px; }
+.info-stay-label { display: block; font-size: 11.5px; color: #958467; }
+.info-stay-time { display: block; margin-top: 2px; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; color: #26312f; }
+.info-stay-divider { flex-shrink: 0; width: 1px; margin: 10px 0; background-image: repeating-linear-gradient(180deg, #d9c9a0 0 6px, transparent 6px 12px); }
+
+.info-facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .info-fact { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; border: 1px solid #e4dfd0; background: #fffdf9; font-size: 12.5px; color: #3d4640; transition: background .2s, border-color .2s; }
 a.info-fact:hover { background: #f1e9d6; border-color: #d9c9a0; }
 .info-fact svg { flex-shrink: 0; color: #a9824a; }
 .info-address { margin-top: 10px; font-size: 12.5px; color: #8a8f85; }
-.info-section-heading { margin-top: 26px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #958467; }
-.info-section-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
-@container (min-width: 26rem) { .info-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.info-card-item { border-radius: 14px; border: 1px solid #e4dfd0; background: #fffdf9; padding: 4px 14px; transition: background .2s, border-color .2s; }
-.info-card-item:hover { background: #f5f1e7; }
-.info-card-item summary { display: flex; align-items: center; gap: 10px; min-height: 52px; cursor: pointer; list-style: none; font-size: 13px; font-weight: 600; color: #26312f; }
-.info-card-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.info-card-item summary::-webkit-details-marker { display: none; }
-.info-card-icon { display: grid; flex-shrink: 0; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: #f1e9d6; color: #a9824a; }
-.info-card-item .chevron { flex-shrink: 0; margin-left: auto; color: #b7ae9a; transition: transform .2s; }
-.info-card-item[open] .chevron { transform: rotate(90deg); }
-.info-card-item p { margin: 0 0 14px; padding-left: 40px; font-size: 13px; line-height: 1.6; color: #5c6660; }
-@media (max-width: 899px) { .info-panel { left: 12px; right: 12px; top: calc(var(--header) + 56px); bottom: auto; width: auto; max-height: calc(100dvh - var(--header) - var(--dock) - 72px); border-radius: 18px; } }
+
+.info-section-heading { margin-top: 26px; font-size: 13px; font-weight: 600; color: #26312f; }
+
+/* Policies and FAQ share the panel through a tab switch instead of stacking
+   every section open at once — one topic in view, no long scroll. */
+.info-tabs { margin-top: 24px; }
+.info-tab-radio { position: absolute; opacity: 0; pointer-events: none; }
+.info-tablist { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: #efe9d8; }
+.info-tablist label { flex: 1; padding: 8px 6px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: #8a8f85; text-align: center; cursor: pointer; transition: background .2s, color .2s; }
+.info-tabpanel { display: none; margin-top: 6px; }
+#info-tab-general:checked ~ .info-tablist label[for="info-tab-general"],
+#info-tab-policies:checked ~ .info-tablist label[for="info-tab-policies"],
+#info-tab-faq:checked ~ .info-tablist label[for="info-tab-faq"] { background: #fffdf9; color: #26312f; box-shadow: 0 1px 3px #0000001a; }
+#info-tab-general:focus-visible ~ .info-tablist label[for="info-tab-general"],
+#info-tab-policies:focus-visible ~ .info-tablist label[for="info-tab-policies"],
+#info-tab-faq:focus-visible ~ .info-tablist label[for="info-tab-faq"] { outline: 3px solid #d9b968; outline-offset: 2px; }
+#info-tab-general:checked ~ .info-tabpanels [data-panel="general"],
+#info-tab-policies:checked ~ .info-tabpanels [data-panel="policies"],
+#info-tab-faq:checked ~ .info-tabpanels [data-panel="faq"] { display: block; }
+
+.info-list { margin-top: 2px; }
+.info-row { border-top: 1px solid #e4dfd0; }
+.info-list .info-row:last-child { border-bottom: 1px solid #e4dfd0; }
+.info-row summary { display: flex; align-items: center; gap: 10px; padding: 13px 0; cursor: pointer; list-style: none; font-size: 13.5px; font-weight: 600; color: #26312f; }
+.info-row summary::-webkit-details-marker { display: none; }
+.info-row-chevron { flex-shrink: 0; margin-left: auto; color: #b7ae9a; transition: transform .2s; }
+.info-row[open] .info-row-chevron { transform: rotate(90deg); }
+.info-row p { margin: 0 0 14px; padding-right: 24px; font-size: 13px; line-height: 1.6; color: #5c6660; }
+
+@media (max-width: 899px) { .info-panel { left: 12px; right: 12px; top: calc(var(--header) + 56px); bottom: auto; transform: none; width: auto; max-height: calc(100dvh - var(--header) - var(--dock) - 72px); border-radius: 18px; } }
 
 /* Talk to staff: she stands centred with her hands clasped, so the card
    sits low in the corner by the reception desk instead of the middle,

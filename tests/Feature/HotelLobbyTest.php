@@ -259,7 +259,8 @@ class HotelLobbyTest extends TestCase
             ->assertSee('data-tour-line="Let me walk you back to the lobby."', false)
             ->assertSee('Free until 48 hours before arrival.')
             ->assertSee('Is parking free?')
-            ->assertSee('14:00 / 12:00')
+            ->assertSee('class="info-stay-time"', false)
+            ->assertSeeInOrder(['14:00', '12:00'])
             ->assertSee('https://www.google.com/maps?q=-8.8000000,115.2300000', false)
             ->assertDontSee('Not approved.');
     }
