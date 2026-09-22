@@ -8,8 +8,6 @@
     </x-slot:welcome>
 
         <div class="stage-panels">
-            @include('hotel.info')
-
             @include('hotel.reservation')
 
             <section id="lobby-staff" data-lobby-panel="staff" class="lobby-content @container" hidden tabindex="-1">

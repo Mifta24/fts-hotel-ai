@@ -15,12 +15,8 @@ class HotelPageController extends Controller
 {
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
 
-    /** A cut-out of the concierge, layered in front of a scene's background when present. */
+    /** The default cut-out of the concierge, layered in front of a scene's background when a scene does not name its own. */
     private const CHARACTER_IMAGE = 'images/character.png';
-
-    private const CHARACTER_AVATAR_ZOOM = '280%';
-
-    private const CHARACTER_AVATAR_FOCUS = '50% 7%';
 
     public function __construct(private readonly ReservationHandover $handover) {}
 
@@ -46,6 +42,7 @@ class HotelPageController extends Controller
             'info_more' => 'Below you will find the address, our policies and frequently asked questions — or just ask me.',
             'tour_rooms' => 'This way — let me show you our rooms.',
             'tour_facilities' => 'Come, let me show you the hotel facilities.',
+            'tour_info' => 'Let me tell you more about the hotel.',
             'tour_lobby' => 'Let me walk you back to the lobby.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
@@ -64,6 +61,7 @@ class HotelPageController extends Controller
             'info_more' => 'Di bawah ini ada alamat, kebijakan, dan pertanyaan yang sering diajukan — atau tanyakan langsung kepada saya.',
             'tour_rooms' => 'Mari, saya antar ke kamar-kamar kami.',
             'tour_facilities' => 'Mari, saya antar ke fasilitas hotel kami.',
+            'tour_info' => 'Mari, saya ceritakan lebih lanjut tentang hotel kami.',
             'tour_lobby' => 'Mari saya antar kembali ke lobi.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
@@ -82,6 +80,7 @@ class HotelPageController extends Controller
             'info_more' => '以下に、所在地、ご利用規定、よくあるご質問をご案内しています。お気軽にお尋ねください。',
             'tour_rooms' => 'こちらへどうぞ。客室へご案内します。',
             'tour_facilities' => 'こちらへどうぞ。ホテルの施設へご案内します。',
+            'tour_info' => 'ホテルについてご案内します。',
             'tour_lobby' => 'ロビーへご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
@@ -185,6 +184,13 @@ class HotelPageController extends Controller
         ]);
     }
 
+    public function info(Request $request, string $hotelSlug): View
+    {
+        [$hotel, $locale] = $this->resolveStage($request, $hotelSlug);
+
+        return view('hotel.info-index', $this->stageData($hotel, $locale, 'info'));
+    }
+
     /**
      * @return array{0: Hotel, 1: string}
      */
@@ -253,7 +259,7 @@ class HotelPageController extends Controller
      * one cut-out of her (transparent PNG/WebP) that is layered in front, so
      * she can be placed clear of the panels and reused across scenes.
      *
-     * @return array{image: string, focus: string, focusMobile: string, character: ?string, anchor: string, text: string, avatarZoom: string, avatarFocus: string}
+     * @return array{image: string, focus: string, focusMobile: string, character: ?string, anchor: string, text: string, avatarImage: string, avatarZoom: string, avatarFocus: string}
      */
     private function sceneBackdrop(string $scene): array
     {
@@ -280,6 +286,19 @@ class HotelPageController extends Controller
                 'avatarZoom' => '500%',
                 'avatarFocus' => '17% 11%',
             ],
+            'info' => [
+                // A plain terrace backdrop with her greeting cut-out layered
+                // in front, standing clear on the right of the panel.
+                'combined' => 'images/information.png',
+                'background' => 'images/information.png',
+                'character' => 'images/character/character greeting.png',
+                'focus' => 'center 38%',
+                'focusMobile' => '70% 30%',
+                'anchor' => 'right',
+                'text' => 'bottom',
+                'avatarZoom' => '300%',
+                'avatarFocus' => '50% 25%',
+            ],
             'lobby' => [
                 'combined' => 'images/concierge-lobby.png',
                 'background' => 'images/lobby-bg.png',
@@ -294,7 +313,8 @@ class HotelPageController extends Controller
 
         $artwork = $scenes[['room' => 'rooms', 'facility' => 'facilities'][$scene] ?? $scene] ?? $scenes['lobby'];
 
-        $character = file_exists(public_path(self::CHARACTER_IMAGE)) ? self::CHARACTER_IMAGE : null;
+        $characterImage = $artwork['character'] ?? self::CHARACTER_IMAGE;
+        $character = file_exists(public_path($characterImage)) ? $characterImage : null;
         $background = $character && file_exists(public_path($artwork['background'])) ? $artwork['background'] : null;
 
         if ($background === null) {
@@ -311,9 +331,11 @@ class HotelPageController extends Controller
             'character' => $character ? asset($character) : null,
             'anchor' => $artwork['anchor'],
             'text' => $artwork['text'],
-            // The avatars crop the concierge out of whichever picture holds her.
-            'avatarZoom' => $character ? self::CHARACTER_AVATAR_ZOOM : $artwork['avatarZoom'],
-            'avatarFocus' => $character ? self::CHARACTER_AVATAR_FOCUS : $artwork['avatarFocus'],
+            // The avatars crop her face out of whichever picture holds her —
+            // the cut-out when one is layered in, otherwise the background.
+            'avatarImage' => asset($character ?? $background),
+            'avatarZoom' => $artwork['avatarZoom'],
+            'avatarFocus' => $artwork['avatarFocus'],
         ];
     }
 
@@ -333,14 +355,15 @@ class HotelPageController extends Controller
         $tour = self::NARRATION[$locale];
 
         $facilitiesUrl = route('hotel.facilities', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
+        $infoUrl = route('hotel.info', ['hotelSlug' => $hotel->slug, 'lang' => $locale]);
 
         $items = [
             ['key' => 'rooms', 'label' => $labels['rooms_heading'], 'href' => $roomsUrl, 'exit' => true, 'tour' => $tour['tour_rooms']],
             ['key' => 'facilities', 'label' => $labels['menu_facilities'], 'href' => $facilitiesUrl, 'exit' => true, 'tour' => $tour['tour_facilities']],
+            ['key' => 'info', 'label' => $lobby['menu_info'], 'href' => $infoUrl, 'exit' => true, 'tour' => $tour['tour_info']],
         ];
 
         foreach ([
-            ['info', $lobby['menu_info']],
             ['reservation', $lobby['reservation']],
             ['staff', $labels['menu_staff']],
         ] as [$key, $label]) {

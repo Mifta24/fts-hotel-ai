@@ -42,6 +42,7 @@ Route::prefix('{hotelSlug}')->group(function () {
     Route::get('rooms/{roomSlug}', [HotelPageController::class, 'room'])->name('hotel.room');
     Route::get('facilities', [HotelPageController::class, 'facilities'])->name('hotel.facilities');
     Route::get('facilities/{facilityId}', [HotelPageController::class, 'facility'])->whereNumber('facilityId')->name('hotel.facility');
+    Route::get('info', [HotelPageController::class, 'info'])->name('hotel.info');
 
     Route::prefix('reservation')->name('reservation.')->middleware('throttle:20,1')->group(function () {
         Route::post('quote', [ReservationController::class, 'quote'])->name('quote');

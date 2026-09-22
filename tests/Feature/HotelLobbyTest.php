@@ -208,9 +208,10 @@ class HotelLobbyTest extends TestCase
         $this->get($url($hidden))->assertNotFound();
         $this->get('/demo/facilities/999999')->assertNotFound();
         $this->get('/draft/facilities')->assertNotFound();
+        $this->get('/draft/info')->assertNotFound();
     }
 
-    public function test_hotel_information_panel_lists_only_approved_about_policy_and_faq_entries(): void
+    public function test_the_hotel_information_scene_lists_only_approved_about_policy_and_faq_entries(): void
     {
         $hotel = Hotel::create([
             'name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'address' => 'Jl. Pantai 8', 'city' => 'Bali', 'country' => 'Indonesia',
@@ -223,8 +224,15 @@ class HotelLobbyTest extends TestCase
 
         $this->get('/demo?lang=en')
             ->assertOk()
-            ->assertSee('data-lobby-panel="info"', false)
-            ->assertSee('href="#info"', false)
+            ->assertSee('href="'.route('hotel.info', ['hotelSlug' => 'demo', 'lang' => 'en']).'"', false)
+            ->assertSee('data-tour-line="Let me tell you more about the hotel."', false)
+            ->assertDontSee('data-lobby-panel="info"', false)
+            ->assertDontSee('Free until 48 hours before arrival.');
+
+        $this->get('/demo/info?lang=en')
+            ->assertOk()
+            ->assertSee('data-scene="info"', false)
+            ->assertSee('data-tour-line="Let me walk you back to the lobby."', false)
             ->assertSee('Free until 48 hours before arrival.')
             ->assertSee('Is parking free?')
             ->assertSee('14:00 / 12:00')
@@ -294,18 +302,18 @@ class HotelLobbyTest extends TestCase
             ->assertSee('data-key="facility-', false)
             ->assertSee('data-text="Open 07:00 to 20:00.', false);
 
-        $this->get('/demo?lang=en')
+        $this->get('/demo/info?lang=en')
             ->assertOk()
             ->assertSee('Welcome to Demo. We are located in Bali, Indonesia. Check-in is from 14:00 and check-out is at 12:00.');
 
-        $this->get('/demo?lang=id')->assertOk()->assertSee('Selamat datang di Demo. Kami berada di Bali, Indonesia.');
+        $this->get('/demo/info?lang=id')->assertOk()->assertSee('Selamat datang di Demo. Kami berada di Bali, Indonesia.');
     }
 
     public function test_hotel_information_narration_skips_missing_data(): void
     {
         Hotel::create(['name' => 'Bare', 'slug' => 'bare', 'public_status' => 'published']);
 
-        $this->get('/bare?lang=en')
+        $this->get('/bare/info?lang=en')
             ->assertOk()
             ->assertSee('Welcome to Bare. Check-in is from 14:00 and check-out is at 12:00. Below you will find the address')
             ->assertDontSee('We are located in');
@@ -345,7 +353,7 @@ class HotelLobbyTest extends TestCase
         $this->assertSame(1, substr_count($navigation, 'aria-current'));
 
         // the lobby keeps the ordinary menu
-        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="info"', false)->assertDontSee('class="room-nav"', false);
+        $this->get('/demo?lang=id')->assertOk()->assertSee('data-lobby-link="reservation"', false)->assertDontSee('class="room-nav"', false);
     }
 
     public function test_a_scene_layers_a_cut_out_concierge_when_a_plain_background_is_supplied(): void
