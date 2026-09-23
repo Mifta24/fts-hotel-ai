@@ -288,7 +288,7 @@ class HotelPageController extends Controller
     {
         $scenes = [
             'rooms' => [
-                'combined' => 'images/suite.png',
+                'combined' => 'images/suite.webp',
                 'background' => 'images/rooms-bg.png',
                 'focus' => 'center 26%',
                 'focusMobile' => '50% 14%',
@@ -298,7 +298,7 @@ class HotelPageController extends Controller
                 'avatarFocus' => '52% 10%',
             ],
             'facilities' => [
-                'combined' => 'images/facility.png',
+                'combined' => 'images/facility.webp',
                 'background' => 'images/facilities-bg.png',
                 'focus' => 'center 30%',
                 'focusMobile' => '24% 18%',
@@ -312,9 +312,9 @@ class HotelPageController extends Controller
             'info' => [
                 // A plain terrace backdrop with her greeting cut-out layered
                 // in front, standing clear on the right of the panel.
-                'combined' => 'images/information.png',
-                'background' => 'images/information.png',
-                'character' => 'images/character/character greeting.png',
+                'combined' => 'images/information.webp',
+                'background' => 'images/information.webp',
+                'character' => 'images/character/character greeting.webp',
                 'focus' => 'center 38%',
                 'focusMobile' => '70% 30%',
                 'anchor' => 'right',
@@ -325,9 +325,9 @@ class HotelPageController extends Controller
             'staff' => [
                 // A reception lounge backdrop with her grateful cut-out
                 // centred, so the panel floats low and leaves her clear.
-                'combined' => 'images/talk to staff.png',
-                'background' => 'images/talk to staff.png',
-                'character' => 'images/character/character grateful.png',
+                'combined' => 'images/talk to staff.webp',
+                'background' => 'images/talk to staff.webp',
+                'character' => 'images/character/character grateful.webp',
                 'focus' => 'center 30%',
                 'focusMobile' => '62% 20%',
                 'anchor' => 'center',
@@ -338,9 +338,9 @@ class HotelPageController extends Controller
             'reservation' => [
                 // She stands on the left holding a tablet with a booking
                 // form, echoing the wizard panel that sits beside her.
-                'combined' => 'images/reservation.png',
-                'background' => 'images/reservation.png',
-                'character' => 'images/character/character reservation.png',
+                'combined' => 'images/reservation.webp',
+                'background' => 'images/reservation.webp',
+                'character' => 'images/character/character reservation.webp',
                 'focus' => 'center 30%',
                 'focusMobile' => '24% 18%',
                 'anchor' => 'left',
@@ -349,7 +349,7 @@ class HotelPageController extends Controller
                 'avatarFocus' => '42% 14%',
             ],
             'lobby' => [
-                'combined' => 'images/concierge-lobby.png',
+                'combined' => 'images/concierge-lobby.webp',
                 'background' => 'images/lobby-bg.png',
                 'focus' => 'center 22%',
                 'focusMobile' => '50% 15%',
