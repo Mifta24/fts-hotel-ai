@@ -23,9 +23,26 @@ function initConcierge() {
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
+            open: root.dataset.labelOpen,
+            close: root.dataset.labelClose,
             intro: root.dataset.labelIntro,
+            breakfastIncluded: root.dataset.labelBreakfastIncluded,
+            maxGuests: root.dataset.labelMaxGuests,
+            roomOnly: root.dataset.labelRoomOnly,
+            night: root.dataset.labelNight,
+            noAvailability: root.dataset.labelNoAvailability,
+            bookingReceived: root.dataset.labelBookingReceived,
+            reference: root.dataset.labelReference,
+            viewSuffix: root.dataset.labelViewSuffix,
             thinking: root.dataset.labelThinking,
             handedOver: root.dataset.labelHandedOver,
+            statusSent: root.dataset.labelStatusSent,
+            statusWaiting: root.dataset.labelStatusWaiting,
+            statusReplied: root.dataset.labelStatusReplied,
+            draftTitle: root.dataset.labelDraftTitle,
+            draftBody: root.dataset.labelDraftBody,
+            draftKeep: root.dataset.labelDraftKeep,
+            draftDiscard: root.dataset.labelDraftDiscard,
             viewDetails: root.dataset.labelViewDetails,
             bookNow: root.dataset.labelBookNow,
             menuHeading: root.dataset.labelMenuHeading,
@@ -41,7 +58,14 @@ function initConcierge() {
     const inputEl = root.querySelector('[data-chat-input]');
     const submitEl = root.querySelector('[data-chat-submit]');
     const statusBanner = root.querySelector('[data-status-banner]');
+    const chatStatus = root.querySelector('[data-chat-status]');
+    const thinkingIndicator = root.querySelector('[data-thinking-indicator]');
+    const draftDialog = root.querySelector('[data-draft-dialog]');
+    const draftKeep = root.querySelector('[data-draft-keep]');
+    const draftDiscard = root.querySelector('[data-draft-discard]');
+    const chatLog = root.querySelector('#concierge-chat-log');
     const closeButton = widget.querySelector('[data-chat-close]');
+    const launcher = widget.querySelector('[data-chat-launcher]');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 
     let ready = false;
@@ -50,23 +74,91 @@ function initConcierge() {
     let knownMessageCount = 0;
     let pollTimer = null;
     let isOpen = false;
+    let draftDialogOpen = false;
 
-    function openPanel() {
+    function setChatStatus(text, tone = '') {
+        if (!chatStatus) return;
+
+        chatStatus.textContent = text || '';
+        chatStatus.className = `chat-status${text ? ` is-${tone}` : ''}`;
+        chatStatus.hidden = !text;
+    }
+
+    function showDraftDialog() {
+        if (!draftDialog) return;
+
+        draftDialogOpen = true;
+        draftDialog.hidden = false;
+        draftDialog.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => draftKeep?.focus());
+    }
+
+    function hideDraftDialog({ focusInput = false } = {}) {
+        if (!draftDialog) return;
+
+        draftDialogOpen = false;
+        draftDialog.hidden = true;
+        draftDialog.setAttribute('aria-hidden', 'true');
+        if (focusInput) inputEl.focus();
+    }
+
+    function syncPanelState() {
+        root.classList.toggle('is-open', isOpen);
+        root.dataset.chatState = isOpen ? 'open' : 'closed';
+        chatLog?.setAttribute('aria-hidden', String(!isOpen));
+        formEl?.setAttribute('aria-hidden', String(!isOpen));
+        launcher?.setAttribute('aria-expanded', String(isOpen));
+    }
+
+    function openPanel({ focus = false } = {}) {
         isOpen = true;
-        root.classList.add('is-open');
+        syncPanelState();
         scrollToBottom();
+
+        if (focus) {
+            requestAnimationFrame(() => inputEl.focus());
+        }
     }
 
-    function closePanel() {
+    function finishClosePanel({ restoreFocus = true } = {}) {
         isOpen = false;
-        root.classList.remove('is-open');
+        syncPanelState();
+        hideDraftDialog();
+        if (restoreFocus) launcher?.focus();
     }
 
-    closeButton?.addEventListener('click', closePanel);
+    function closePanel({ confirmDraft = true, restoreFocus = true } = {}) {
+        if (confirmDraft && inputEl?.value.trim()) {
+            showDraftDialog();
+            return;
+        }
+
+        finishClosePanel({ restoreFocus });
+    }
+
+    closeButton?.addEventListener('click', () => closePanel());
+    launcher?.addEventListener('click', () => openPanel({ focus: true }));
+    draftKeep?.addEventListener('click', () => hideDraftDialog({ focusInput: true }));
+    draftDiscard?.addEventListener('click', () => {
+        inputEl.value = '';
+        finishClosePanel();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+
+        if (draftDialogOpen) {
+            hideDraftDialog({ focusInput: true });
+            return;
+        }
+
+        if (isOpen) closePanel();
+    });
+    syncPanelState();
 
     function money(value) {
         const n = Number(value) || 0;
-        return `${config.currency} ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(n)}`;
+        const numberLocale = config.locale === 'ja' ? 'ja-JP' : config.locale === 'en' ? 'en-US' : 'id-ID';
+        return `${config.currency} ${new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 0 }).format(n)}`;
     }
 
     async function api(url, body) {
@@ -134,8 +226,8 @@ function initConcierge() {
             ${room.thumbnail_url ? `<img src="${room.thumbnail_url}" alt="${room.name}" class="h-32 w-full object-cover">` : ''}
             <div class="p-3">
                 <p class="font-medium text-stone-900">${room.name}</p>
-                <p class="mt-0.5 text-xs text-stone-500">${room.size_sqm ?? '-'} m² · ${room.max_adults + room.max_children} guests${room.breakfast_included ? ' · breakfast included' : ''}</p>
-                <p class="mt-1 text-sm font-semibold text-stone-900">${money(room.total_price)} <span class="font-normal text-stone-500">/ ${room.nights} night(s)</span></p>
+                <p class="mt-0.5 text-xs text-stone-500">${room.size_sqm ?? '-'} m² · ${room.max_adults + room.max_children} ${config.labels.maxGuests}${room.breakfast_included ? ` · ${config.labels.breakfastIncluded}` : ''}</p>
+                <p class="mt-1 text-sm font-semibold text-stone-900">${money(room.total_price)} <span class="font-normal text-stone-500">/ ${room.nights} ${config.labels.night}</span></p>
                 <button type="button" class="mt-2 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50" data-detail-slug="${room.room_type_slug}">
                     ${config.labels.viewDetails}
                 </button>
@@ -163,9 +255,9 @@ function initConcierge() {
                 <div class="mt-2 grid grid-cols-4 gap-1">${images}</div>
                 <dl class="mt-2 grid grid-cols-2 gap-1 text-xs text-stone-500">
                     <div>${room.size_sqm ?? '-'} m²</div>
-                    <div>${room.max_adults + room.max_children} guests</div>
-                    <div>${room.breakfast_included ? 'Breakfast included' : 'Room only'}</div>
-                    <div>${room.view_type ? room.view_type + ' view' : ''}</div>
+                    <div>${room.max_adults + room.max_children} ${config.labels.maxGuests}</div>
+                    <div>${room.breakfast_included ? config.labels.breakfastIncluded : config.labels.roomOnly}</div>
+                    <div>${room.view_type ? room.view_type + ' ' + config.labels.viewSuffix : ''}</div>
                 </dl>
             </div>
         `;
@@ -177,14 +269,14 @@ function initConcierge() {
         el.className = 'rounded-xl border border-stone-200 bg-white p-3';
 
         if (!payload.available) {
-            el.innerHTML = `<p class="text-sm text-stone-600">No availability for those dates.</p>`;
+            el.innerHTML = `<p class="text-sm text-stone-600">${config.labels.noAvailability}</p>`;
             return el;
         }
 
         const q = payload.quote;
         el.innerHTML = `
             <p class="font-medium text-stone-900">${q.name}</p>
-            <p class="text-xs text-stone-500">${q.check_in} → ${q.check_out} · ${q.nights} night(s)</p>
+            <p class="text-xs text-stone-500">${q.check_in} → ${q.check_out} · ${q.nights} ${config.labels.night}</p>
             <p class="mt-1 text-base font-semibold text-stone-900">${money(q.grand_total)}</p>
         `;
         return el;
@@ -195,9 +287,9 @@ function initConcierge() {
         const el = document.createElement('div');
         el.className = 'rounded-xl border border-emerald-200 bg-emerald-50 p-3';
         el.innerHTML = `
-            <p class="text-sm font-semibold text-emerald-900">Booking request received</p>
-            <p class="mt-1 text-xs text-emerald-800">Ref: ${b.booking_reference} · ${b.name}</p>
-            <p class="text-xs text-emerald-800">${b.check_in} → ${b.check_out} · ${b.nights} night(s)</p>
+            <p class="text-sm font-semibold text-emerald-900">${config.labels.bookingReceived}</p>
+            <p class="mt-1 text-xs text-emerald-800">${config.labels.reference}: ${b.booking_reference} · ${b.name}</p>
+            <p class="text-xs text-emerald-800">${b.check_in} → ${b.check_out} · ${b.nights} ${config.labels.night}</p>
             <p class="mt-1 text-sm font-semibold text-emerald-900">${money(b.total_price)}</p>
         `;
         return el;
@@ -237,17 +329,23 @@ function initConcierge() {
         const disabled = busy || !ready || handedOver;
         inputEl.disabled = disabled;
         submitEl.disabled = disabled;
+        if (launcher) launcher.disabled = busy || !ready;
         root.setAttribute('aria-busy', String(busy));
         document.body.classList.toggle('is-thinking', busy);
+        if (thinkingIndicator) {
+            thinkingIndicator.hidden = !busy;
+        }
         document.querySelectorAll('[data-hero-quick-message], [data-ask-ai-button], [data-quick-message]')
             .forEach((button) => { button.disabled = disabled; });
         submitEl.textContent = busy ? config.labels.thinking : config.labels.send;
+        if (busy) scrollToBottom();
     }
 
     function showHandedOverBanner() {
         handedOver = true;
         statusBanner.textContent = config.labels.handedOver;
         statusBanner.classList.remove('hidden');
+        setChatStatus(config.labels.statusWaiting, 'waiting');
         setBusy(busy);
         startPolling();
     }
@@ -284,7 +382,11 @@ function initConcierge() {
             const data = await response.json();
 
             if (data.messages.length > knownMessageCount) {
-                data.messages.slice(knownMessageCount).forEach(renderMessage);
+                const newMessages = data.messages.slice(knownMessageCount);
+                newMessages.forEach(renderMessage);
+                if (newMessages.some((message) => message.role === 'staff')) {
+                    setChatStatus(config.labels.statusReplied, 'replied');
+                }
                 window.hotelSound?.play('incoming');
                 knownMessageCount = data.messages.length;
                 scrollToBottom();
@@ -310,6 +412,7 @@ function initConcierge() {
             if (chips) messagesEl.appendChild(chips);
         } else if (message.role === 'staff') {
             messagesEl.appendChild(card([staffBubble(message.content)]));
+            setChatStatus(config.labels.statusReplied, 'replied');
         } else if (message.role === 'system') {
             messagesEl.appendChild(bubble('assistant', message.content));
         }
@@ -346,7 +449,7 @@ function initConcierge() {
     function staffBubble(text) {
         const el = document.createElement('div');
         el.className = 'rounded-2xl rounded-bl-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900';
-        el.innerHTML = `<p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500">Staff</p>${text}`;
+        el.innerHTML = `<p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500">${config.labels.staff}</p>${text}`;
         return el;
     }
 
@@ -398,7 +501,7 @@ function initConcierge() {
             link.className = 'rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50';
             link.textContent = target[0];
             link.addEventListener('click', (event) => {
-                closePanel();
+                closePanel({ confirmDraft: false, restoreFocus: false });
 
                 // Another page: walk there the way the menu does. A panel on
                 // this page is just a hash change, so leave it to the browser.
@@ -437,7 +540,7 @@ function initConcierge() {
         staff.className = 'rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-900';
         staff.textContent = config.labels.staff;
         staff.addEventListener('click', (event) => {
-            closePanel();
+            closePanel({ confirmDraft: false, restoreFocus: false });
 
             if (window.hotelStage) {
                 event.preventDefault();
@@ -465,6 +568,7 @@ function initConcierge() {
         try {
             const data = await api(config.messageUrl, { guest_token: guestToken, message: text, ...uiContext() });
             renderMessage(data.message);
+            setChatStatus(config.labels.statusSent, 'sent');
             window.hotelSound?.play('incoming');
             knownMessageCount += 2; // the guest message just sent + the reply just rendered
             if (data.status === 'handed_over') {
@@ -511,6 +615,9 @@ function initConcierge() {
 
             if (data.status === 'handed_over') {
                 showHandedOverBanner();
+            }
+            if (data.messages.some((message) => message.role === 'staff')) {
+                setChatStatus(config.labels.statusReplied, 'replied');
             }
         } catch {
             localStorage.removeItem(config.storageKey);

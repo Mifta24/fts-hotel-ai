@@ -41,6 +41,53 @@ class HotelLobbyTest extends TestCase
         $this->get('/?lang=en')->assertOk()->assertSee('The virtual lobby is being prepared');
     }
 
+    public function test_chat_has_separate_open_and_close_controls_without_submitting_the_composer(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('data-chat-launcher', false)
+            ->assertSee('data-chat-composer', false)
+            ->assertSee('type="button" data-chat-close', false)
+            ->assertSee('aria-controls="concierge-chat-log"', false);
+    }
+
+    public function test_chat_exposes_consistent_status_draft_and_loading_copy_for_each_locale(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('data-label-status-sent="Message sent"', false)
+            ->assertSee('data-label-status-waiting="Waiting for staff reply"', false)
+            ->assertSee('data-label-status-replied="Staff has replied"', false)
+            ->assertSee('data-label-draft-title="Unsaved message"', false)
+            ->assertSee('data-label-draft-keep="Keep typing"', false)
+            ->assertSee('data-label-draft-discard="Discard draft"', false)
+            ->assertSee('data-thinking-indicator', false)
+            ->assertSee('data-chat-status', false)
+            ->assertSee('data-draft-dialog', false);
+
+        $this->get('/demo?lang=ja')
+            ->assertOk()
+            ->assertSee('data-label-status-sent="メッセージを送信しました"', false)
+            ->assertSee('data-label-status-waiting="スタッフの返信を待っています"', false)
+            ->assertSee('data-label-status-replied="スタッフが返信しました"', false)
+            ->assertSee('data-label-draft-title="未送信のメッセージ"', false)
+            ->assertSee('data-label-draft-keep="入力を続ける"', false)
+            ->assertSee('data-label-draft-discard="下書きを破棄"', false);
+
+        $this->get('/demo?lang=id')
+            ->assertOk()
+            ->assertSee('data-label-status-sent="Pesan terkirim"', false)
+            ->assertSee('data-label-status-waiting="Menunggu balasan staf"', false)
+            ->assertSee('data-label-status-replied="Staf telah membalas"', false)
+            ->assertSee('data-label-draft-title="Pesan belum dikirim"', false)
+            ->assertSee('data-label-draft-keep="Lanjut mengetik"', false)
+            ->assertSee('data-label-draft-discard="Buang draft"', false);
+    }
+
     public function test_the_facilities_page_lists_only_active_facilities_of_the_current_hotel(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
@@ -202,6 +249,42 @@ class HotelLobbyTest extends TestCase
 
         $this->get('/draft/staff')->assertNotFound();
         $this->get('/draft/reservation')->assertNotFound();
+    }
+
+    public function test_staff_scene_docks_chat_away_from_the_contact_panel(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo/staff?lang=en')
+            ->assertOk()
+            ->assertSee('data-chat-dock="left"', false)
+            ->assertSee('class="lobby-content staff-panel', false);
+    }
+
+    public function test_information_scene_centers_the_chat_dock(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo/info?lang=en')
+            ->assertOk()
+            ->assertSee('data-chat-dock="center"', false)
+            ->assertSee('class="lobby-content info-panel', false);
+    }
+
+    public function test_every_stage_scene_uses_the_same_chat_controls_and_dock_contract(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+        $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        $hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Pool', 'body' => 'Open all day.', 'is_active' => true]);
+
+        foreach (['/demo', '/demo/info', '/demo/rooms', '/demo/facilities', '/demo/reservation', '/demo/staff'] as $path) {
+            $this->get($path.'?lang=en')
+                ->assertOk()
+                ->assertSee('data-chat-dock="', false)
+                ->assertSee('data-chat-launcher', false)
+                ->assertSee('data-chat-composer', false)
+                ->assertSee('aria-controls="concierge-chat-log"', false);
+        }
     }
 
     public function test_each_facility_has_its_own_page_with_neighbours_and_an_index(): void
