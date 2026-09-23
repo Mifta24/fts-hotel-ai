@@ -434,7 +434,11 @@ class HotelLobbyTest extends TestCase
         $this->get('/?lang=en')->assertOk()->assertSee('data-sound-toggle', false)->assertSee('Sound on')->assertSee('Sound off');
         $this->get('/?lang=id')->assertOk()->assertSee('Suara aktif')->assertSee('Suara mati');
         $this->get('/demo?lang=en')->assertOk()->assertSee('data-sound-toggle', false)->assertSee('data-label-off="Sound off"', false);
-        $this->get('/demo?lang=ja')->assertOk()->assertSee('サウンドオン');
+        $this->get('/demo/info?lang=ja')
+            ->assertOk()
+            ->assertSee('サウンドオン')
+            ->assertSee('data-lang="ja-JP"', false)
+            ->assertSee('data-voice-preference="female"', false);
     }
 
     public function test_the_rooms_scenes_swap_the_menu_for_a_room_index(): void

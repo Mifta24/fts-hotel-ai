@@ -12,6 +12,64 @@ function initNarrators() {
     const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     const played = new Set();
     const states = new Map();
+    const voicesReady = canSpeak ? new Promise((resolve) => {
+        const finish = (allowEmpty = false) => {
+            if (window.speechSynthesis.getVoices().length || allowEmpty) {
+                window.speechSynthesis.removeEventListener('voiceschanged', finish);
+                resolve();
+            }
+        };
+
+        window.speechSynthesis.addEventListener('voiceschanged', finish);
+        finish();
+        window.setTimeout(() => finish(true), 800);
+    }) : Promise.resolve();
+
+    function voicesForLocale(lang) {
+        const requested = lang.toLowerCase();
+        const language = requested.split('-')[0];
+
+        return window.speechSynthesis.getVoices()
+            .filter((voice) => voice.lang?.toLowerCase().startsWith(language))
+            .sort((first, second) => {
+                const firstExact = first.lang.toLowerCase() === requested ? 1 : 0;
+                const secondExact = second.lang.toLowerCase() === requested ? 1 : 0;
+
+                return secondExact - firstExact;
+            });
+    }
+
+    function maleVoiceName(voice) {
+        return /otoya|ichiro|takumi|male|man/i.test(`${voice.name} ${voice.voiceURI || ''}`);
+    }
+
+    function chooseVoice(element) {
+        const lang = element.dataset.lang;
+        const voices = voicesForLocale(lang);
+        if (!voices.length) return null;
+
+        const femaleNames = /kyoko|ayumi|haruka|nanami|mizuki|yuna|sachiko|eiko|akari|hina|mai|female|woman|girl/i;
+        const maleNames = /otoya|ichiro|takumi|male|man/i;
+        const preferredFemaleVoice = voices.find((voice) => femaleNames.test(`${voice.name} ${voice.voiceURI || ''}`));
+
+        if (element.dataset.voicePreference === 'female' && preferredFemaleVoice) {
+            return preferredFemaleVoice;
+        }
+
+        return voices
+            .map((voice, index) => {
+                const name = `${voice.name} ${voice.voiceURI || ''}`;
+                let score = (voice.lang.toLowerCase() === lang.toLowerCase() ? 30 : 0) + (voice.localService ? 4 : 0) - index;
+
+                if (element.dataset.voicePreference === 'female') {
+                    if (femaleNames.test(name)) score += 100;
+                    if (maleNames.test(name)) score -= 100;
+                }
+
+                return { voice, score };
+            })
+            .sort((first, second) => second.score - first.score)[0].voice;
+    }
 
     const fullText = (element) => element.querySelector('[data-narrator-text]').dataset.text;
     const isVisible = (element) => element.getClientRects().length > 0;
@@ -67,7 +125,7 @@ function initNarrators() {
         states.get(element).timer = window.setTimeout(step, 350);
     }
 
-    function speak(element) {
+    async function speak(element) {
         const state = states.get(element);
         const button = element.querySelector('[data-narrator-listen]');
 
@@ -77,15 +135,22 @@ function initNarrators() {
         }
 
         window.speechSynthesis.cancel();
+        state.speaking = true;
+        button.textContent = element.dataset.stopLabel;
+        element.classList.add('is-speaking');
+
+        await voicesReady;
+        if (!state.speaking) return;
+
         const utterance = new SpeechSynthesisUtterance(fullText(element));
         utterance.lang = element.dataset.lang;
+        const voice = chooseVoice(element);
+        if (voice) utterance.voice = voice;
+        if (element.dataset.lang === 'ja-JP' && (!voice || maleVoiceName(voice))) utterance.pitch = 1.12;
         utterance.onend = utterance.onerror = () => {
             if (state.speaking) stopSpeech(element);
         };
 
-        state.speaking = true;
-        button.textContent = element.dataset.stopLabel;
-        element.classList.add('is-speaking');
         window.speechSynthesis.speak(utterance);
     }
 

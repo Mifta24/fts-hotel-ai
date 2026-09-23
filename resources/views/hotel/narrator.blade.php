@@ -1,5 +1,5 @@
 {{-- The AI concierge "speaking" a short intro for the scene. $text comes from stored hotel data. --}}
-<div class="narrator @if($onStage ?? false) narrator-on-stage @endif @if($inline ?? false) narrator-inline @endif" data-narrator data-key="{{ $key }}" data-lang="{{ ['id' => 'id-ID', 'en' => 'en-US', 'ja' => 'ja-JP'][$locale] }}" data-stop-label="{{ $narration['stop'] }}" data-listen-label="{{ $narration['listen'] }}">
+<div class="narrator @if($onStage ?? false) narrator-on-stage @endif @if($inline ?? false) narrator-inline @endif" data-narrator data-key="{{ $key }}" data-lang="{{ ['id' => 'id-ID', 'en' => 'en-US', 'ja' => 'ja-JP'][$locale] }}" data-voice-preference="female" data-stop-label="{{ $narration['stop'] }}" data-listen-label="{{ $narration['listen'] }}">
     <span class="narrator-avatar" aria-hidden="true"></span>
     <div class="narrator-bubble">
         <p class="narrator-name">
