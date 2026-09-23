@@ -15,9 +15,9 @@ class DemoHotelSeeder extends Seeder
     public function run(): void
     {
         $owner = User::firstOrCreate(
-            ['email' => 'owner@samudrabali.test'],
+            ['email' => 'owner@ftshotel.test'],
             [
-                'name' => 'Pemilik Samudra Bali Resort',
+                'name' => 'Owner',
                 'password' => Hash::make('password'),
                 'email_verified_at' => now(),
             ]
@@ -48,7 +48,7 @@ class DemoHotelSeeder extends Seeder
                 'longitude' => 115.2317,
                 'phone' => '+62 361 771234',
                 'whatsapp' => '6281234567890',
-                'email' => 'reservation@samudrabali.test',
+                'email' => 'reservation@ftshotel.test',
                 'timezone' => 'Asia/Makassar',
                 'currency' => 'IDR',
                 'default_locale' => 'id',
@@ -93,7 +93,7 @@ class DemoHotelSeeder extends Seeder
 
         $this->seedKnowledgeBase($hotel);
 
-        $this->command?->info('Demo login: owner@samudrabali.test — password: password');
+        $this->command?->info('Demo login: owner@ftshotel.test — password: password');
     }
 
     private function roomTypeDefinitions(): array
