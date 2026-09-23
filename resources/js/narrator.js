@@ -40,7 +40,7 @@ function initNarrators() {
     }
 
     function maleVoiceName(voice) {
-        return /otoya|ichiro|takumi|male|man/i.test(`${voice.name} ${voice.voiceURI || ''}`);
+        return /\b(otoya|ichiro|takumi|male|man)\b/i.test(`${voice.name} ${voice.voiceURI || ''}`);
     }
 
     function chooseVoice(element) {
@@ -48,8 +48,8 @@ function initNarrators() {
         const voices = voicesForLocale(lang);
         if (!voices.length) return null;
 
-        const femaleNames = /kyoko|ayumi|haruka|nanami|mizuki|yuna|sachiko|eiko|akari|hina|mai|female|woman|girl/i;
-        const maleNames = /otoya|ichiro|takumi|male|man/i;
+        const femaleNames = /\b(kyoko|ayumi|haruka|nanami|mizuki|yuna|sachiko|eiko|akari|hina|mai|female|woman|girl)\b/i;
+        const maleNames = /\b(otoya|ichiro|takumi|male|man)\b/i;
         const preferredFemaleVoice = voices.find((voice) => femaleNames.test(`${voice.name} ${voice.voiceURI || ''}`));
 
         if (element.dataset.voicePreference === 'female' && preferredFemaleVoice) {
@@ -188,6 +188,20 @@ function initNarrators() {
         listen.addEventListener('click', () => speak(element));
         element.querySelector('[data-narrator-skip]').addEventListener('click', () => halt(element));
     });
+
+    // A browser can support speech synthesis in general but still ship with
+    // no voice for this guest's language — reading the text with whatever
+    // default voice it falls back to just produces the wrong language, so
+    // hide the control rather than mislead the guest.
+    if (canSpeak) {
+        voicesReady.then(() => {
+            narrators.forEach((element) => {
+                if (!voicesForLocale(element.dataset.lang).length) {
+                    element.querySelector('[data-narrator-listen]').hidden = true;
+                }
+            });
+        });
+    }
 
     window.addEventListener('hashchange', () => window.requestAnimationFrame(refresh));
     window.addEventListener('pagehide', () => { if (canSpeak) window.speechSynthesis.cancel(); });
