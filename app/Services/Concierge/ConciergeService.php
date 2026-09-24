@@ -15,9 +15,10 @@ use RuntimeException;
  * against a single hotel's HotelConciergeTools, persists the conversation,
  * and returns the assistant message (with any UI payload to render).
  *
- * The local model is a "thinking" model that reasons at length before it
- * emits a tool call, so max_tokens must stay generous (see MAX_TOKENS) —
- * too small a budget truncates it mid-thought and it never calls the tool.
+ * The local model is a "thinking" model, so every request sends
+ * reasoning_effort=none to skip the long reasoning pass (it roughly halves
+ * the latency). max_tokens stays generous (see MAX_TOKENS) in case a server
+ * ignores that and the model still reasons before it emits a tool call.
  */
 class ConciergeService
 {

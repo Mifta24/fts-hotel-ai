@@ -117,7 +117,7 @@ class ConciergeChatTest extends TestCase
             ->assertJsonPath('messages.0.content', 'Hello')
             ->assertJsonPath('messages.1.content', 'Welcome to Demo!');
 
-        Http::assertSent(fn (Request $request) => $request->hasHeader('Authorization', 'Bearer test-key') && $request['model'] === 'test-model');
+        Http::assertSent(fn (Request $request) => $request->hasHeader('Authorization', 'Bearer test-key') && $request['model'] === 'test-model' && $request['reasoning_effort'] === 'none');
     }
 
     public function test_hotel_facts_come_from_the_knowledge_tool_and_never_from_the_model(): void
