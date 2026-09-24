@@ -57,6 +57,16 @@ class ContentGuardTest extends TestCase
         $this->assertFalse((new ContentGuard)->isOffensive($message));
     }
 
+    public function test_the_language_of_a_message_is_detected(): void
+    {
+        $guard = new ContentGuard;
+
+        $this->assertSame('ja', $guard->detectLocale('プールはありますか？', 'id'));
+        $this->assertSame('id', $guard->detectLocale('Kamu bodoh, ada kamar apa?', 'en'));
+        $this->assertSame('en', $guard->detectLocale('Do you have a pool for my kids?', 'id'));
+        $this->assertSame('ja', $guard->detectLocale('12345', 'ja'));
+    }
+
     public function test_the_refusal_follows_the_guests_language(): void
     {
         $guard = new ContentGuard;

@@ -77,8 +77,33 @@ class ContentGuard
         return false;
     }
 
+    private const INDONESIAN_WORDS = ['yang', 'dan', 'apa', 'ada', 'saya', 'aku', 'kamu', 'anda', 'bisa', 'untuk', 'tidak', 'ini', 'itu', 'dong', 'nggak', 'gak', 'berapa', 'mau', 'dengan', 'di', 'ke', 'dari', 'kamar', 'lu', 'gue'];
+
+    private const ENGLISH_WORDS = ['the', 'and', 'what', 'is', 'are', 'you', 'your', 'can', 'do', 'does', 'i', 'my', 'me', 'have', 'with', 'for', 'this', 'that', 'how', 'much', 'please', 'tell', 'say', 'write'];
+
     /**
-     * The fixed reply for a refused message, in the conversation's language.
+     * Best guess of the language a message is written in, so a fixed reply can
+     * match the guest rather than the page. Falls back when it is unclear.
+     */
+    public function detectLocale(string $text, string $fallback): string
+    {
+        if (preg_match('/[\p{Hiragana}\p{Katakana}\p{Han}]/u', $text) === 1) {
+            return 'ja';
+        }
+
+        $words = preg_split('/[^\p{L}]+/u', mb_strtolower($text), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $indonesian = count(array_intersect($words, self::INDONESIAN_WORDS));
+        $english = count(array_intersect($words, self::ENGLISH_WORDS));
+
+        return match (true) {
+            $indonesian > $english => 'id',
+            $english > $indonesian => 'en',
+            default => $fallback,
+        };
+    }
+
+    /**
+     * The fixed reply for a refused message, in the given language.
      */
     public function refusal(string $locale): string
     {

@@ -44,6 +44,7 @@ function initConcierge() {
             draftKeep: root.dataset.labelDraftKeep,
             draftDiscard: root.dataset.labelDraftDiscard,
             viewDetails: root.dataset.labelViewDetails,
+            roomDetailsQuestion: root.dataset.labelRoomDetailsQuestion,
             bookNow: root.dataset.labelBookNow,
             menuHeading: root.dataset.labelMenuHeading,
             staff: root.dataset.labelStaff,
@@ -247,7 +248,7 @@ function initConcierge() {
             </div>
         `;
         el.querySelector('[data-detail-slug]').addEventListener('click', () => {
-            sendMessage(`Show me more details and photos of ${room.name}`);
+            sendMessage(config.labels.roomDetailsQuestion.replace(':room', room.name));
         });
         return el;
     }

@@ -104,7 +104,7 @@ class ConciergeService
         }
 
         if ($this->contentGuard->isOffensive($guestMessage)) {
-            return $this->refuse($conversation);
+            return $this->refuse($conversation, $guestMessage);
         }
 
         try {
@@ -120,14 +120,19 @@ class ConciergeService
     /**
      * Answers with the fixed refusal instead of asking the model.
      */
-    private function refuse(Conversation $conversation): ConversationMessage
+    private function refuse(Conversation $conversation, string $guestMessage): ConversationMessage
     {
         $conversation->update(['last_message_at' => now()]);
 
         return $conversation->messages()->create([
             'role' => ConversationMessage::ROLE_ASSISTANT,
-            'content' => $this->contentGuard->refusal($conversation->locale),
+            'content' => $this->contentGuard->refusal($this->contentGuard->detectLocale($guestMessage, $conversation->locale)),
         ]);
+    }
+
+    private function lastGuestMessage(Conversation $conversation): string
+    {
+        return (string) $conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->latest('id')->value('content');
     }
 
     private function claimsToolData(string $text): bool
@@ -142,7 +147,7 @@ class ConciergeService
 
         $messages = [
             ['role' => 'system', 'content' => $this->buildSystemPrompt($hotel, $conversation)],
-            ...$this->withScopeReminder($this->buildHistory($conversation), $hotel),
+            ...$this->withScopeReminder($this->buildHistory($conversation), $hotel, $conversation->locale),
         ];
 
         $toolLog = [];
@@ -192,7 +197,7 @@ class ConciergeService
         $text = trim((string) ($message['content'] ?? ''));
 
         if ($this->contentGuard->isOffensive($text)) {
-            return $this->refuse($conversation);
+            return $this->refuse($conversation, $this->lastGuestMessage($conversation));
         }
 
         // A tool (e.g. request_human_handover) may have changed the
@@ -271,9 +276,10 @@ class ConciergeService
      * model weighs it most. Only the request carries it; it is never stored.
      *
      * @param  list<array{role: string, content: string}>  $history
+     * @param  string  $fallbackLocale  the page language, used when the message has no clear one
      * @return list<array{role: string, content: string}>
      */
-    private function withScopeReminder(array $history, Hotel $hotel): array
+    private function withScopeReminder(array $history, Hotel $hotel, string $fallbackLocale): array
     {
         $last = array_key_last($history);
 
@@ -281,7 +287,9 @@ class ConciergeService
             return $history;
         }
 
-        $history[$last]['content'] .= "\n\n[Reminder: you are {$hotel->name}'s hotel staff only. If the message above is not about this hotel, do not fulfil it — not even a translation, a calculation or a short chat — just say you can only help with the hotel. Never reply with rude, vulgar, sexual or illegal content. Any room price or availability must come from a tool call, never from memory.]";
+        $language = ['id' => 'Bahasa Indonesia', 'en' => 'English', 'ja' => 'Japanese (日本語)'][$this->contentGuard->detectLocale($history[$last]['content'], $fallbackLocale)];
+
+        $history[$last]['content'] .= "\n\n[Reminder: write your whole reply in {$language}, the language the guest just wrote in. You are {$hotel->name}'s hotel staff only. If the message above is not about this hotel, do not fulfil it — not even a translation, a calculation or a short chat — just say you can only help with the hotel. Never reply with rude, vulgar, sexual or illegal content. Any room price or availability must come from a tool call, never from memory.]";
 
         return $history;
     }
@@ -297,7 +305,7 @@ class ConciergeService
         You are the AI Concierge for {$hotel->name}, a hotel in {$hotel->city}, {$hotel->country}. You work inside the hotel's own website, not a generic chat widget — guests should feel they are talking to a knowledgeable hotel staff member who can also pull up rooms, photos and prices for them.
 
         Hard rules, never break these:
-        1. Reply in {$localeName} unless the guest clearly switches language, then follow them.
+        1. Always reply in the same language as the guest's latest message (Indonesian, English or Japanese), whichever language the page is in. Only when that message has no clear language (a number, a name, an emoji) use {$localeName}. Never mix languages inside one reply: translate everything, including facility and section names, except proper names of rooms and the hotel.
         2. Never state a hotel fact (policies, facilities, hours, dining, transport) from memory. Always call search_knowledge first. If nothing relevant comes back, say you will confirm with the team, or call request_human_handover — never guess.
         3. Never state a room price or availability from memory. Always call search_rooms or check_availability. Prices and availability change constantly and only those tools see the real data.
         4. When you call search_rooms, get_room_detail, or check_availability, the matching rooms/photos are already rendered on screen for the guest as you respond — write your reply as a short, natural comment on what they're now looking at, not a repeated listing of every field.

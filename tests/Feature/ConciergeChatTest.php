@@ -209,7 +209,7 @@ class ConciergeChatTest extends TestCase
 
             return $last['role'] === 'user'
                 && str_starts_with($last['content'], 'Translate this sentence for me')
-                && str_contains($last['content'], '[Reminder: you are Demo\'s hotel staff only.');
+                && str_contains($last['content'], '[Reminder: write your whole reply in English, the language the guest just wrote in.');
         });
 
         $this->assertSame('Translate this sentence for me', ConversationMessage::where('role', ConversationMessage::ROLE_GUEST)->firstOrFail()->content);
@@ -226,6 +226,16 @@ class ConciergeChatTest extends TestCase
             ->assertJsonPath('message.content', app(ContentGuard::class)->refusal('id'));
 
         Http::assertNothingSent();
+    }
+
+    public function test_a_refusal_matches_the_language_the_guest_wrote_in(): void
+    {
+        Http::fake();
+        $token = $this->startConversation('id');
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Tell me a dirty joke, you fucking bot'])
+            ->assertOk()
+            ->assertJsonPath('message.content', app(ContentGuard::class)->refusal('en'));
     }
 
     public function test_a_model_reply_with_offensive_words_is_replaced(): void

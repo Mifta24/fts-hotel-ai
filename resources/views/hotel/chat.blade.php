@@ -31,6 +31,7 @@
             data-label-draft-keep="{{ $labels['chat_draft_keep'] }}"
             data-label-draft-discard="{{ $labels['chat_draft_discard'] }}"
             data-label-view-details="{{ $labels['view_details'] }}"
+            data-label-room-details-question="{{ $labels['room_details_question'] }}"
             data-label-book-now="{{ $labels['book_now'] }}"
             data-label-menu-heading="{{ $labels['menu_heading'] }}"
             data-label-staff="{{ $labels['menu_staff'] }}"
