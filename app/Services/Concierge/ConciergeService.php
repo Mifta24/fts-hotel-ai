@@ -192,6 +192,7 @@ class ConciergeService
                 'tools' => $tools,
                 'tool_choice' => 'auto',
                 'temperature' => 0.3,
+                'reasoning_effort' => 'none',
                 'max_tokens' => self::MAX_TOKENS,
             ]);
 
