@@ -161,16 +161,29 @@ function initConcierge() {
         return `${config.currency} ${new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 0 }).format(n)}`;
     }
 
+    // Cloudflare drops a request that is still unanswered after 100s, so give
+    // up just before that and let the guest retry instead of waiting forever.
+    const API_TIMEOUT_MS = 95000;
+
     async function api(url, body) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken || '',
-            },
-            body: JSON.stringify(body || {}),
-        });
+        let response;
+
+        try {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                },
+                body: JSON.stringify(body || {}),
+                signal: AbortSignal.timeout(API_TIMEOUT_MS),
+            });
+        } catch (err) {
+            const error = new Error(err.name === 'TimeoutError' ? 'Request timed out' : 'Network error');
+            error.status = err.name === 'TimeoutError' ? 408 : 0;
+            throw error;
+        }
 
         if (!response.ok) {
             const payload = await response.json().catch(() => ({}));
