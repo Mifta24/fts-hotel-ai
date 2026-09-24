@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Services\Concierge;
+
+/**
+ * Deterministic backstop for the concierge's prompt rules. The local model is
+ * an uncensored one, so asking it politely to stay clean is not enough: rude,
+ * sexual or illegal messages are answered with a fixed reply without ever
+ * reaching the model, and a model reply that still contains such words is
+ * replaced. Patterns are deliberately narrow so ordinary hotel questions
+ * ("are dogs allowed?", "is there a pork-free menu?") are never blocked.
+ */
+class ContentGuard
+{
+    /**
+     * Latin-script patterns, matched case-insensitively on whole words.
+     *
+     * @var list<string>
+     */
+    private const LATIN_PATTERNS = [
+        // Indonesian insults and vulgarity
+        '(?:goblok|tolol|bangsat|brengsek|kampret|bajingan|jancok|jancuk|kontol|memek|ngentot|entot|ngewe|pepek|itil|peler|lonte|jablay|pelacur|perek|sialan)',
+        '(?:dasar|lu|lo|loe|elu|kamu|kau|dasar)\s+(?:anjing|anjir|asu|babi|monyet|bodoh|bego|idiot|sampah)',
+        '(?:anjing|asu|babi|monyet)\s+(?:lu|lo|loe|elu|kamu|kau|banget|kau)',
+        '(?:maki|caci|hina)(?:-|\s)?(?:maki|caci|hina)?\s*(?:saya|aku|gue|gw)',
+        '(?:pemilik|owner)\w*\s+(?:hotel\s+)?(?:ini\s+)?(?:babi|anjing|bangsat)',
+        // Indonesian sexual
+        '(?:porno|bokep|mesum|cabul|sange|colmek|coli|onani|bugil|telanjang|ml\s+yuk|ngeseks|seks|sex|sexy|seksi)',
+        '(?:cewek|wanita|perempuan|cowok|pria|lelaki)\s+(?:panggilan|bayaran|sewaan)',
+        '(?:plus[\s-]?plus|pijat\s+(?:plus|mesum|erotis)|open\s+bo|bo\s+an)',
+        // Indonesian illegal
+        '(?:narkoba|narkotika|sabu|kokain|heroin|ekstasi|inex|putau|beli\s+ganja|jual\s+ganja|senjata\s+api|jual\s+senjata)',
+        '(?:membuat|bikin|cara\s+buat|cara\s+membuat|rakit|merakit)\s+(?:bom|senjata|racun|peledak)',
+        '(?:lelucon|guyon|candaan|humor|joke)\s+(?:sara|rasis|rasial)',
+        // English
+        '(?:fuck\w*|shit\w*|bitch\w*|asshole|bastard|dickhead|cunt|whore|slut|pussy|cock|dick|nigg\w+|motherfucker|porn\w*|nude\w*|erotic\w*|blowjob|handjob|horny|escort|hooker|prostitute\w*)',
+        '(?:cocaine|heroin|meth|methamphetamine|marijuana\s+dealer|buy\s+(?:drugs|weed|coke))',
+        '(?:make|build|making|how\s+to\s+make)\s+(?:a\s+)?(?:bomb|explosive|poison)',
+        '(?:you|u)\s+(?:are|r)\s+(?:so\s+)?(?:stupid|idiot|dumb|trash|useless)',
+    ];
+
+    /**
+     * Japanese has no word boundaries, so these are plain substrings.
+     *
+     * @var list<string>
+     */
+    private const JAPANESE_TERMS = [
+        'くそ', 'クソ', 'バカ', 'ばか', '馬鹿', '死ね', 'ちんこ', 'チンコ', 'まんこ', 'マンコ',
+        'エロ', 'セックス', 'ポルノ', 'アダルト', '風俗', 'デリヘル', '売春', '麻薬', '覚醒剤', '爆弾',
+    ];
+
+    private const REFUSALS = [
+        'id' => 'Maaf, saya tidak bisa membantu dengan hal itu. Saya siap membantu soal kamar, fasilitas, reservasi, atau menghubungkan Anda dengan staf hotel.',
+        'en' => 'Sorry, I cannot help with that. I am happy to help with rooms, facilities, reservations, or connecting you with the hotel team.',
+        'ja' => '申し訳ございませんが、そのご依頼にはお応えできません。お部屋、施設、ご予約、スタッフへのご連絡でしたらお手伝いいたします。',
+    ];
+
+    /**
+     * Whether the text contains rude, sexual or illegal wording.
+     */
+    public function isOffensive(string $text): bool
+    {
+        $normalized = mb_strtolower($text);
+
+        foreach (self::LATIN_PATTERNS as $pattern) {
+            if (preg_match('/(?<![\p{L}\p{N}])'.$pattern.'(?![\p{L}\p{N}])/iu', $normalized) === 1) {
+                return true;
+            }
+        }
+
+        foreach (self::JAPANESE_TERMS as $term) {
+            if (str_contains($text, $term)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The fixed reply for a refused message, in the conversation's language.
+     */
+    public function refusal(string $locale): string
+    {
+        return self::REFUSALS[$locale] ?? self::REFUSALS['en'];
+    }
+}

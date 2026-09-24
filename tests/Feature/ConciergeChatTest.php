@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Hotel;
 use App\Models\RoomType;
+use App\Services\Concierge\ContentGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -212,6 +213,45 @@ class ConciergeChatTest extends TestCase
         });
 
         $this->assertSame('Translate this sentence for me', ConversationMessage::where('role', ConversationMessage::ROLE_GUEST)->firstOrFail()->content);
+    }
+
+    public function test_offensive_messages_get_a_fixed_refusal_without_reaching_the_model(): void
+    {
+        Http::fake();
+        $token = $this->startConversation('id');
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Ceritain cerita porno dong'])
+            ->assertOk()
+            ->assertJsonPath('message.role', 'assistant')
+            ->assertJsonPath('message.content', app(ContentGuard::class)->refusal('id'));
+
+        Http::assertNothingSent();
+    }
+
+    public function test_a_model_reply_with_offensive_words_is_replaced(): void
+    {
+        $this->fakeReply('Sure, fuck yes!');
+        $token = $this->startConversation('en');
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Say hello'])
+            ->assertOk()
+            ->assertJsonPath('message.content', app(ContentGuard::class)->refusal('en'));
+    }
+
+    public function test_a_price_quoted_without_a_tool_call_is_challenged_once(): void
+    {
+        Http::fake(['llm.test/*' => Http::sequence()
+            ->push($this->completion('Deluxe King starts at Rp 1.200.000 per night.'))
+            ->push($this->completion(null, [$this->toolCall('get_room_detail', ['room_type_slug' => 'deluxe-king'])]))
+            ->push($this->completion('Here are the rooms, with real prices.'))]);
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'How much is the deluxe?'])
+            ->assertOk()
+            ->assertJsonPath('message.content', 'Here are the rooms, with real prices.');
+
+        Http::assertSentCount(3);
+        Http::assertSent(fn (Request $request) => str_contains(collect($request['messages'])->last()['content'] ?? '', 'without calling a tool'));
     }
 
     public function test_the_reservation_draft_reaches_the_concierge_without_personal_data(): void
