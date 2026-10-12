@@ -54,6 +54,19 @@
             data-label-chat-new-confirm="{{ $labels['chat_new_confirm'] }}"
             data-label-chat-new-keep="{{ $labels['chat_new_keep'] }}"
             data-label-per-night="{{ $labels['per_night'] }}"
+            data-hotel-name="{{ $hotel->name }}"
+            data-label-picker-title="{{ $labels['picker_title'] }}"
+            data-label-picker-message="{{ $labels['picker_message'] }}"
+            data-label-pick-start="{{ $labels['picker_pick_start'] }}"
+            data-label-pick-end="{{ $labels['picker_pick_end'] }}"
+            data-label-picker-continue="{{ $labels['picker_continue'] }}"
+            data-label-tour-progress="{{ $labels['tour_progress'] }}"
+            data-label-tour-next="{{ $labels['tour_next'] }}"
+            data-label-tour-stop="{{ $labels['tour_stop'] }}"
+            data-label-tour-done="{{ $labels['tour_done'] }}"
+            data-label-add-calendar="{{ $labels['chat_add_calendar'] }}"
+            data-label-share="{{ $labels['chat_share'] }}"
+            data-label-share-text="{{ $labels['chat_share_text'] }}"
             data-today="{{ $today }}"
             data-max-nights="{{ \App\Services\Reservation\ReservationService::MAX_NIGHTS }}"
             data-quote-url="{{ route('reservation.quote', $hotel->slug) }}"
@@ -65,6 +78,22 @@
         >
             <script type="application/json" data-wizard-labels>@json($wizard)</script>
             <script type="application/json" data-room-terms>@json($roomTerms)</script>
+            @php
+                // Tappable answers the concierge offers under a reply; a key without a message is handled by the page itself.
+                $quickReplies = [
+                    'pick_dates' => ['label' => $labels['quick_pick_dates']],
+                    'tour' => ['label' => $labels['quick_tour']],
+                    'cheapest' => ['label' => $labels['quick_cheapest'], 'message' => $labels['quick_cheapest_q']],
+                    'family' => ['label' => $labels['quick_family'], 'message' => $labels['quick_family_q']],
+                    'view' => ['label' => $labels['quick_view'], 'message' => $labels['quick_view_q']],
+                    'rooms' => ['label' => $labels['menu_rooms'], 'message' => $labels['menu_rooms_q']],
+                    'facilities' => ['label' => $labels['menu_facilities'], 'message' => $labels['menu_facilities_q']],
+                    'policies' => ['label' => $labels['menu_policies'], 'message' => $labels['menu_policies_q']],
+                    'staff' => ['label' => $labels['menu_staff'], 'message' => $labels['menu_staff_q']],
+                ];
+            @endphp
+            <script type="application/json" data-quick-replies>@json($quickReplies)</script>
+            <script type="application/json" data-tour-stops>@json($tourStops)</script>
 
             <section id="concierge-chat-log" class="chat-log" aria-label="{{ $labels['chat_heading'] }}" aria-hidden="true">
                 <header class="chat-log-header">
@@ -143,5 +172,6 @@
                 @foreach ($menuItems as $item)
                     <li><a href="{{ $item['href'] }}" data-stage-exit data-topic="{{ $item['topic'] }}" @if($item['tour']) data-tour-line="{{ $item['tour'] }}" @endif>{{ $chipLabels[$item['key']] ?? $item['label'] }} <span aria-hidden="true">›</span></a></li>
                 @endforeach
+                <li><button type="button" data-tour-start><span aria-hidden="true">✦</span> {{ $labels['quick_tour'] }}</button></li>
             </ul>
         </div>

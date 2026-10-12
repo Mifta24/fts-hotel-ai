@@ -28,6 +28,7 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
     let panel = null;
     let scrim = null;
     let bubble;
+    let tray;
     let body;
     let back;
     let current = null;
@@ -49,7 +50,8 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
         back.addEventListener('click', goBack);
 
         frame.append(body, back, close);
-        panel.append(bubble, frame);
+        tray = node('div', 'showcase-chips');
+        panel.append(bubble, frame, tray);
         stage.append(scrim, panel);
         requestAnimationFrame(() => requestAnimationFrame(() => {
             scrim?.classList.add('is-in');
@@ -57,11 +59,13 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
         }));
     }
 
-    function render(content, comment) {
-        current = { content, comment };
+    function render(content, comment, chips) {
+        current = { content, comment, chips };
         bubble.textContent = comment || '';
         bubble.hidden = !comment;
         body.replaceChildren(content);
+        tray.replaceChildren(...(chips ? [chips] : []));
+        tray.hidden = !chips;
         body.scrollTop = 0;
         back.hidden = history.length === 0;
         panel.setAttribute('aria-label', comment || content.getAttribute?.('aria-label') || '');
@@ -69,22 +73,23 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
 
     function goBack() {
         const previous = history.pop();
-        if (previous) render(previous.content, previous.comment);
+        if (previous) render(previous.content, previous.comment, previous.chips);
     }
 
     /**
      * @param {Element} content
      * @param {{comment?: string, back?: boolean}} options
      *        comment: what the concierge says above the cards.
+     *        chips: the tappable answers to show beneath them.
      *        back: this opens from what is on show, so keep that to return to.
      */
-    function show(content, { comment = '', back: keep = false } = {}) {
+    function show(content, { comment = '', chips = null, back: keep = false } = {}) {
         if (panel && keep && current) history.push(current);
         else history.length = 0;
 
         if (!panel) build();
 
-        render(content, comment);
+        render(content, comment, chips);
         panel.focus({ preventScroll: true });
     }
 

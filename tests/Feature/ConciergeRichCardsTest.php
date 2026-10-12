@@ -168,6 +168,54 @@ class ConciergeRichCardsTest extends TestCase
         Http::assertSent(fn (Request $request) => collect($request['messages'])->contains(fn ($m) => str_contains((string) ($m['content'] ?? ''), 'called no tool')));
     }
 
+    public function test_the_stay_picker_opens_prefilled_and_ignores_dates_in_the_past(): void
+    {
+        $result = $this->tools()->dispatch('ask_stay_details', [
+            'room_type_slug' => 'deluxe-king', 'check_in' => $this->checkIn->toDateString(), 'adults' => 3, 'check_out' => '2020-01-03',
+        ]);
+
+        $this->assertSame('stay_picker', $result['ui']['type']);
+        $this->assertSame('deluxe-king', $result['ui']['room']['room_type_slug']);
+        $this->assertSame(['check_in' => $this->checkIn->toDateString(), 'adults' => 3], $result['ui']['values']);
+
+        $open = $this->tools()->dispatch('ask_stay_details', []);
+        $this->assertNull($open['ui']['room']);
+        $this->assertSame([], $open['ui']['values']);
+    }
+
+    public function test_the_concierge_can_start_the_guided_tour(): void
+    {
+        $this->assertSame('tour_start', $this->tools()->dispatch('start_tour', [])['ui']['type']);
+
+        $names = collect(HotelConciergeTools::definitions())->pluck('function.name');
+        $this->assertTrue($names->contains('ask_stay_details') && $names->contains('start_tour'));
+    }
+
+    public function test_replies_offer_tappable_answers_that_fit_what_was_shown(): void
+    {
+        $token = $this->conversation->guest_token;
+        $reply = fn (array $payload, ?string $content = 'Here you go.') => $this->conversation->messages()->create(['role' => ConversationMessage::ROLE_ASSISTANT, 'content' => $content, 'ui_payload' => $payload ?: null]);
+        $history = fn () => collect($this->getJson('/demo/concierge/history?guest_token='.$token)->assertOk()->json('messages'))->last()['quick_replies'];
+
+        $reply([['type' => 'room_results', 'check_in' => null, 'check_out' => null, 'rooms' => []]]);
+        $this->assertSame(['pick_dates', 'cheapest', 'family', 'view'], $history());
+
+        $reply([['type' => 'room_results', 'check_in' => '2030-01-01', 'check_out' => '2030-01-03', 'rooms' => []]]);
+        $this->assertSame(['cheapest', 'family', 'view'], $history());
+
+        $reply([['type' => 'booking_form', 'room' => [], 'values' => []]]);
+        $this->assertSame([], $history());
+
+        $reply([['type' => 'booking_confirmation', 'booking' => []]]);
+        $this->assertSame(['facilities', 'policies', 'tour'], $history());
+
+        $reply([], 'Happy to help!');
+        $this->assertSame(['rooms', 'facilities', 'policies', 'tour'], $history());
+
+        $reply([['type' => 'handover']], null);
+        $this->assertSame([], $history());
+    }
+
     public function test_availability_cards_carry_the_room_so_they_can_open_the_form(): void
     {
         $result = $this->tools()->dispatch('check_availability', [

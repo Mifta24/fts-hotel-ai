@@ -100,6 +100,25 @@ class HotelConciergeTools
                     ],
                 ],
                 [
+                    'name' => 'ask_stay_details',
+                    'description' => 'Show a calendar and a guest counter in the chat so the guest picks their check-in and check-out dates and party size by tapping. Use this whenever you need dates or party size that the guest has not given yet — instead of asking for them in text. Optionally name the room they are choosing for. Their choice arrives as their next message.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'room_type_slug' => ['type' => 'string', 'description' => 'Optional: the room the guest is choosing dates for'],
+                            'check_in' => ['type' => 'string', 'description' => 'YYYY-MM-DD, only if the guest already said it'],
+                            'check_out' => ['type' => 'string', 'description' => 'YYYY-MM-DD, only if the guest already said it'],
+                            'adults' => ['type' => 'integer', 'minimum' => 1],
+                            'children' => ['type' => 'integer', 'minimum' => 0],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'start_tour',
+                    'description' => 'Start a guided tour of the hotel, narrated by the concierge, that walks the guest through the rooms and facilities. Use it when the guest asks to be shown around, asks for a tour, or does not know where to start.',
+                    'parameters' => ['type' => 'object', 'properties' => new \stdClass],
+                ],
+                [
                     'name' => 'get_room_detail',
                     'description' => 'Get full details and photos for one room type by its slug (from a previous search_rooms result). Use this when the guest asks to see more about, or see photos of, a specific room.',
                     'parameters' => [
@@ -176,6 +195,8 @@ class HotelConciergeTools
             'search_rooms' => $this->searchRooms($input),
             'recommend_rooms' => $this->recommendRooms($input),
             'open_booking_form' => $this->openBookingForm($input),
+            'ask_stay_details' => $this->askStayDetails($input),
+            'start_tour' => $this->startTour(),
             'get_room_detail' => $this->getRoomDetail($input),
             'check_availability' => $this->checkAvailability($input),
             'create_booking_request' => $this->createBookingRequest($input),
@@ -304,6 +325,34 @@ class HotelConciergeTools
                 'rooms' => array_map($this->withoutPhotos(...), $rooms),
             ], JSON_UNESCAPED_UNICODE),
             'ui' => ['type' => 'room_results', 'check_in' => null, 'check_out' => null, 'rooms' => $rooms],
+        ];
+    }
+
+    private function askStayDetails(array $input): array
+    {
+        $roomType = filled($input['room_type_slug'] ?? null) ? $this->findRoomType($input['room_type_slug']) : null;
+
+        $values = array_filter([
+            'check_in' => $this->validDate($input['check_in'] ?? null),
+            'check_out' => $this->validDate($input['check_out'] ?? null),
+            'adults' => isset($input['adults']) ? max(1, (int) $input['adults']) : null,
+            'children' => isset($input['children']) ? max(0, (int) $input['children']) : null,
+        ], fn ($value) => $value !== null);
+
+        return [
+            'text' => json_encode([
+                'ok' => true,
+                'message' => 'A calendar and guest counter are now on screen. Tell the guest in one short sentence to pick their dates and number of guests. Do not ask for them in text: their choice arrives as their next message.',
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'stay_picker', 'room' => $roomType?->is_active ? $this->roomCard($roomType) : null, 'values' => $values],
+        ];
+    }
+
+    private function startTour(): array
+    {
+        return [
+            'text' => json_encode(['ok' => true, 'message' => 'The guided tour is starting on screen. Say one short, warm sentence to introduce it; the tour narrates the rest.'], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'tour_start'],
         ];
     }
 

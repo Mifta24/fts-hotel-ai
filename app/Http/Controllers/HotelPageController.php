@@ -46,6 +46,7 @@ class HotelPageController extends Controller
             'tour_staff' => 'Let me bring you to our team.',
             'tour_reservation' => 'Let me help you plan your stay.',
             'tour_lobby' => 'Let me walk you back to the lobby.',
+            'tour_room' => 'Let me show you :name.',
             'listen' => 'Listen', 'stop' => 'Stop', 'skip' => 'Skip', 'speaks' => 'is speaking',
         ],
         'id' => [
@@ -67,6 +68,7 @@ class HotelPageController extends Controller
             'tour_staff' => 'Mari, saya antar Anda bertemu tim kami.',
             'tour_reservation' => 'Mari, saya bantu rencanakan menginap Anda.',
             'tour_lobby' => 'Mari saya antar kembali ke lobi.',
+            'tour_room' => 'Mari saya tunjukkan :name.',
             'listen' => 'Dengarkan', 'stop' => 'Berhenti', 'skip' => 'Lewati', 'speaks' => 'sedang berbicara',
         ],
         'ja' => [
@@ -88,6 +90,7 @@ class HotelPageController extends Controller
             'tour_staff' => 'スタッフのもとへご案内します。',
             'tour_reservation' => 'ご宿泊のご計画をお手伝いします。',
             'tour_lobby' => 'ロビーへご案内します。',
+            'tour_room' => ':name をご案内します。',
             'listen' => '音声で聞く', 'stop' => '停止', 'skip' => 'スキップ', 'speaks' => '話しています',
         ],
     ];
@@ -264,6 +267,7 @@ class HotelPageController extends Controller
             'lobby' => $lobby,
             'roomTerms' => self::ROOM_TERMS[$locale],
             'wizard' => $this->wizardLabels($locale),
+            'tourStops' => $this->tourStops($hotel, $roomTypes, $locale),
             'narration' => self::NARRATION[$locale],
             'roomNarrations' => $this->roomNarrations($hotel, $roomTypes, $locale),
             'staffLinks' => $this->handover->forStaff($hotel, $locale),
@@ -274,6 +278,35 @@ class HotelPageController extends Controller
             'facilities' => $facilities,
             'sceneNarrations' => $this->sceneNarrations($hotel, $facilities, $locale),
         ];
+    }
+
+    /**
+     * The stops of the concierge's guided tour: the rooms, a couple of them in
+     * turn, then the facilities. `key` is the narrator the scene plays and
+     * `spot` the part of that scene the tour draws the guest's eye to.
+     *
+     * @param  Collection<int, RoomType>  $roomTypes
+     * @return list<array{key: string, url: string, line: string, spot: ?string}>
+     */
+    private function tourStops(Hotel $hotel, Collection $roomTypes, string $locale): array
+    {
+        $tour = self::NARRATION[$locale];
+        $link = fn (string $route, array $parameters = []) => route($route, ['hotelSlug' => $hotel->slug, ...$parameters, 'lang' => $locale]);
+
+        $stops = [['key' => 'rooms', 'url' => $link('hotel.rooms'), 'line' => $tour['tour_rooms'], 'spot' => '.room-nav']];
+
+        foreach ($roomTypes->take(2) as $roomType) {
+            $stops[] = [
+                'key' => 'room-'.$roomType->slug,
+                'url' => $link('hotel.room', ['roomSlug' => $roomType->slug]),
+                'line' => str_replace(':name', $roomType->translatedName($locale), $tour['tour_room']),
+                'spot' => null,
+            ];
+        }
+
+        $stops[] = ['key' => 'facilities', 'url' => $link('hotel.facilities'), 'line' => $tour['tour_facilities'], 'spot' => '.facility-grid'];
+
+        return $stops;
     }
 
     /**
@@ -715,6 +748,15 @@ class HotelPageController extends Controller
                 'chat_form_confirm' => 'Confirm reservation',
                 'chat_showing_rooms' => 'Showing :count rooms',
                 'chat_close_showcase' => 'Close',
+                'quick_cheapest' => 'Cheapest room', 'quick_cheapest_q' => 'Which is the cheapest room available?',
+                'quick_family' => 'For a family', 'quick_family_q' => 'Which room suits a family best?',
+                'quick_view' => 'Best view', 'quick_view_q' => 'Which room has the best view?',
+                'quick_pick_dates' => 'Pick dates & guests', 'quick_tour' => 'Tour with the AI',
+                'picker_title' => 'When would you like to stay?', 'picker_message' => 'I would like to stay:',
+                'picker_pick_start' => 'Choose your check-in date', 'picker_pick_end' => 'Choose your check-out date', 'picker_continue' => 'Continue',
+                'tour_progress' => 'Tour :current / :total', 'tour_next' => 'Skip ›', 'tour_stop' => 'Stop',
+                'tour_done' => 'That was a quick look around. When would you like to stay?',
+                'chat_add_calendar' => 'Add to calendar', 'chat_share' => 'Share', 'chat_share_text' => 'My stay at :hotel: :room, :in → :out. Ref :ref',
                 'chat_new' => 'New chat',
                 'chat_new_title' => 'Start a new chat?',
                 'chat_new_body' => 'The current conversation will be cleared from this screen and the concierge will start fresh.',
@@ -772,6 +814,15 @@ class HotelPageController extends Controller
                 'chat_form_confirm' => '予約を確定する',
                 'chat_showing_rooms' => ':count 室をご案内中',
                 'chat_close_showcase' => '閉じる',
+                'quick_cheapest' => '一番安い部屋', 'quick_cheapest_q' => '空いている中で一番安い部屋はどれですか？',
+                'quick_family' => 'ご家族向け', 'quick_family_q' => '家族に一番合う部屋はどれですか？',
+                'quick_view' => '眺めの良い部屋', 'quick_view_q' => 'いちばん眺めの良い部屋はどれですか？',
+                'quick_pick_dates' => '日程と人数を選ぶ', 'quick_tour' => 'AIと館内ツアー',
+                'picker_title' => 'いつご宿泊されますか？', 'picker_message' => '宿泊を希望します：',
+                'picker_pick_start' => 'チェックイン日を選択', 'picker_pick_end' => 'チェックアウト日を選択', 'picker_continue' => '次へ',
+                'tour_progress' => 'ツアー :current / :total', 'tour_next' => 'スキップ ›', 'tour_stop' => '終了',
+                'tour_done' => '館内のご案内は以上です。ご宿泊はいつ頃をご希望ですか？',
+                'chat_add_calendar' => 'カレンダーに追加', 'chat_share' => '共有', 'chat_share_text' => ':hotel のご宿泊：:room、:in → :out。予約番号 :ref',
                 'chat_new' => '新しいチャット',
                 'chat_new_title' => '新しいチャットを始めますか？',
                 'chat_new_body' => '現在の会話はこの画面から消去され、コンシェルジュが最初からご案内します。',
@@ -829,6 +880,15 @@ class HotelPageController extends Controller
                 'chat_form_confirm' => 'Konfirmasi reservasi',
                 'chat_showing_rooms' => 'Menampilkan :count kamar',
                 'chat_close_showcase' => 'Tutup',
+                'quick_cheapest' => 'Kamar termurah', 'quick_cheapest_q' => 'Kamar mana yang paling murah dan tersedia?',
+                'quick_family' => 'Untuk keluarga', 'quick_family_q' => 'Kamar mana yang paling cocok untuk keluarga?',
+                'quick_view' => 'Pemandangan terbaik', 'quick_view_q' => 'Kamar mana yang pemandangannya paling bagus?',
+                'quick_pick_dates' => 'Pilih tanggal & tamu', 'quick_tour' => 'Tur bersama AI',
+                'picker_title' => 'Kapan Anda ingin menginap?', 'picker_message' => 'Saya ingin menginap:',
+                'picker_pick_start' => 'Pilih tanggal check-in', 'picker_pick_end' => 'Pilih tanggal check-out', 'picker_continue' => 'Lanjut',
+                'tour_progress' => 'Tur :current / :total', 'tour_next' => 'Lewati ›', 'tour_stop' => 'Berhenti',
+                'tour_done' => 'Itu tadi sekilas hotel kami. Kapan Anda ingin menginap?',
+                'chat_add_calendar' => 'Tambahkan ke kalender', 'chat_share' => 'Bagikan', 'chat_share_text' => 'Menginap di :hotel: :room, :in → :out. Ref :ref',
                 'chat_new' => 'Chat baru',
                 'chat_new_title' => 'Mulai chat baru?',
                 'chat_new_body' => 'Percakapan saat ini akan dihapus dari layar dan concierge akan memulai dari awal.',

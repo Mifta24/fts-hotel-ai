@@ -131,8 +131,45 @@ class ConciergeChatController extends Controller
             'content' => $message->content,
             'ui_payload' => $message->ui_payload,
             'suggested_actions' => $this->suggestedActions($message->ui_payload),
+            'quick_replies' => $this->quickReplies($message),
             'created_at' => $message->created_at->toIso8601String(),
         ];
+    }
+
+    /**
+     * Tappable answers under an assistant reply, so the guest can carry on
+     * without typing. The page turns each key into its words in the guest's language.
+     *
+     * @return list<string>
+     */
+    private function quickReplies(ConversationMessage $message): array
+    {
+        if ($message->role !== ConversationMessage::ROLE_ASSISTANT) {
+            return [];
+        }
+
+        $payloads = collect($message->ui_payload ?? []);
+        $types = $payloads->pluck('type');
+
+        if ($types->intersect(['handover', 'booking_form', 'stay_picker', 'tour_start'])->isNotEmpty()) {
+            return [];
+        }
+
+        if ($types->contains('room_results')) {
+            return $payloads->firstWhere('type', 'room_results')['check_in'] ?? null
+                ? ['cheapest', 'family', 'view']
+                : ['pick_dates', 'cheapest', 'family', 'view'];
+        }
+
+        if ($types->intersect(['room_detail', 'availability'])->isNotEmpty()) {
+            return ['pick_dates', 'rooms'];
+        }
+
+        if ($types->contains('booking_confirmation')) {
+            return ['facilities', 'policies', 'tour'];
+        }
+
+        return filled($message->content) ? ['rooms', 'facilities', 'policies', 'tour'] : [];
     }
 
     /**

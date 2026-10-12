@@ -3,6 +3,9 @@
  * the avatar and sound bars while "speaking", and can read it aloud with the
  * browser's speech synthesis when the guest asks (never automatically).
  * The full text is always in the DOM for screen readers and no-JS visitors.
+ *
+ * Once a scene's line is fully shown it announces `narrator:done`, which the
+ * guided tour waits for before walking the guest on.
  */
 function initNarrators() {
     const narrators = [...document.querySelectorAll('[data-narrator]')];
@@ -102,6 +105,8 @@ function initNarrators() {
         rest.textContent = characters.slice(count).join('');
     }
 
+    const announceDone = (element) => element.dispatchEvent(new CustomEvent('narrator:done', { bubbles: true, detail: { key: element.dataset.key } }));
+
     function reveal(element, { finished = true } = {}) {
         const state = states.get(element);
         if (state?.timer) window.clearTimeout(state.timer);
@@ -142,6 +147,7 @@ function initNarrators() {
             if (index >= characters.length) {
                 state.timer = null;
                 if (!state.speaking) element.classList.remove('is-speaking');
+                announceDone(element);
                 return;
             }
 
@@ -200,6 +206,7 @@ function initNarrators() {
             const key = element.dataset.key;
             if (reducedMotion || played.has(key)) {
                 reveal(element);
+                announceDone(element);
             } else {
                 played.add(key);
                 type(element);

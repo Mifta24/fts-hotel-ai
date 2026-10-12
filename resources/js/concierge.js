@@ -5,7 +5,10 @@
  * confirmations, handover notices) as real DOM, not markdown-in-a-bubble.
  */
 import { createCards } from './concierge-cards';
+import { confetti } from './concierge-celebrate';
+import { createPicker } from './concierge-picker';
 import { createShowcase } from './concierge-showcase';
+import { createTour } from './concierge-tour';
 
 function initConcierge() {
     const root = document.getElementById('concierge-app');
@@ -26,6 +29,8 @@ function initConcierge() {
         maxNights: Number(root.dataset.maxNights),
         quoteUrl: root.dataset.quoteUrl,
         reserveUrl: root.dataset.reserveUrl,
+        hotelName: root.dataset.hotelName,
+        storageSlug: root.dataset.hotelSlug,
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
@@ -57,6 +62,18 @@ function initConcierge() {
             perNight: root.dataset.labelPerNight,
             showingRooms: root.dataset.labelShowingRooms,
             closeShowcase: root.dataset.labelCloseShowcase,
+            pickerTitle: root.dataset.labelPickerTitle,
+            pickerMessage: root.dataset.labelPickerMessage,
+            pickStart: root.dataset.labelPickStart,
+            pickEnd: root.dataset.labelPickEnd,
+            pickerContinue: root.dataset.labelPickerContinue,
+            tourProgress: root.dataset.labelTourProgress,
+            tourNext: root.dataset.labelTourNext,
+            tourStop: root.dataset.labelTourStop,
+            tourDone: root.dataset.labelTourDone,
+            addCalendar: root.dataset.labelAddCalendar,
+            share: root.dataset.labelShare,
+            shareText: root.dataset.labelShareText,
             newChat: root.dataset.labelChatNew,
             roomDetailsQuestion: root.dataset.labelRoomDetailsQuestion,
             bookNow: root.dataset.labelBookNow,
@@ -315,6 +332,15 @@ function initConcierge() {
         backLabel: wizard.back,
     });
 
+    const picker = createPicker({
+        config,
+        wizard,
+        submit: (message) => {
+            showcase.hide();
+            sendMessage(message);
+        },
+    });
+
     const cards = createCards({
         config,
         wizard,
@@ -327,6 +353,8 @@ function initConcierge() {
             scrollToBottom();
         },
         present: (content, options) => showcase.show(content, options),
+        picker: (options) => picker.build(options),
+        celebrate: confetti,
         // The confirmation made with the form is saved on the server like any reply.
         recorded: () => { knownMessageCount += 1; },
     });
@@ -347,16 +375,67 @@ function initConcierge() {
         return chip;
     }
 
-    function renderUiPayload(uiPayload, { fresh = false, comment = '' } = {}) {
+    const quickReplies = JSON.parse(root.querySelector('script[data-quick-replies]')?.textContent || '{}');
+
+    /**
+     * Tappable answers under a reply, so the guest can carry on without typing.
+     * A key with no message is something the page does itself.
+     */
+    function quickChips(keys) {
+        const items = (keys || []).filter((key) => quickReplies[key]);
+        if (!items.length) return null;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'qr';
+        wrap.dataset.quickReplies = '';
+
+        items.forEach((key) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'qr-chip';
+            chip.textContent = quickReplies[key].label;
+            chip.addEventListener('click', () => {
+                if (key === 'pick_dates') showcase.show(picker.build());
+                else if (key === 'tour') tour.start();
+                else sendMessage(quickReplies[key].message);
+            });
+            wrap.appendChild(chip);
+        });
+
+        return wrap;
+    }
+
+    /** Only the newest reply keeps its chips; older ones would answer a question that is gone. */
+    function keepLatestQuickReplies() {
+        [...messagesEl.querySelectorAll('[data-quick-replies]')].slice(0, -1).forEach((el) => el.parentElement?.remove());
+    }
+
+    const tour = createTour({
+        stops: JSON.parse(root.querySelector('script[data-tour-stops]')?.textContent || '[]'),
+        storageKey: `concierge_tour_${config.storageSlug}`,
+        labels: { progress: config.labels.tourProgress, next: config.labels.tourNext, stop: config.labels.tourStop },
+        stage: root.closest('.stage') || document.body,
+        onFinish: () => showcase.show(picker.build(), { comment: config.labels.tourDone }),
+    });
+
+    function renderUiPayload(uiPayload, { fresh = false, comment = '', quick = [] } = {}) {
         if (!uiPayload || !uiPayload.length) return;
 
         let latest = null;
 
         uiPayload.forEach((payload) => {
+            if (payload.type === 'tour_start') {
+                if (fresh) window.setTimeout(() => tour.start(), 2400);
+
+                return;
+            }
+
+            if (fresh && payload.type === 'booking_confirmation') confetti();
+
             const item = cards.describe(payload);
 
             if (item) {
-                const present = () => showcase.show(item.build(), { comment });
+                const present = () => showcase.show(item.build(), { comment, chips: quickChips(quick) });
                 messagesEl.appendChild(card([recapChip(item.recap, present)]));
                 latest = present;
 
@@ -461,9 +540,12 @@ function initConcierge() {
             if (message.content) {
                 messagesEl.appendChild(bubble('assistant', message.content));
             }
-            renderUiPayload(message.ui_payload, { fresh, comment: message.content || '' });
+            renderUiPayload(message.ui_payload, { fresh, comment: message.content || '', quick: message.quick_replies });
             const chips = actionChips(message.suggested_actions);
             if (chips) messagesEl.appendChild(chips);
+            const quick = quickChips(message.quick_replies);
+            if (quick) messagesEl.appendChild(card([quick]));
+            keepLatestQuickReplies();
         } else if (message.role === 'staff') {
             messagesEl.appendChild(card([staffBubble(message.content)]));
             setChatStatus(config.labels.statusReplied, 'replied');
@@ -610,6 +692,9 @@ function initConcierge() {
 
         const guestToken = localStorage.getItem(config.storageKey);
         if (!guestToken) return;
+
+        // The guest is taking over from the tour.
+        tour.stop();
 
         openPanel();
         if (!retry) messagesEl.appendChild(bubble('guest', text));
@@ -820,6 +905,9 @@ function initConcierge() {
 
     // A menu pick in the same scene: the concierge answers right where the guest stands.
     window.addEventListener('concierge:ask', (event) => sendMessage(event.detail.message));
+
+    document.querySelectorAll('[data-tour-start]').forEach((button) => button.addEventListener('click', () => tour.start()));
+    tour.resume();
 
     setBusy(true);
     boot().then(() => {

@@ -1,4 +1,4 @@
-<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems" :wizard="$wizard" :room-terms="$roomTerms" :today="$today" :title="$labels['rooms_heading'].' · '.$hotel->name">
+<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems" :wizard="$wizard" :room-terms="$roomTerms" :today="$today" :tour-stops="$tourStops" :title="$labels['rooms_heading'].' · '.$hotel->name">
     <x-slot:welcome>
         <div class="stage-welcome stage-welcome-scene" data-anchor="{{ $backdrop['text'] }}">
             <span class="lobby-eyebrow">{{ $lobby['explore'] }}</span>

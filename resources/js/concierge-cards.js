@@ -7,6 +7,8 @@
  * Everything is built with DOM nodes and textContent, never HTML strings, so
  * room names and anything the guest typed cannot inject markup.
  */
+import { calendarFile } from './concierge-celebrate';
+
 const PHONE_PATTERN = /^\+?[0-9\s\-().]{6,20}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONTACT_TYPES = ['whatsapp', 'phone', 'email'];
@@ -61,6 +63,8 @@ const dayAfter = (iso) => {
  * @param {(text: string) => void} ctx.ask          sends a message as the guest
  * @param {(node: Element) => void} ctx.append      adds a card to the transcript
  * @param {(node: Element, options?: {back?: boolean}) => void} ctx.present  puts a card in the showcase
+ * @param {() => void} ctx.celebrate               a reservation request just went through
+ * @param {(options: object) => Element} ctx.picker   builds the calendar card the concierge offers for dates
  * @param {() => void} ctx.recorded                 a message was saved server-side that the chat did not receive
  */
 export function createCards(ctx) {
@@ -211,7 +215,31 @@ export function createCards(ctx) {
                 h('div', {}, h('dt', { text: wizard.room }), h('dd', { text: booking.name })),
                 h('div', {}, h('dt', { text: wizard.dates }), h('dd', { text: `${day(booking.check_in)} → ${day(booking.check_out)} · ${booking.nights} ${labels.night}` })),
                 h('div', {}, h('dt', { text: wizard.estimated_total }), h('dd', { class: 'rc-total', text: money(booking.total_price) }))),
-            whatsapp ? h('a', { class: 'rc-btn rc-btn-primary rc-btn-wide', href: whatsapp, target: '_blank', rel: 'noopener', text: wizard.send_whatsapp }) : null);
+            whatsapp ? h('a', { class: 'rc-btn rc-btn-primary rc-btn-wide', href: whatsapp, target: '_blank', rel: 'noopener', text: wizard.send_whatsapp }) : null,
+            h('div', { class: 'rc-done-actions' },
+                h('button', { type: 'button', class: 'rc-btn', text: labels.addCalendar, onClick: () => saveToCalendar(booking) }),
+                h('button', { type: 'button', class: 'rc-btn', text: labels.share, onClick: () => shareStay(booking) })));
+    }
+
+    function saveToCalendar(booking) {
+        const link = h('a', { href: URL.createObjectURL(calendarFile(booking, config.hotelName)), download: `${booking.booking_reference}.ics` });
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+    }
+
+    /** The system share sheet where there is one; WhatsApp otherwise. */
+    function shareStay(booking) {
+        const message = labels.shareText
+            .replace(':hotel', config.hotelName)
+            .replace(':room', booking.name)
+            .replace(':in', day(booking.check_in))
+            .replace(':out', day(booking.check_out))
+            .replace(':ref', booking.booking_reference);
+
+        if (navigator.share) navigator.share({ text: message }).catch(() => {});
+        else window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
     }
 
     /**
@@ -494,6 +522,7 @@ export function createCards(ctx) {
                 root.className = 'rf-done';
                 root.replaceChildren(confirmationCard(confirmation));
                 ctx.append(confirmationCard(confirmation));
+                ctx.celebrate();
                 window.hotelSound?.play('incoming');
                 if (data.confirmation) ctx.recorded();
             } catch (error) {
@@ -529,6 +558,10 @@ export function createCards(ctx) {
                 };
             case 'room_detail':
                 return { recap: payload.room.name, build: () => roomCard(payload.room, { expanded: true }) };
+            case 'stay_picker':
+                if (payload.room) rooms.set(payload.room.room_type_slug, payload.room);
+
+                return { recap: labels.pickerTitle, build: () => ctx.picker({ room: payload.room, values: payload.values }) };
             case 'booking_form':
                 rooms.set(payload.room.room_type_slug, payload.room);
 
