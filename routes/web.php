@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RoomTypeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConciergeChatController;
 use App\Http\Controllers\HotelPageController;
+use App\Http\Controllers\NarrationSpeechController;
 use App\Http\Controllers\ReservationController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('handovers/{handover}/resolve', [HandoverController::class, 'resolve'])->name('handovers.resolve');
     });
 });
+
+Route::post('narration/speech', NarrationSpeechController::class)->middleware('throttle:narration-speech')->name('narration.speech');
 
 Route::prefix('{hotelSlug}')->group(function () {
     Route::get('/', [HotelPageController::class, 'show'])->name('hotel.show');

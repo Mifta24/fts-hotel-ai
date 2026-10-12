@@ -1,7 +1,8 @@
 /**
  * The AI concierge introducing a scene: types the intro like speech, animates
  * the avatar and sound bars while "speaking", and can read it aloud with the
- * browser's speech synthesis when the guest asks (never automatically).
+ * server-generated voice (falling back to the browser's speech synthesis) when
+ * the guest asks (never automatically).
  * The full text is always in the DOM for screen readers and no-JS visitors.
  *
  * Once a scene's line is fully shown it announces `narrator:done`, which the
@@ -116,11 +117,47 @@ function initNarrators() {
         if (finished && !state?.speaking) element.classList.remove('is-speaking');
     }
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const audioUrls = new Map();
+
+    /**
+     * Natural server-side voice: the audio is synthesised once per line and
+     * cached on the server. Resolves to an object URL, or null when the
+     * server voice is unavailable so the caller can fall back to the browser's.
+     */
+    async function serverAudioUrl(element) {
+        const { speechUrl, speechSignature, lang } = element.dataset;
+        if (!speechUrl) return null;
+
+        const text = fullText(element);
+        const locale = lang.split('-')[0];
+        const cacheKey = `${locale}:${text}`;
+        if (audioUrls.has(cacheKey)) return audioUrls.get(cacheKey);
+
+        try {
+            const response = await fetch(speechUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'audio/wav', 'X-CSRF-TOKEN': csrfToken || '' },
+                body: JSON.stringify({ text, locale, signature: speechSignature }),
+            });
+            if (!response.ok) return null;
+
+            const url = URL.createObjectURL(await response.blob());
+            audioUrls.set(cacheKey, url);
+
+            return url;
+        } catch {
+            return null;
+        }
+    }
+
     function stopSpeech(element) {
         const state = states.get(element);
         if (!state?.speaking) return;
 
         state.speaking = false;
+        state.audio?.pause();
+        state.audio = null;
         if (canSpeak) window.speechSynthesis.cancel();
         const button = element.querySelector('[data-narrator-listen]');
         button.textContent = element.dataset.listenLabel;
@@ -167,10 +204,36 @@ function initNarrators() {
             return;
         }
 
-        window.speechSynthesis.cancel();
+        narrators.forEach((other) => stopSpeech(other));
+        if (canSpeak) window.speechSynthesis.cancel();
         state.speaking = true;
         button.textContent = element.dataset.stopLabel;
         element.classList.add('is-speaking');
+
+        const audioUrl = await serverAudioUrl(element);
+        if (!state.speaking) return;
+
+        if (audioUrl) {
+            const audio = new Audio(audioUrl);
+            audio.onended = audio.onerror = () => {
+                if (state.audio === audio) stopSpeech(element);
+            };
+
+            state.audio = audio;
+            try {
+                await audio.play();
+                return;
+            } catch {
+                state.audio = null;
+                if (!canSpeak) {
+                    stopSpeech(element);
+                    return;
+                }
+            }
+        } else if (!canSpeak) {
+            stopSpeech(element);
+            return;
+        }
 
         await voicesReady;
         if (!state.speaking) return;
@@ -215,10 +278,10 @@ function initNarrators() {
     }
 
     narrators.forEach((element) => {
-        states.set(element, { timer: null, speaking: false, active: false });
+        states.set(element, { timer: null, speaking: false, active: false, audio: null });
 
         const listen = element.querySelector('[data-narrator-listen]');
-        listen.hidden = !canSpeak;
+        listen.hidden = !canSpeak && !element.dataset.speechUrl;
         listen.addEventListener('click', () => speak(element));
         element.querySelector('[data-narrator-skip]').addEventListener('click', () => halt(element));
     });
@@ -226,11 +289,12 @@ function initNarrators() {
     // A browser can support speech synthesis in general but still ship with
     // no voice for this guest's language — reading the text with whatever
     // default voice it falls back to just produces the wrong language, so
-    // hide the control rather than mislead the guest.
+    // hide the control rather than mislead the guest. A line with a server
+    // voice never needs the browser's, so it keeps its control regardless.
     if (canSpeak) {
         voicesReady.then(() => {
             narrators.forEach((element) => {
-                if (!voicesForLocale(element.dataset.lang).length) {
+                if (!element.dataset.speechUrl && !voicesForLocale(element.dataset.lang).length) {
                     element.querySelector('[data-narrator-listen]').hidden = true;
                 }
             });
@@ -238,7 +302,10 @@ function initNarrators() {
     }
 
     window.addEventListener('hashchange', () => window.requestAnimationFrame(refresh));
-    window.addEventListener('pagehide', () => { if (canSpeak) window.speechSynthesis.cancel(); });
+    window.addEventListener('pagehide', () => {
+        narrators.forEach((element) => states.get(element).audio?.pause());
+        if (canSpeak) window.speechSynthesis.cancel();
+    });
     window.requestAnimationFrame(refresh);
 }
 

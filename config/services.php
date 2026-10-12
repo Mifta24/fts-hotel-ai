@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY'),
+        'base_url' => env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+        'tts_model' => env('OPENROUTER_TTS_MODEL', 'google/gemini-3.8-flash-lite-tts'),
+        'tts_voice' => env('OPENROUTER_TTS_VOICE', 'Sulafat'),
+    ],
+
     'local_llm' => [
         'base_url' => env('LOCAL_LLM_BASE_URL'),
         'api_key' => env('LOCAL_LLM_API_KEY'),
