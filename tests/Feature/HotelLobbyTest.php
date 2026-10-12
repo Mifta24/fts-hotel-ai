@@ -207,6 +207,8 @@ class HotelLobbyTest extends TestCase
             ->assertSee('Garden view')
             ->assertSee('https://example.test/two.jpg', false)
             ->assertSee('Final availability and rates are confirmed by hotel staff.')
+            // the big photo takes over from the photo a guest tapped on the previous scene
+            ->assertSee('view-transition-name: room-photo', false)
             // both neighbours wrap around to the only other room
             ->assertSee('rel="prev"', false)
             ->assertSee($suiteUrl, false);

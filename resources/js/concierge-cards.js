@@ -8,6 +8,7 @@
  * room names and anything the guest typed cannot inject markup.
  */
 import { calendarFile } from './concierge-celebrate';
+import { DONE, haptic } from './haptics';
 
 const PHONE_PATTERN = /^\+?[0-9\s\-().]{6,20}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,6 +94,17 @@ export function createCards(ctx) {
             h('span', { text: labels.perNight }));
     }
 
+    /** The photo walks to the room's own page, growing into the big photo there. */
+    function openRoomPage(event, photo) {
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+        event.preventDefault();
+        const href = event.currentTarget.href;
+
+        if (window.hotelStage) window.hotelStage.leave(href, null, null, { photo: photo.isConnected && photo.naturalWidth ? photo : null });
+        else window.location.href = href;
+    }
+
     function roomCard(room, { index = 0, stay = null, expanded = false } = {}) {
         rooms.set(room.room_type_slug, room);
 
@@ -141,8 +153,14 @@ export function createCards(ctx) {
         });
 
         return h('article', { class: 'rc', style: `--i:${index}`, role: 'listitem' },
-            h('div', { class: 'rc-photo' },
+            h('a', {
+                class: 'rc-photo',
+                href: config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(room.room_type_slug)),
+                'aria-label': room.name,
+                onClick: (event) => openRoomPage(event, photo),
+            },
                 gallery.length ? photo : h('span', { class: 'rc-photo-empty', 'aria-hidden': 'true' }),
+                h('span', { class: 'rc-photo-cue', 'aria-hidden': 'true', text: '↗' }),
                 h('div', { class: 'rc-badges' },
                     view(room) ? h('span', { text: view(room) }) : null,
                     room.breakfast_included ? h('span', { text: labels.breakfastIncluded }) : null)),
@@ -523,6 +541,7 @@ export function createCards(ctx) {
                 root.replaceChildren(confirmationCard(confirmation));
                 ctx.append(confirmationCard(confirmation));
                 ctx.celebrate();
+                haptic(DONE);
                 window.hotelSound?.play('incoming');
                 if (data.confirmation) ctx.recorded();
             } catch (error) {
@@ -588,5 +607,16 @@ export function createCards(ctx) {
         }
     }
 
-    return { describe, render };
+    /** Placeholder cards that shimmer while the concierge is still finding the rooms. */
+    function skeleton() {
+        return h('div', { class: 'rc-rail', 'aria-hidden': 'true' }, [0, 1].map((index) => h('article', { class: 'rc rc-skeleton', style: `--i:${index}` },
+            h('div', { class: 'rc-photo' }),
+            h('div', { class: 'rc-body' },
+                h('span', { class: 'rc-line is-wide' }),
+                h('span', { class: 'rc-line is-mid' }),
+                h('span', { class: 'rc-line is-short' }),
+                h('div', { class: 'rc-actions' }, h('span', { class: 'rc-pill' }), h('span', { class: 'rc-pill' }))))));
+    }
+
+    return { describe, render, skeleton };
 }

@@ -6,6 +6,7 @@
  */
 import { createCards } from './concierge-cards';
 import { confetti } from './concierge-celebrate';
+import { haptic, TAP } from './haptics';
 import { createPicker } from './concierge-picker';
 import { createShowcase } from './concierge-showcase';
 import { createTour } from './concierge-tour';
@@ -335,10 +336,7 @@ function initConcierge() {
     const picker = createPicker({
         config,
         wizard,
-        submit: (message) => {
-            showcase.hide();
-            sendMessage(message);
-        },
+        submit: (message) => sendMessage(message, { skeleton: true }),
     });
 
     const cards = createCards({
@@ -375,6 +373,9 @@ function initConcierge() {
         return chip;
     }
 
+    /** Chips whose answer is a set of room cards: the showcase opens on placeholders while the concierge looks. */
+    const SHOWS_ROOMS = new Set(['cheapest', 'family', 'view', 'rooms']);
+
     const quickReplies = JSON.parse(root.querySelector('script[data-quick-replies]')?.textContent || '{}');
 
     /**
@@ -395,9 +396,10 @@ function initConcierge() {
             chip.className = 'qr-chip';
             chip.textContent = quickReplies[key].label;
             chip.addEventListener('click', () => {
+                haptic(TAP);
                 if (key === 'pick_dates') showcase.show(picker.build());
                 else if (key === 'tour') tour.start();
-                else sendMessage(quickReplies[key].message);
+                else sendMessage(quickReplies[key].message, { skeleton: SHOWS_ROOMS.has(key) });
             });
             wrap.appendChild(chip);
         });
@@ -419,7 +421,7 @@ function initConcierge() {
     });
 
     function renderUiPayload(uiPayload, { fresh = false, comment = '', quick = [] } = {}) {
-        if (!uiPayload || !uiPayload.length) return;
+        if (!uiPayload || !uiPayload.length) return false;
 
         let latest = null;
 
@@ -448,6 +450,8 @@ function initConcierge() {
 
         // Only the last thing the concierge brought up is put on show.
         if (fresh && latest) latest();
+
+        return Boolean(latest);
     }
 
     function scrollToBottom() {
@@ -534,13 +538,15 @@ function initConcierge() {
     }
 
     function renderMessage(message, { fresh = false } = {}) {
+        let presented = false;
+
         if (message.role === 'guest') {
             messagesEl.appendChild(bubble('guest', message.content));
         } else if (message.role === 'assistant') {
             if (message.content) {
                 messagesEl.appendChild(bubble('assistant', message.content));
             }
-            renderUiPayload(message.ui_payload, { fresh, comment: message.content || '', quick: message.quick_replies });
+            presented = renderUiPayload(message.ui_payload, { fresh, comment: message.content || '', quick: message.quick_replies });
             const chips = actionChips(message.suggested_actions);
             if (chips) messagesEl.appendChild(chips);
             const quick = quickChips(message.quick_replies);
@@ -552,6 +558,8 @@ function initConcierge() {
         } else if (message.role === 'system') {
             messagesEl.appendChild(bubble('assistant', message.content));
         }
+
+        return presented;
     }
 
     function quickMenuCard() {
@@ -687,7 +695,7 @@ function initConcierge() {
         return el;
     }
 
-    async function sendMessage(text, { retry = false } = {}) {
+    async function sendMessage(text, { retry = false, skeleton = false } = {}) {
         if (!text.trim() || handedOver || busy || !ready) return;
 
         const guestToken = localStorage.getItem(config.storageKey);
@@ -702,9 +710,13 @@ function initConcierge() {
         scrollToBottom();
         setBusy(true);
 
+        // The reply is expected to be cards: hold their place with placeholders until they arrive.
+        if (skeleton) showcase.show(cards.skeleton(), { comment: config.labels.thinking });
+
         try {
             const data = await api(config.messageUrl, { guest_token: guestToken, message: text, ...uiContext() });
-            renderMessage(data.message, { fresh: true });
+            const presented = renderMessage(data.message, { fresh: true });
+            if (skeleton && !presented) showcase.hide();
             setChatStatus(config.labels.statusSent, 'sent');
             window.hotelSound?.play('incoming');
             knownMessageCount += 2; // the guest message just sent + the reply just rendered
@@ -712,6 +724,7 @@ function initConcierge() {
                 showHandedOverBanner();
             }
         } catch (err) {
+            if (skeleton) showcase.hide();
             messagesEl.appendChild(errorCard(text, err));
         } finally {
             setBusy(false);

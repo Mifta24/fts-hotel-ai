@@ -5,6 +5,8 @@
  * guest's own language with the dates in plain ISO form (2026-10-23) so
  * nothing is lost in translation.
  */
+import { haptic, PRESS, TAP } from './haptics';
+
 const DAY_MS = 86400000;
 
 function h(tag, props = {}, ...children) {
@@ -71,6 +73,7 @@ export function createPicker({ config, wizard, submit }) {
         const lastStart = () => addDays(state.start, config.maxNights);
 
         function pick(iso) {
+            haptic(TAP);
             if (!state.start || state.end || iso <= state.start) {
                 state.start = iso;
                 state.end = '';
@@ -139,6 +142,7 @@ export function createPicker({ config, wizard, submit }) {
         function stepper(name, label, min, max) {
             const value = h('output', { class: 'rf-step-value', text: String(state[name]) });
             const set = (to) => {
+                haptic(TAP);
                 state[name] = Math.min(Math.max(to, min), max);
                 value.textContent = String(state[name]);
                 minus.disabled = state[name] <= min;
@@ -156,6 +160,7 @@ export function createPicker({ config, wizard, submit }) {
         next.addEventListener('click', () => { state.view.setMonth(state.view.getMonth() + 1); paint(); });
 
         go.addEventListener('click', () => {
+            haptic(PRESS);
             const nights = nightsBetween(state.start, state.end);
             const party = [`${state.adults} ${wizard.adults.toLowerCase()}`];
             if (state.children > 0) party.push(`${state.children} ${wizard.children.toLowerCase()}`);

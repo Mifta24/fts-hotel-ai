@@ -23,7 +23,7 @@
 
         <div class="mt-5 grid gap-7 @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div data-room-gallery>
-                <div class="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-stone-200">
+                <div class="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-stone-200" style="view-transition-name: room-photo">
                     @if ($primaryImage)
                         <img src="{{ $primaryImage->image_source }}" alt="{{ $primaryImage->alt_text }}" class="h-full w-full object-cover" data-room-gallery-main>
                     @else

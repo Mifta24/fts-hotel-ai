@@ -4,6 +4,10 @@
  * scene out before following an "enter" link so moving between screens feels
  * like walking through the lobby rather than loading a page.
  *
+ * A photo can travel with the guest: when the link or card they tap has a room
+ * photo, it is named for the browser's view transition so that, on the room
+ * page, it grows into the big photo instead of the page simply changing.
+ *
  * A link may carry `data-topic`: the question the guest picked from the menu.
  * It is handed to the AI concierge, which raises it once the next scene is up
  * (or straight away when the guest is already in that scene).
@@ -30,7 +34,11 @@ function initStage() {
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
             leaving = false;
-            stage.classList.remove('is-leaving');
+            stage.classList.remove('is-leaving', 'is-morphing');
+            document.querySelectorAll('[data-morph]').forEach((photo) => {
+                photo.style.viewTransitionName = '';
+                photo.removeAttribute('data-morph');
+            });
             tour?.classList.remove('is-visible');
         }
     });
@@ -38,9 +46,15 @@ function initStage() {
     let leaving = false;
 
     /** Ease the stage out, then walk the guest over to `href`. */
-    function leave(href, line = null, topic = null) {
+    function leave(href, line = null, topic = null, { photo = null } = {}) {
         if (leaving) return;
         leaving = true;
+
+        if (photo) {
+            photo.style.viewTransitionName = 'room-photo';
+            photo.setAttribute('data-morph', '');
+            stage.classList.add('is-morphing');
+        }
 
         try {
             if (topic) sessionStorage.setItem(TOPIC_KEY, topic);
@@ -79,7 +93,8 @@ function initStage() {
             }
             if (samePlace) return;
 
-            leave(link.href, link.dataset.tourLine, link.dataset.topic);
+            const photo = /\/rooms\/[^/]+$/.test(link.pathname) ? link.querySelector('img') : null;
+            leave(link.href, link.dataset.tourLine, link.dataset.topic, { photo });
         });
     });
 

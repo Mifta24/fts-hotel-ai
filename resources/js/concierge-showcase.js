@@ -2,11 +2,16 @@
  * The showcase: where the concierge presents rooms and the reservation form to
  * the guest, in the middle of the stage instead of inside the narrow chat
  * column. One thing is shown at a time; a form opened from the rooms keeps a
- * way back to them. While it is up the rest of the stage steps back: the
+ * way back to them. On a phone it is a sheet: dragging its handle down
+ * dismisses it, and taps give a light haptic. While it is up the rest of the stage steps back: the
  * transcript is tucked away and what is behind is dimmed. Closing it never
  * loses what the guest typed, because the form is only detached, not discarded.
  */
+import { haptic, PRESS, TAP } from './haptics';
+
 const CLOSE_DELAY_MS = 320;
+const DISMISS_DISTANCE = 96;
+const DISMISS_VELOCITY = 0.55;
 
 function node(tag, className, attrs = {}) {
     const el = document.createElement(tag);
@@ -49,7 +54,15 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
         back.textContent = `‹ ${backLabel}`;
         back.addEventListener('click', goBack);
 
-        frame.append(body, back, close);
+        const grip = node('div', 'showcase-grip', { 'aria-hidden': 'true' });
+        grip.addEventListener('pointerdown', startDrag);
+
+        // One light tap for any button pressed inside the showcase.
+        panel.addEventListener('click', (event) => {
+            if (event.target.closest('button, a')) haptic(TAP);
+        });
+
+        frame.append(body, back, close, grip);
         tray = node('div', 'showcase-chips');
         panel.append(bubble, frame, tray);
         stage.append(scrim, panel);
@@ -69,6 +82,47 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
         body.scrollTop = 0;
         back.hidden = history.length === 0;
         panel.setAttribute('aria-label', comment || content.getAttribute?.('aria-label') || '');
+    }
+
+    /** Dragging the handle moves the sheet with the finger; a long or quick pull down lets it go. */
+    function startDrag(event) {
+        if (!panel || event.button > 0) return;
+
+        const sheet = panel;
+        const grip = event.currentTarget;
+        const startY = event.clientY;
+        const startedAt = performance.now();
+        let distance = 0;
+
+        grip.setPointerCapture(event.pointerId);
+        sheet.classList.add('is-dragging');
+
+        const move = (moveEvent) => {
+            distance = Math.max(0, moveEvent.clientY - startY);
+            sheet.style.transform = `translateY(${distance}px)`;
+            sheet.style.opacity = String(Math.max(0.35, 1 - distance / 420));
+        };
+
+        const end = () => {
+            grip.removeEventListener('pointermove', move);
+            grip.removeEventListener('pointerup', end);
+            grip.removeEventListener('pointercancel', end);
+            sheet.classList.remove('is-dragging');
+
+            const velocity = distance / Math.max(performance.now() - startedAt, 1);
+
+            if (distance > DISMISS_DISTANCE || (distance > 24 && velocity > DISMISS_VELOCITY)) {
+                haptic(PRESS);
+                hide({ swiped: true });
+            } else {
+                sheet.style.transform = '';
+                sheet.style.opacity = '';
+            }
+        };
+
+        grip.addEventListener('pointermove', move);
+        grip.addEventListener('pointerup', end);
+        grip.addEventListener('pointercancel', end);
     }
 
     function goBack() {
@@ -93,10 +147,11 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
         panel.focus({ preventScroll: true });
     }
 
-    function hide() {
+    function hide({ swiped = false } = {}) {
         if (!panel) return;
 
         const closing = [panel, scrim];
+        if (swiped) panel.style.transform = 'translateY(110%)';
         panel = null;
         scrim = null;
         current = null;
