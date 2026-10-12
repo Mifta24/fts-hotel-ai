@@ -48,6 +48,11 @@
             data-label-from="{{ $labels['from'] }}"
             data-label-showing-rooms="{{ $labels['chat_showing_rooms'] }}"
             data-label-close-showcase="{{ $labels['chat_close_showcase'] }}"
+            data-label-chat-new="{{ $labels['chat_new'] }}"
+            data-label-chat-new-title="{{ $labels['chat_new_title'] }}"
+            data-label-chat-new-body="{{ $labels['chat_new_body'] }}"
+            data-label-chat-new-confirm="{{ $labels['chat_new_confirm'] }}"
+            data-label-chat-new-keep="{{ $labels['chat_new_keep'] }}"
             data-label-per-night="{{ $labels['per_night'] }}"
             data-today="{{ $today }}"
             data-max-nights="{{ \App\Services\Reservation\ReservationService::MAX_NIGHTS }}"
@@ -72,6 +77,9 @@
                         <p class="truncate text-xs text-stone-500">{{ $labels['chat_subtitle'] }}</p>
                         <p data-chat-status class="chat-status" aria-live="polite" hidden></p>
                     </div>
+                    <button type="button" data-chat-new class="chat-log-close" aria-label="{{ $labels['chat_new'] }}" title="{{ $labels['chat_new'] }}">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+                    </button>
                     <button type="button" data-chat-close class="chat-log-close" aria-label="{{ $labels['chat_close'] }}"><span aria-hidden="true">×</span></button>
                 </header>
 
@@ -109,6 +117,15 @@
                 <div class="mt-3 flex justify-end gap-2">
                     <button type="button" data-draft-keep class="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700">{{ $labels['chat_draft_keep'] }}</button>
                     <button type="button" data-draft-discard class="rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-white">{{ $labels['chat_draft_discard'] }}</button>
+                </div>
+            </div>
+
+            <div data-reset-dialog class="chat-draft-dialog" hidden aria-hidden="true" role="dialog" aria-modal="false" aria-labelledby="chat-reset-title">
+                <p id="chat-reset-title" class="font-semibold text-stone-900">{{ $labels['chat_new_title'] }}</p>
+                <p class="mt-1 text-xs leading-relaxed text-stone-600">{{ $labels['chat_new_body'] }}</p>
+                <div class="mt-3 flex justify-end gap-2">
+                    <button type="button" data-reset-keep class="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700">{{ $labels['chat_new_keep'] }}</button>
+                    <button type="button" data-reset-confirm class="rounded-full bg-stone-900 px-3 py-1.5 text-xs font-medium text-white">{{ $labels['chat_new_confirm'] }}</button>
                 </div>
             </div>
 

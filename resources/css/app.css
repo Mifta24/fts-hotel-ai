@@ -89,6 +89,7 @@
 .chat-log-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 18px; border-bottom: 1px solid #e9e5dc; background: linear-gradient(90deg, #fffbeb, #fefce8); }
 .chat-log-close { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
 .chat-log-close:hover { background: #0000000d; }
+.chat-log-close:disabled { opacity: .4; cursor: not-allowed; }
 .chat-status { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 10px; font-weight: 600; line-height: 1.3; }
 .chat-status::before { width: 6px; height: 6px; border-radius: 50%; background: #7c8a80; content: ''; }
 .chat-status.is-sent { color: #55735c; }

@@ -108,6 +108,27 @@ class HotelLobbyTest extends TestCase
             ->assertSee('data-label-mic-denied="Akses mikrofon diblokir. Mohon izinkan di pengaturan browser Anda."', false);
     }
 
+    public function test_chat_header_offers_a_new_chat_button_with_confirmation_copy_for_each_locale(): void
+    {
+        Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);
+
+        $this->get('/demo?lang=en')
+            ->assertOk()
+            ->assertSee('type="button" data-chat-new', false)
+            ->assertSee('data-reset-dialog', false)
+            ->assertSee('data-label-chat-new="New chat"', false)
+            ->assertSee('data-label-chat-new-confirm="Start new chat"', false);
+
+        $this->get('/demo?lang=ja')
+            ->assertOk()
+            ->assertSee('data-label-chat-new="新しいチャット"', false);
+
+        $this->get('/demo?lang=id')
+            ->assertOk()
+            ->assertSee('data-label-chat-new="Chat baru"', false)
+            ->assertSee('data-label-chat-new-keep="Tetap di chat ini"', false);
+    }
+
     public function test_the_facilities_page_lists_only_active_facilities_of_the_current_hotel(): void
     {
         $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published']);

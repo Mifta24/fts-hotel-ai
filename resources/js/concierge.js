@@ -57,6 +57,7 @@ function initConcierge() {
             perNight: root.dataset.labelPerNight,
             showingRooms: root.dataset.labelShowingRooms,
             closeShowcase: root.dataset.labelCloseShowcase,
+            newChat: root.dataset.labelChatNew,
             roomDetailsQuestion: root.dataset.labelRoomDetailsQuestion,
             bookNow: root.dataset.labelBookNow,
             menuHeading: root.dataset.labelMenuHeading,
@@ -82,6 +83,10 @@ function initConcierge() {
     const draftDialog = root.querySelector('[data-draft-dialog]');
     const draftKeep = root.querySelector('[data-draft-keep]');
     const draftDiscard = root.querySelector('[data-draft-discard]');
+    const newChatButton = widget.querySelector('[data-chat-new]');
+    const resetDialog = root.querySelector('[data-reset-dialog]');
+    const resetKeep = root.querySelector('[data-reset-keep]');
+    const resetConfirm = root.querySelector('[data-reset-confirm]');
     const chatLog = root.querySelector('#concierge-chat-log');
     const closeButton = widget.querySelector('[data-chat-close]');
     const launcher = widget.querySelector('[data-chat-launcher]');
@@ -94,6 +99,7 @@ function initConcierge() {
     let pollTimer = null;
     let isOpen = false;
     let draftDialogOpen = false;
+    let resetDialogOpen = false;
 
     function setChatStatus(text, tone = '') {
         if (!chatStatus) return;
@@ -163,8 +169,45 @@ function initConcierge() {
         inputEl.value = '';
         finishClosePanel();
     });
+    function showResetDialog() {
+        if (!resetDialog) return;
+
+        hideDraftDialog();
+        resetDialogOpen = true;
+        resetDialog.hidden = false;
+        resetDialog.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => resetKeep?.focus());
+    }
+
+    function hideResetDialog({ focusButton = false } = {}) {
+        if (!resetDialog) return;
+
+        resetDialogOpen = false;
+        resetDialog.hidden = true;
+        resetDialog.setAttribute('aria-hidden', 'true');
+        if (focusButton) newChatButton?.focus();
+    }
+
+    // Nothing to lose on an untouched chat, so only ask when there is a conversation.
+    newChatButton?.addEventListener('click', () => {
+        if (busy || !ready) return;
+
+        if (knownMessageCount > 0 || inputEl.value.trim()) {
+            showResetDialog();
+            return;
+        }
+
+        startNewChat();
+    });
+    resetKeep?.addEventListener('click', () => hideResetDialog({ focusButton: true }));
+    resetConfirm?.addEventListener('click', () => startNewChat());
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
+
+        if (resetDialogOpen) {
+            hideResetDialog({ focusButton: true });
+            return;
+        }
 
         if (draftDialogOpen) {
             hideDraftDialog({ focusInput: true });
@@ -340,6 +383,7 @@ function initConcierge() {
         if (micEl) micEl.disabled = disabled;
         if (disabled) stopListening({ discard: true });
         if (launcher) launcher.disabled = busy || !ready;
+        if (newChatButton) newChatButton.disabled = busy || !ready;
         root.setAttribute('aria-busy', String(busy));
         document.body.classList.toggle('is-thinking', busy);
         if (thinkingIndicator) {
@@ -590,16 +634,57 @@ function initConcierge() {
         }
     }
 
+    function showIntro() {
+        messagesEl.appendChild(bubble('assistant', config.labels.intro));
+        const menu = quickMenuCard();
+        if (menu) messagesEl.appendChild(card([menu]));
+    }
+
+    async function startConversation() {
+        const data = await api(config.startUrl, { locale: config.locale });
+        localStorage.setItem(config.storageKey, data.guest_token);
+        showIntro();
+    }
+
+    /**
+     * Leaves the current conversation behind and opens a fresh one. The old
+     * one stays on the server, so staff can still see and answer a handover.
+     */
+    async function startNewChat() {
+        if (busy || !ready) return;
+
+        hideResetDialog();
+        setBusy(true);
+
+        try {
+            const data = await api(config.startUrl, { locale: config.locale });
+
+            stopListening({ discard: true });
+            stopPolling();
+            showcase.hide();
+            localStorage.setItem(config.storageKey, data.guest_token);
+            messagesEl.replaceChildren();
+            inputEl.value = '';
+            statusBanner.classList.add('hidden');
+            handedOver = false;
+            knownMessageCount = 0;
+            setChatStatus('');
+            showIntro();
+        } catch {
+            statusBanner.textContent = root.dataset.labelConnectionError;
+            statusBanner.classList.remove('hidden');
+        } finally {
+            setBusy(false);
+            scrollToBottom();
+            inputEl.focus();
+        }
+    }
+
     async function boot() {
-        let guestToken = localStorage.getItem(config.storageKey);
+        const guestToken = localStorage.getItem(config.storageKey);
 
         if (!guestToken) {
-            const data = await api(config.startUrl, { locale: config.locale });
-            guestToken = data.guest_token;
-            localStorage.setItem(config.storageKey, guestToken);
-            messagesEl.appendChild(bubble('assistant', config.labels.intro));
-            const menu = quickMenuCard();
-            if (menu) messagesEl.appendChild(card([menu]));
+            await startConversation();
             return;
         }
 
@@ -613,9 +698,7 @@ function initConcierge() {
             const data = await response.json();
 
             if (!data.messages.length) {
-                messagesEl.appendChild(bubble('assistant', config.labels.intro));
-                const menu = quickMenuCard();
-                if (menu) messagesEl.appendChild(card([menu]));
+                showIntro();
             } else {
                 data.messages.forEach((message) => renderMessage(message));
             }

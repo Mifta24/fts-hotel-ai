@@ -92,6 +92,19 @@ class ConciergeChatTest extends TestCase
         $this->postJson('/demo/concierge/start', ['locale' => 'xx'])->assertOk()->assertJsonPath('locale', 'en');
     }
 
+    public function test_starting_a_new_chat_keeps_the_previous_conversation_intact(): void
+    {
+        $firstToken = $this->startConversation();
+        $first = Conversation::where('guest_token', $firstToken)->firstOrFail();
+        $first->messages()->create(['role' => ConversationMessage::ROLE_GUEST, 'content' => 'Hello']);
+
+        $secondToken = $this->startConversation();
+
+        $this->assertNotSame($firstToken, $secondToken);
+        $this->getJson("/demo/concierge/history?guest_token={$secondToken}")->assertOk()->assertJsonCount(0, 'messages');
+        $this->getJson("/demo/concierge/history?guest_token={$firstToken}")->assertOk()->assertJsonCount(1, 'messages');
+    }
+
     public function test_unpublished_hotels_have_no_concierge(): void
     {
         Hotel::create(['name' => 'Draft', 'slug' => 'draft']);
