@@ -214,8 +214,12 @@
     .chat-log { left: 12px; right: 12px; width: auto; top: calc(var(--header) + 56px); bottom: 68px; border-radius: 16px; }
     .stage:has(.stage-chat.is-open) .stage-menu { opacity: 1; visibility: visible; pointer-events: auto; }
     .stage:has(.stage-chat.is-open) .chat-chips { display: none; }
-    .chat-bar, .chat-chips { left: 50%; width: calc(100% - 24px); }
-    .chat-bar { bottom: 68px; padding-left: 20px; }
+    .chat-bar, .chat-chips,
+    .stage:has(.stage-chat.is-open) .chat-bar { left: 50%; width: calc(100% - 24px); }
+    .chat-bar { bottom: 68px; padding: 6px 6px 6px 20px; gap: 8px; }
+    .chat-bar input { font-size: 16px; }
+    .chat-bar button { padding: 0 18px; }
+    .chat-bar .chat-mic { padding: 0; }
     .stage-chat.is-open .chat-bar { bottom: 12px; }
     .chat-draft-dialog { bottom: 82px; width: calc(100% - 24px); }
     .chat-chips { bottom: 14px; justify-content: flex-start; }
