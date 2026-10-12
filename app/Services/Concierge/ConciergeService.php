@@ -36,6 +36,12 @@ class ConciergeService
 
     private const UNBACKED_DATA_PATTERN = '/(?:rp\.?|idr|usd|jpy|¥|\$)\s?\d|\d[\d.,]*\s?(?:rb|ribu|juta|jt)\b|\[[^\]]+\]/iu';
 
+    /**
+     * A reply that only announces an action ("I'll proceed", "let me check")
+     * instead of doing it — the model must call the tool in that same turn.
+     */
+    private const PROMISED_ACTION_PATTERN = "/\b(?:i'?ll|i will|i am going to|i'm going to|let me|allow me to)\s+(?:now\s+)?(?:proceed|check|confirm|create|book|make|process|verify|pull up|look up|find)\b|\b(?:saya akan|akan saya|biar saya|mari saya|saya coba)\s+(?:proses|cek|periksa|buat|lanjut|konfirmasi|pesan|carikan|tampilkan|pastikan)|(?:確認|手配|処理|予約を作成)(?:いたします|します|してみます)/iu";
+
     public function __construct(private readonly ContentGuard $contentGuard) {}
 
     public function startConversation(Hotel $hotel, string $locale = 'id'): Conversation
@@ -140,6 +146,11 @@ class ConciergeService
         return preg_match(self::UNBACKED_DATA_PATTERN, $text) === 1;
     }
 
+    private function promisesAction(string $text): bool
+    {
+        return preg_match(self::PROMISED_ACTION_PATTERN, $text) === 1;
+    }
+
     private function answer(Hotel $hotel, Conversation $conversation): ConversationMessage
     {
         $tools = new HotelConciergeTools($hotel, $conversation, $conversation->locale);
@@ -159,6 +170,11 @@ class ConciergeService
         if (empty($message['tool_calls']) && $this->claimsToolData($message['content'] ?? '')) {
             $messages[] = ['role' => 'assistant', 'content' => $message['content']];
             $messages[] = ['role' => 'user', 'content' => '[System notice: your last reply stated a price or pretended to show room cards without calling a tool. Never state a room price or availability from memory. Call search_rooms or check_availability now, or ask the guest for the details you still need.]'];
+
+            $message = $this->chatCompletion($messages, $definitions, $deadline);
+        } elseif (empty($message['tool_calls']) && $this->promisesAction($message['content'] ?? '')) {
+            $messages[] = ['role' => 'assistant', 'content' => $message['content']];
+            $messages[] = ['role' => 'user', 'content' => '[System notice: your last reply said you would proceed, check or confirm something but called no tool, so nothing happened. Do not announce actions: call the tool now — create_booking_request if you have room, dates, party size, name and phone; open_booking_form if details are missing; search_rooms or check_availability for prices — or ask only for what is truly missing. Never ask for the email.]'];
 
             $message = $this->chatCompletion($messages, $definitions, $deadline);
         }

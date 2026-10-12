@@ -2,8 +2,9 @@
  * The showcase: where the concierge presents rooms and the reservation form to
  * the guest, in the middle of the stage instead of inside the narrow chat
  * column. One thing is shown at a time; a form opened from the rooms keeps a
- * way back to them. Closing it never loses what the guest typed, because the
- * form is only detached, not discarded.
+ * way back to them. While it is up the rest of the stage steps back: the
+ * transcript is tucked away and what is behind is dimmed. Closing it never
+ * loses what the guest typed, because the form is only detached, not discarded.
  */
 const CLOSE_DELAY_MS = 320;
 
@@ -25,12 +26,15 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const history = [];
     let panel = null;
+    let scrim = null;
     let bubble;
     let body;
     let back;
     let current = null;
 
     function build() {
+        scrim = node('div', 'showcase-scrim', { 'aria-hidden': 'true' });
+        scrim.addEventListener('click', () => hide());
         panel = node('section', 'showcase', { role: 'region', tabindex: '-1' });
         bubble = node('p', 'showcase-bubble');
         const frame = node('div', 'showcase-frame');
@@ -46,8 +50,11 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
 
         frame.append(body, back, close);
         panel.append(bubble, frame);
-        stage.appendChild(panel);
-        requestAnimationFrame(() => requestAnimationFrame(() => panel?.classList.add('is-in')));
+        stage.append(scrim, panel);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            scrim?.classList.add('is-in');
+            panel?.classList.add('is-in');
+        }));
     }
 
     function render(content, comment) {
@@ -84,14 +91,15 @@ export function createShowcase({ stage, closeLabel, backLabel }) {
     function hide() {
         if (!panel) return;
 
-        const closing = panel;
+        const closing = [panel, scrim];
         panel = null;
+        scrim = null;
         current = null;
         history.length = 0;
-        closing.classList.remove('is-in');
+        closing.forEach((el) => el.classList.remove('is-in'));
 
-        if (reducedMotion) closing.remove();
-        else setTimeout(() => closing.remove(), CLOSE_DELAY_MS);
+        if (reducedMotion) closing.forEach((el) => el.remove());
+        else setTimeout(() => closing.forEach((el) => el.remove()), CLOSE_DELAY_MS);
     }
 
     return { show, hide, isOpen: () => panel !== null };

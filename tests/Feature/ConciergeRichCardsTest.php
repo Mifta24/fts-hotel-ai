@@ -147,6 +147,27 @@ class ConciergeRichCardsTest extends TestCase
         $this->assertNull(Booking::firstOrFail()->guest_email);
     }
 
+    public function test_a_reply_that_only_promises_an_action_is_sent_back_to_call_the_tool(): void
+    {
+        $call = ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'open_booking_form', 'arguments' => json_encode(['room_type_slug' => 'deluxe-king'])]];
+
+        Http::fake(['llm.test/*' => Http::sequence()
+            ->push(['choices' => [['message' => ['content' => "I'll proceed with creating a reservation for Miftah."], 'finish_reason' => 'stop']]])
+            ->push(['choices' => [['message' => ['content' => null, 'tool_calls' => [$call]], 'finish_reason' => 'tool_calls']]])
+            ->push(['choices' => [['message' => ['content' => 'Please check the details and tap confirm.'], 'finish_reason' => 'stop']]]),
+        ]);
+
+        $token = $this->postJson('/demo/concierge/start', ['locale' => 'en'])->json('guest_token');
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'miftah, 08123456789'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'booking_form')
+            ->assertJsonPath('message.content', 'Please check the details and tap confirm.');
+
+        Http::assertSentCount(3);
+        Http::assertSent(fn (Request $request) => collect($request['messages'])->contains(fn ($m) => str_contains((string) ($m['content'] ?? ''), 'called no tool')));
+    }
+
     public function test_availability_cards_carry_the_room_so_they_can_open_the_form(): void
     {
         $result = $this->tools()->dispatch('check_availability', [
