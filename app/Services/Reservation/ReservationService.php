@@ -19,6 +19,8 @@ class ReservationService
 {
     public const MAX_NIGHTS = 30;
 
+    public const PHONE_PATTERN = '/^\+?[0-9\s\-().]{6,20}$/';
+
     /**
      * Whether the requested party fits the room type across the requested rooms.
      */

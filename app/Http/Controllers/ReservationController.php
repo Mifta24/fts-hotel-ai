@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
 use App\Models\Conversation;
+use App\Models\ConversationMessage;
 use App\Models\Hotel;
 use App\Models\RoomType;
+use App\Services\Concierge\HotelConciergeTools;
 use App\Services\Reservation\ReservationHandover;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
@@ -16,8 +19,6 @@ use Illuminate\Validation\ValidationException;
 class ReservationController extends Controller
 {
     private const SUPPORTED_LOCALES = ['id', 'en', 'ja'];
-
-    private const PHONE_PATTERN = '/^\+?[0-9\s\-().]{6,20}$/';
 
     /**
      * Guest-facing validation messages, keyed by locale.
@@ -102,6 +103,7 @@ class ReservationController extends Controller
             'contact_value' => ['required', 'string', 'max:120'],
             'special_request' => ['nullable', 'string', 'max:500'],
             'guest_token' => ['nullable', 'uuid'],
+            'via_chat' => ['nullable', 'boolean'],
         ], $this->validationMessages($locale));
 
         $isEmail = $data['contact_type'] === 'email';
@@ -110,7 +112,7 @@ class ReservationController extends Controller
             throw ValidationException::withMessages(['contact_value' => $messages['contact_email']]);
         }
 
-        if (! $isEmail && ! preg_match(self::PHONE_PATTERN, $data['contact_value'])) {
+        if (! $isEmail && ! preg_match(ReservationService::PHONE_PATTERN, $data['contact_value'])) {
             throw ValidationException::withMessages(['contact_value' => $messages['contact_phone']]);
         }
 
@@ -138,13 +140,38 @@ class ReservationController extends Controller
             return $this->unavailable($hotel, $roomType, $data, $locale);
         }
 
+        $handover = $this->handover->forBooking($hotel, $booking, $locale);
+
         return response()->json([
             'reference' => $booking->reference,
             'status' => $booking->status,
             'total' => (float) $booking->total_price,
             'currency' => $hotel->currency,
-            'handover' => $this->handover->forBooking($hotel, $booking, $locale),
+            'handover' => $handover,
+            'confirmation' => $conversation && ($data['via_chat'] ?? false)
+                ? $this->recordInChat($conversation, $booking, $roomType, $hotel, $locale, $handover)
+                : null,
         ], 201);
+    }
+
+    /**
+     * Keeps a booking made with the taps of the in-chat form in the
+     * conversation, so the confirmation is still there when the guest comes back.
+     *
+     * @param  array{whatsapp_url: ?string, phone_url: ?string, email_url: ?string}  $handover
+     * @return array<string, mixed>
+     */
+    private function recordInChat(Conversation $conversation, Booking $booking, RoomType $roomType, Hotel $hotel, string $locale, array $handover): array
+    {
+        $confirmation = [...HotelConciergeTools::bookingConfirmation($booking, $roomType, $locale, $hotel->currency), 'handover' => $handover];
+
+        $conversation->messages()->create([
+            'role' => ConversationMessage::ROLE_ASSISTANT,
+            'ui_payload' => [$confirmation],
+        ]);
+        $conversation->update(['last_message_at' => now()]);
+
+        return $confirmation;
     }
 
     /**

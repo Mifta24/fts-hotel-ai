@@ -2,6 +2,7 @@
 
 namespace App\Services\Concierge;
 
+use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\HandoverRequest;
 use App\Models\Hotel;
@@ -18,6 +19,10 @@ use Illuminate\Support\Str;
  */
 class HotelConciergeTools
 {
+    private const MAX_RECOMMENDATIONS = 6;
+
+    private const MAX_CARD_PHOTOS = 4;
+
     public function __construct(
         private readonly Hotel $hotel,
         private readonly Conversation $conversation,
@@ -63,6 +68,35 @@ class HotelConciergeTools
                             'view_type' => ['type' => 'string', 'description' => 'e.g. ocean, garden, pool — optional preference'],
                         ],
                         'required' => ['check_in', 'check_out', 'adults'],
+                    ],
+                ],
+                [
+                    'name' => 'recommend_rooms',
+                    'description' => 'Show the hotel\'s rooms as tappable cards, with photos, details and an indicative starting price per night. Use this when the guest asks for a recommendation or what rooms exist and has NOT given dates yet (e.g. "rekomendasi kamar", "what rooms do you have", "best room for a family"). Do not ask for dates first — show the cards, then let the guest tap a card to reserve.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'adults' => ['type' => 'integer', 'minimum' => 1, 'description' => 'Optional: only rooms that fit this party'],
+                            'children' => ['type' => 'integer', 'minimum' => 0],
+                            'view_type' => ['type' => 'string', 'description' => 'e.g. ocean, garden, pool — optional preference'],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'open_booking_form',
+                    'description' => 'Open a reservation form inside the chat for one room, pre-filled with whatever the guest already told you (dates, party size, name, phone). Use this when the guest wants to book but is missing details, instead of asking for each detail one by one — they fill the rest by tapping. If the guest already gave room, dates, party, name and phone in text, call create_booking_request instead.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'room_type_slug' => ['type' => 'string'],
+                            'check_in' => ['type' => 'string', 'description' => 'YYYY-MM-DD, only if the guest said it'],
+                            'check_out' => ['type' => 'string', 'description' => 'YYYY-MM-DD, only if the guest said it'],
+                            'adults' => ['type' => 'integer', 'minimum' => 1],
+                            'children' => ['type' => 'integer', 'minimum' => 0],
+                            'guest_name' => ['type' => 'string'],
+                            'guest_phone' => ['type' => 'string'],
+                        ],
+                        'required' => ['room_type_slug'],
                     ],
                 ],
                 [
@@ -140,6 +174,8 @@ class HotelConciergeTools
         return match ($name) {
             'search_knowledge' => $this->searchKnowledge($input),
             'search_rooms' => $this->searchRooms($input),
+            'recommend_rooms' => $this->recommendRooms($input),
+            'open_booking_form' => $this->openBookingForm($input),
             'get_room_detail' => $this->getRoomDetail($input),
             'check_availability' => $this->checkAvailability($input),
             'create_booking_request' => $this->createBookingRequest($input),
@@ -210,21 +246,11 @@ class HotelConciergeTools
                 continue;
             }
 
-            $thumbnail = $roomType->images->first();
-
             $matches[] = [
-                'room_type_slug' => $roomType->slug,
-                'name' => $roomType->translatedName($this->locale),
-                'size_sqm' => $roomType->size_sqm,
-                'view_type' => $roomType->view_type,
-                'max_adults' => $roomType->max_adults,
-                'max_children' => $roomType->max_children,
-                'breakfast_included' => $roomType->breakfast_included,
+                ...$this->roomCard($roomType),
                 'nights' => $nights,
                 'total_price' => $stay['room_total'],
-                'currency' => $this->hotel->currency,
                 'min_available_units' => $stay['min_available_units'],
-                'thumbnail_url' => $thumbnail?->image_source,
             ];
         }
 
@@ -238,13 +264,74 @@ class HotelConciergeTools
         usort($matches, fn ($a, $b) => $a['total_price'] <=> $b['total_price']);
 
         return [
-            'text' => json_encode($matches, JSON_UNESCAPED_UNICODE),
+            'text' => json_encode(array_map($this->withoutPhotos(...), $matches), JSON_UNESCAPED_UNICODE),
             'ui' => [
                 'type' => 'room_results',
                 'check_in' => $input['check_in'],
                 'check_out' => $input['check_out'],
                 'rooms' => $matches,
             ],
+        ];
+    }
+
+    private function recommendRooms(array $input): array
+    {
+        $adults = (int) ($input['adults'] ?? 0);
+        $children = (int) ($input['children'] ?? 0);
+        $viewType = $input['view_type'] ?? null;
+
+        $rooms = $this->hotel->roomTypes()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->when($adults > 0, fn ($c) => $c->filter(fn (RoomType $rt) => $this->reservations->fitsOccupancy($rt, $adults, $children, 1)))
+            ->when($viewType, fn ($c) => $c->filter(fn (RoomType $rt) => $rt->view_type === $viewType))
+            ->take(self::MAX_RECOMMENDATIONS)
+            ->map(fn (RoomType $rt) => $this->roomCard($rt))
+            ->values()
+            ->all();
+
+        if ($rooms === []) {
+            return [
+                'text' => 'No room type matches that preference. Say so honestly and offer to show every room, or call request_human_handover.',
+                'ui' => null,
+            ];
+        }
+
+        return [
+            'text' => json_encode([
+                'note' => 'starting_price is an indicative price per night only. The cards are on screen with a reserve button; the guest picks dates in the reservation form, which shows the exact total. Do not list the rooms again.',
+                'rooms' => array_map($this->withoutPhotos(...), $rooms),
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'room_results', 'check_in' => null, 'check_out' => null, 'rooms' => $rooms],
+        ];
+    }
+
+    private function openBookingForm(array $input): array
+    {
+        $roomType = $this->findRoomType($input['room_type_slug']);
+        if (! $roomType || ! $roomType->is_active) {
+            return ['text' => 'Room type not found.', 'ui' => null];
+        }
+
+        $form = [
+            'room' => $this->roomCard($roomType),
+            'values' => array_filter([
+                'check_in' => $this->validDate($input['check_in'] ?? null),
+                'check_out' => $this->validDate($input['check_out'] ?? null),
+                'adults' => isset($input['adults']) ? max(1, (int) $input['adults']) : null,
+                'children' => isset($input['children']) ? max(0, (int) $input['children']) : null,
+                'guest_name' => filled($input['guest_name'] ?? null) ? (string) $input['guest_name'] : null,
+                'contact_value' => filled($input['guest_phone'] ?? null) ? (string) $input['guest_phone'] : null,
+            ], fn ($value) => $value !== null),
+        ];
+
+        return [
+            'text' => json_encode([
+                'ok' => true,
+                'message' => 'A reservation form for this room is now on screen, pre-filled with what the guest told you. Tell them in one short sentence to check the details and tap the confirm button. Do not ask for the details again in text.',
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'booking_form', ...$form],
         ];
     }
 
@@ -312,7 +399,7 @@ class HotelConciergeTools
                     'room_type_slug' => $roomType->slug,
                     'message' => 'Not every night in this range has availability for this room type.',
                 ], JSON_UNESCAPED_UNICODE),
-                'ui' => ['type' => 'availability', 'available' => false, 'room_type_slug' => $roomType->slug],
+                'ui' => ['type' => 'availability', 'available' => false, 'room_type_slug' => $roomType->slug, 'room' => $this->roomCard($roomType)],
             ];
         }
 
@@ -333,7 +420,7 @@ class HotelConciergeTools
 
         return [
             'text' => json_encode($result, JSON_UNESCAPED_UNICODE),
-            'ui' => ['type' => 'availability', 'available' => true, 'quote' => $result],
+            'ui' => ['type' => 'availability', 'available' => true, 'quote' => $result, 'room' => $this->roomCard($roomType)],
         ];
     }
 
@@ -347,6 +434,18 @@ class HotelConciergeTools
         [$checkIn, $checkOut, $nights] = $this->parseStay($input['check_in'], $input['check_out']);
         if ($nights < 1) {
             return ['text' => 'check_out must be after check_in.', 'ui' => null];
+        }
+
+        if ($checkIn->isBefore(now($this->hotel->timezone)->startOfDay()) || $nights > ReservationService::MAX_NIGHTS) {
+            return ['text' => 'Check-in cannot be in the past and a stay is limited to '.ReservationService::MAX_NIGHTS.' nights. Ask the guest for valid dates, or call request_human_handover for longer stays.', 'ui' => null];
+        }
+
+        if (! preg_match(ReservationService::PHONE_PATTERN, (string) $input['guest_phone'])) {
+            return ['text' => 'That phone number is not valid (it needs 6 to 20 digits). Ask the guest for a valid phone or WhatsApp number, or call open_booking_form so they can enter it themselves.', 'ui' => null];
+        }
+
+        if (filled($input['guest_email'] ?? null) && ! filter_var($input['guest_email'], FILTER_VALIDATE_EMAIL)) {
+            return ['text' => 'That email address is not valid. The email is optional: leave guest_email out, or ask the guest to correct it.', 'ui' => null];
         }
 
         $rooms = max(1, (int) ($input['rooms'] ?? 1));
@@ -375,22 +474,11 @@ class HotelConciergeTools
             ];
         }
 
-        $payload = [
-            'booking_reference' => $booking->reference,
-            'room_type_slug' => $roomType->slug,
-            'name' => $roomType->translatedName($this->locale),
-            'check_in' => $checkIn->toDateString(),
-            'check_out' => $checkOut->toDateString(),
-            'nights' => $nights,
-            'rooms' => $rooms,
-            'total_price' => (float) $booking->total_price,
-            'currency' => $this->hotel->currency,
-            'status' => 'pending_confirmation',
-        ];
+        $confirmation = self::bookingConfirmation($booking, $roomType, $this->locale, $this->hotel->currency);
 
         return [
-            'text' => json_encode($payload, JSON_UNESCAPED_UNICODE),
-            'ui' => ['type' => 'booking_confirmation', 'booking' => $payload],
+            'text' => json_encode($confirmation['booking'], JSON_UNESCAPED_UNICODE),
+            'ui' => $confirmation,
         ];
     }
 
@@ -421,6 +509,87 @@ class HotelConciergeTools
     }
 
     // --- helpers ---
+
+    /**
+     * The room as the chat renders it: enough to show a card and its details
+     * without another round trip. Prices here are indicative only.
+     *
+     * @return array<string, mixed>
+     */
+    private function roomCard(RoomType $roomType): array
+    {
+        $images = $roomType->images->take(self::MAX_CARD_PHOTOS)->map(fn ($img) => [
+            'url' => $img->image_source,
+            'alt' => $img->alt_text,
+        ])->values()->all();
+
+        return [
+            'room_type_slug' => $roomType->slug,
+            'name' => $roomType->translatedName($this->locale),
+            'description' => $roomType->translatedDescription($this->locale),
+            'size_sqm' => $roomType->size_sqm,
+            'view_type' => $roomType->view_type,
+            'bed_config' => $roomType->bed_config,
+            'amenities' => $roomType->amenities ?? [],
+            'max_adults' => $roomType->max_adults,
+            'max_children' => $roomType->max_children,
+            'breakfast_included' => $roomType->breakfast_included,
+            'extra_bed_available' => $roomType->extra_bed_available,
+            'starting_price' => (float) $roomType->base_price,
+            'currency' => $this->hotel->currency,
+            'thumbnail_url' => $images[0]['url'] ?? null,
+            'images' => $images,
+        ];
+    }
+
+    /**
+     * Drops what only the screen needs, so the model is not fed photo URLs.
+     *
+     * @param  array<string, mixed>  $card
+     * @return array<string, mixed>
+     */
+    private function withoutPhotos(array $card): array
+    {
+        unset($card['images'], $card['thumbnail_url']);
+
+        return $card;
+    }
+
+    private function validDate(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        $date = CarbonImmutable::parse($value);
+
+        return $date->isBefore(now($this->hotel->timezone)->startOfDay()) ? null : $date->toDateString();
+    }
+
+    /**
+     * What the chat shows once a booking request exists, whether the AI or the
+     * guest's own taps created it.
+     *
+     * @return array{type: string, booking: array<string, mixed>}
+     */
+    public static function bookingConfirmation(Booking $booking, RoomType $roomType, string $locale, string $currency): array
+    {
+        return [
+            'type' => 'booking_confirmation',
+            'booking' => [
+                'booking_reference' => $booking->reference,
+                'room_type_slug' => $roomType->slug,
+                'name' => $roomType->translatedName($locale),
+                'check_in' => $booking->check_in->toDateString(),
+                'check_out' => $booking->check_out->toDateString(),
+                'nights' => (int) $booking->check_in->diffInDays($booking->check_out),
+                'rooms' => $booking->room_count,
+                'total_price' => (float) $booking->total_price,
+                'currency' => $currency,
+                'status' => 'pending_confirmation',
+            ],
+        ];
+    }
 
     private function findRoomType(string $slug): ?RoomType
     {
