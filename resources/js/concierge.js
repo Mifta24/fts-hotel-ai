@@ -4,6 +4,9 @@
  * ui_payload the AI's tools attach (room cards, price quotes, booking
  * confirmations, handover notices) as real DOM, not markdown-in-a-bubble.
  */
+import { createCards } from './concierge-cards';
+import { createShowcase } from './concierge-showcase';
+
 function initConcierge() {
     const root = document.getElementById('concierge-app');
     const widget = document.querySelector('[data-chat-widget]');
@@ -19,7 +22,10 @@ function initConcierge() {
         lobbyUrl: root.dataset.lobbyUrl,
         roomUrlTemplate: root.dataset.roomUrl,
         staffUrl: root.dataset.staffUrl,
-        reservationUrlTemplate: root.dataset.reservationUrl,
+        today: root.dataset.today,
+        maxNights: Number(root.dataset.maxNights),
+        quoteUrl: root.dataset.quoteUrl,
+        reserveUrl: root.dataset.reserveUrl,
         labels: {
             placeholder: root.dataset.labelPlaceholder,
             send: root.dataset.labelSend,
@@ -44,6 +50,13 @@ function initConcierge() {
             draftKeep: root.dataset.labelDraftKeep,
             draftDiscard: root.dataset.labelDraftDiscard,
             viewDetails: root.dataset.labelViewDetails,
+            hideDetails: root.dataset.labelHideDetails,
+            formTitle: root.dataset.labelFormTitle,
+            formConfirm: root.dataset.labelFormConfirm,
+            from: root.dataset.labelFrom,
+            perNight: root.dataset.labelPerNight,
+            showingRooms: root.dataset.labelShowingRooms,
+            closeShowcase: root.dataset.labelCloseShowcase,
             roomDetailsQuestion: root.dataset.labelRoomDetailsQuestion,
             bookNow: root.dataset.labelBookNow,
             menuHeading: root.dataset.labelMenuHeading,
@@ -158,6 +171,11 @@ function initConcierge() {
             return;
         }
 
+        if (showcase.isOpen()) {
+            showcase.hide();
+            return;
+        }
+
         if (isOpen) closePanel();
     });
     syncPanelState();
@@ -196,6 +214,7 @@ function initConcierge() {
             const payload = await response.json().catch(() => ({}));
             const error = new Error(payload.message || `Request failed (${response.status})`);
             error.status = response.status;
+            error.payload = payload;
             throw error;
         }
 
@@ -239,82 +258,6 @@ function initConcierge() {
         return wrap;
     }
 
-    function roomResultCard(room) {
-        const el = document.createElement('div');
-        el.className = 'overflow-hidden rounded-xl border border-stone-200 bg-white';
-        el.innerHTML = `
-            ${room.thumbnail_url ? `<img src="${room.thumbnail_url}" alt="${room.name}" class="h-32 w-full object-cover">` : ''}
-            <div class="p-3">
-                <p class="font-medium text-stone-900">${room.name}</p>
-                <p class="mt-0.5 text-xs text-stone-500">${room.size_sqm ?? '-'} m² · ${room.max_adults + room.max_children} ${config.labels.maxGuests}${room.breakfast_included ? ` · ${config.labels.breakfastIncluded}` : ''}</p>
-                <p class="mt-1 text-sm font-semibold text-stone-900">${money(room.total_price)} <span class="font-normal text-stone-500">/ ${room.nights} ${config.labels.night}</span></p>
-                <button type="button" class="mt-2 w-full rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50" data-detail-slug="${room.room_type_slug}">
-                    ${config.labels.viewDetails}
-                </button>
-            </div>
-        `;
-        el.querySelector('[data-detail-slug]').addEventListener('click', () => {
-            sendMessage(config.labels.roomDetailsQuestion.replace(':room', room.name));
-        });
-        return el;
-    }
-
-    function roomDetailCard(room) {
-        const el = document.createElement('div');
-        el.className = 'overflow-hidden rounded-xl border border-stone-200 bg-white';
-
-        const images = (room.images || [])
-            .slice(0, 4)
-            .map((img) => `<img src="${img.url}" alt="${img.alt || room.name}" class="h-20 w-full rounded-lg object-cover">`)
-            .join('');
-
-        el.innerHTML = `
-            <div class="p-3">
-                <p class="font-medium text-stone-900">${room.name}</p>
-                <p class="mt-1 text-xs text-stone-500">${room.description || ''}</p>
-                <div class="mt-2 grid grid-cols-4 gap-1">${images}</div>
-                <dl class="mt-2 grid grid-cols-2 gap-1 text-xs text-stone-500">
-                    <div>${room.size_sqm ?? '-'} m²</div>
-                    <div>${room.max_adults + room.max_children} ${config.labels.maxGuests}</div>
-                    <div>${room.breakfast_included ? config.labels.breakfastIncluded : config.labels.roomOnly}</div>
-                    <div>${room.view_type ? room.view_type + ' ' + config.labels.viewSuffix : ''}</div>
-                </dl>
-            </div>
-        `;
-        return el;
-    }
-
-    function availabilityCard(payload) {
-        const el = document.createElement('div');
-        el.className = 'rounded-xl border border-stone-200 bg-white p-3';
-
-        if (!payload.available) {
-            el.innerHTML = `<p class="text-sm text-stone-600">${config.labels.noAvailability}</p>`;
-            return el;
-        }
-
-        const q = payload.quote;
-        el.innerHTML = `
-            <p class="font-medium text-stone-900">${q.name}</p>
-            <p class="text-xs text-stone-500">${q.check_in} → ${q.check_out} · ${q.nights} ${config.labels.night}</p>
-            <p class="mt-1 text-base font-semibold text-stone-900">${money(q.grand_total)}</p>
-        `;
-        return el;
-    }
-
-    function bookingConfirmationCard(payload) {
-        const b = payload.booking;
-        const el = document.createElement('div');
-        el.className = 'rounded-xl border border-emerald-200 bg-emerald-50 p-3';
-        el.innerHTML = `
-            <p class="text-sm font-semibold text-emerald-900">${config.labels.bookingReceived}</p>
-            <p class="mt-1 text-xs text-emerald-800">${config.labels.reference}: ${b.booking_reference} · ${b.name}</p>
-            <p class="text-xs text-emerald-800">${b.check_in} → ${b.check_out} · ${b.nights} ${config.labels.night}</p>
-            <p class="mt-1 text-sm font-semibold text-emerald-900">${money(b.total_price)}</p>
-        `;
-        return el;
-    }
-
     function handoverCard(payload) {
         const el = document.createElement('div');
         el.className = 'rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800';
@@ -322,22 +265,67 @@ function initConcierge() {
         return el;
     }
 
-    function renderUiPayload(uiPayload) {
+    const wizard = JSON.parse(root.querySelector('script[data-wizard-labels]')?.textContent || '{}');
+    const showcase = createShowcase({
+        stage: root.closest('.stage') || document.body,
+        closeLabel: config.labels.closeShowcase,
+        backLabel: wizard.back,
+    });
+
+    const cards = createCards({
+        config,
+        wizard,
+        terms: JSON.parse(root.querySelector('script[data-room-terms]')?.textContent || '{}'),
+        money,
+        api,
+        ask: (text) => sendMessage(text),
+        append: (node) => {
+            messagesEl.appendChild(card([node]));
+            scrollToBottom();
+        },
+        present: (content, options) => showcase.show(content, options),
+        // The confirmation made with the form is saved on the server like any reply.
+        recorded: () => { knownMessageCount += 1; },
+    });
+
+    /**
+     * The transcript keeps one tappable line for what the concierge put in the
+     * showcase, so the guest can bring it back after closing it.
+     */
+    function recapChip(label, onClick) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'rc-recap';
+        chip.innerHTML = '<span aria-hidden="true">✦</span>';
+        chip.append(document.createTextNode(` ${label} `));
+        chip.insertAdjacentHTML('beforeend', '<span aria-hidden="true">›</span>');
+        chip.addEventListener('click', onClick);
+
+        return chip;
+    }
+
+    function renderUiPayload(uiPayload, { fresh = false, comment = '' } = {}) {
         if (!uiPayload || !uiPayload.length) return;
 
+        let latest = null;
+
         uiPayload.forEach((payload) => {
-            if (payload.type === 'room_results') {
-                messagesEl.appendChild(card(payload.rooms.map(roomResultCard)));
-            } else if (payload.type === 'room_detail') {
-                messagesEl.appendChild(card([roomDetailCard(payload.room)]));
-            } else if (payload.type === 'availability') {
-                messagesEl.appendChild(card([availabilityCard(payload)]));
-            } else if (payload.type === 'booking_confirmation') {
-                messagesEl.appendChild(card([bookingConfirmationCard(payload)]));
-            } else if (payload.type === 'handover') {
-                messagesEl.appendChild(card([handoverCard(payload)]));
+            const item = cards.describe(payload);
+
+            if (item) {
+                const present = () => showcase.show(item.build(), { comment });
+                messagesEl.appendChild(card([recapChip(item.recap, present)]));
+                latest = present;
+
+                return;
             }
+
+            const node = payload.type === 'handover' ? handoverCard(payload) : cards.render(payload);
+            if (node) messagesEl.appendChild(card([node]));
         });
+
+        // Only the last thing the concierge brought up is put on show.
+        if (fresh && latest) latest();
     }
 
     function scrollToBottom() {
@@ -405,7 +393,7 @@ function initConcierge() {
 
             if (data.messages.length > knownMessageCount) {
                 const newMessages = data.messages.slice(knownMessageCount);
-                newMessages.forEach(renderMessage);
+                newMessages.forEach((message) => renderMessage(message));
                 if (newMessages.some((message) => message.role === 'staff')) {
                     setChatStatus(config.labels.statusReplied, 'replied');
                 }
@@ -422,14 +410,14 @@ function initConcierge() {
         }
     }
 
-    function renderMessage(message) {
+    function renderMessage(message, { fresh = false } = {}) {
         if (message.role === 'guest') {
             messagesEl.appendChild(bubble('guest', message.content));
         } else if (message.role === 'assistant') {
             if (message.content) {
                 messagesEl.appendChild(bubble('assistant', message.content));
             }
-            renderUiPayload(message.ui_payload);
+            renderUiPayload(message.ui_payload, { fresh, comment: message.content || '' });
             const chips = actionChips(message.suggested_actions);
             if (chips) messagesEl.appendChild(chips);
         } else if (message.role === 'staff') {
@@ -505,10 +493,8 @@ function initConcierge() {
         if (!actions || !actions.length) return null;
 
         const roomUrl = (slug) => config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(slug));
-        const reservationUrl = (slug) => config.reservationUrlTemplate.replace('__SLUG__', encodeURIComponent(slug));
         const targets = {
             view_room: [config.labels.viewDetails, (action) => roomUrl(action.room)],
-            reserve: [config.labels.bookNow, (action) => reservationUrl(action.room)],
             staff: [config.labels.staff, () => config.staffUrl],
         };
 
@@ -589,7 +575,7 @@ function initConcierge() {
 
         try {
             const data = await api(config.messageUrl, { guest_token: guestToken, message: text, ...uiContext() });
-            renderMessage(data.message);
+            renderMessage(data.message, { fresh: true });
             setChatStatus(config.labels.statusSent, 'sent');
             window.hotelSound?.play('incoming');
             knownMessageCount += 2; // the guest message just sent + the reply just rendered
@@ -631,7 +617,7 @@ function initConcierge() {
                 const menu = quickMenuCard();
                 if (menu) messagesEl.appendChild(card([menu]));
             } else {
-                data.messages.forEach(renderMessage);
+                data.messages.forEach((message) => renderMessage(message));
             }
             knownMessageCount = data.messages.length;
 

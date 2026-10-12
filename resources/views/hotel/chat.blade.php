@@ -42,12 +42,25 @@
             data-label-mic-listening="{{ $labels['chat_mic_listening'] }}"
             data-label-mic-denied="{{ $labels['chat_mic_denied'] }}"
             data-label-mic-nospeech="{{ $labels['chat_mic_nospeech'] }}"
+            data-label-hide-details="{{ $labels['chat_hide_details'] }}"
+            data-label-form-title="{{ $labels['chat_form_title'] }}"
+            data-label-form-confirm="{{ $labels['chat_form_confirm'] }}"
+            data-label-from="{{ $labels['from'] }}"
+            data-label-showing-rooms="{{ $labels['chat_showing_rooms'] }}"
+            data-label-close-showcase="{{ $labels['chat_close_showcase'] }}"
+            data-label-per-night="{{ $labels['per_night'] }}"
+            data-today="{{ $today }}"
+            data-max-nights="{{ \App\Services\Reservation\ReservationService::MAX_NIGHTS }}"
+            data-quote-url="{{ route('reservation.quote', $hotel->slug) }}"
+            data-reserve-url="{{ route('reservation.store', $hotel->slug) }}"
             data-currency="{{ $hotel->currency }}"
             data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
             data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
             data-staff-url="{{ route('hotel.staff', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
-            data-reservation-url="{{ route('hotel.reservation', ['hotelSlug' => $hotel->slug, 'lang' => $locale, 'room' => '__SLUG__']) }}"
         >
+            <script type="application/json" data-wizard-labels>@json($wizard)</script>
+            <script type="application/json" data-room-terms>@json($roomTerms)</script>
+
             <section id="concierge-chat-log" class="chat-log" aria-label="{{ $labels['chat_heading'] }}" aria-hidden="true">
                 <header class="chat-log-header">
                     <span class="chat-host-avatar" aria-hidden="true"></span>

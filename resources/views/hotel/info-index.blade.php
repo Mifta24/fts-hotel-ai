@@ -9,7 +9,7 @@
         'faq' => ['tab' => $lobby['info_tab_faq'], 'heading' => $lobby['info_faq']],
     ])->filter(fn ($section, $category) => ($infoItems[$category] ?? collect())->isNotEmpty());
 @endphp
-<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems" :menu="false" :title="$lobby['menu_info'].' · '.$hotel->name">
+<x-hotel-stage :hotel="$hotel" :locale="$locale" :supported-locales="$supportedLocales" :labels="$labels" :lobby="$lobby" :narration="$narration" :scene="$scene" :backdrop="$backdrop" :menu-items="$menuItems" :wizard="$wizard" :room-terms="$roomTerms" :today="$today" :menu="false" :title="$lobby['menu_info'].' · '.$hotel->name">
     <div class="stage-panels">
         <section class="lobby-content info-panel @container" aria-label="{{ $lobby['menu_info'] }}">
             <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" data-stage-exit data-tour-line="{{ $narration['tour_lobby'] }}" class="panel-close" aria-label="{{ $lobby['back'] }}"><span aria-hidden="true">×</span></a>

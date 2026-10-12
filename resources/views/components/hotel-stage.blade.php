@@ -1,4 +1,4 @@
-@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'title' => null, 'welcome' => null, 'sidebar' => null, 'menu' => true])
+@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'wizard', 'roomTerms', 'today', 'title' => null, 'welcome' => null, 'sidebar' => null, 'menu' => true])
 {{-- The fixed full-screen stage every scene shares: backdrop, header, menu and the concierge chat dock. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}">
