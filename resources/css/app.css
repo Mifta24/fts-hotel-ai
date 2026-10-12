@@ -97,6 +97,8 @@
 .chat-status.is-waiting::before { background: #d49a4b; animation: status-pulse 1.4s ease-in-out infinite; }
 .chat-status.is-replied { color: #39718b; }
 .chat-status.is-replied::before { background: #4d9ab7; }
+.chat-status.is-error { color: #a4413c; }
+.chat-status.is-error::before { background: #c4574f; }
 .chat-status[hidden], .chat-thinking[hidden] { display: none; }
 .chat-log-messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 18px; overflow-wrap: anywhere; }
 .chat-host-avatar { display: inline-block; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #c2aa86 var(--concierge-image) no-repeat var(--concierge-focus, 51% 19%); background-size: var(--concierge-zoom, 315%); border: 1px solid #d5c9ad; }
@@ -122,7 +124,7 @@
 .chat-launcher-arrow { margin-left: 2px; color: #a9824a; font-size: 18px; line-height: 1; }
 .chat-chips { transition: opacity .24s ease, transform .3s ease, visibility .24s, left .3s ease, width .3s ease; }
 .stage-chat.is-open .chat-chips { opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(-50%) translateY(8px); }
-@media (prefers-reduced-motion: reduce) { .chat-log, .chat-bar, .chat-launcher, .chat-chips { transition: none; } .chat-thinking-dots i, .chat-status.is-waiting::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .chat-log, .chat-bar, .chat-launcher, .chat-chips { transition: none; } .chat-thinking-dots i, .chat-status.is-waiting::before, .chat-bar .chat-mic.is-listening { animation: none; } }
 /* A right-anchored concierge stands where the transcript would normally dock,
    so here it opens beside the info card instead of over her — same height
    and shelf as its neighbour, sized to its messages instead of a fixed
@@ -147,6 +149,12 @@
 .chat-bar:focus-within { outline: 3px solid #b48c42; }
 .chat-bar input { min-width: 0; flex: 1; border: 0; background: transparent; font-size: 15px; outline: none; }
 .chat-bar button { flex-shrink: 0; min-height: 44px; padding: 0 24px; border-radius: 999px; background: #263c35; color: white; font-size: 14px; font-weight: 500; cursor: pointer; }
+.chat-bar .chat-mic { display: inline-flex; align-items: center; justify-content: center; width: 44px; padding: 0; border: 1px solid #e2d5b7; background: #fffdf8; color: #263c35; transition: background .2s ease, color .2s ease; }
+.chat-bar .chat-mic[hidden] { display: none; }
+.chat-bar .chat-mic:hover:not(:disabled):not(.is-listening) { background: #f5ecd9; }
+.chat-bar .chat-mic:disabled { opacity: .45; cursor: not-allowed; }
+.chat-bar .chat-mic.is-listening { border-color: #c4574f; background: #c4574f; color: white; animation: mic-pulse 1.4s ease-out infinite; }
+@keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 #c4574f66; } 100% { box-shadow: 0 0 0 12px #c4574f00; } }
 .chat-chips { bottom: 24px; display: flex; width: min(900px, calc(100% - var(--col) - 96px)); justify-content: safe center; gap: 10px; overflow-x: auto; scrollbar-width: none; }
 .chat-chips button, .chat-chips a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: #ffffffeb; color: #26312f; font-size: 13px; white-space: nowrap; cursor: pointer; transition: background .2s; }
 .chat-chips button:hover, .chat-chips a:hover { background: white; }

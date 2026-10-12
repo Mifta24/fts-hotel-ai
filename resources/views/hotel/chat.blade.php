@@ -38,6 +38,10 @@
             data-label-error="{{ $labels['chat_error'] }}"
             data-label-slow="{{ $labels['chat_slow'] }}"
             data-label-retry="{{ $labels['chat_retry'] }}"
+            data-label-mic="{{ $labels['chat_mic'] }}"
+            data-label-mic-listening="{{ $labels['chat_mic_listening'] }}"
+            data-label-mic-denied="{{ $labels['chat_mic_denied'] }}"
+            data-label-mic-nospeech="{{ $labels['chat_mic_nospeech'] }}"
             data-currency="{{ $hotel->currency }}"
             data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
             data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
@@ -80,6 +84,9 @@
                     placeholder="{{ $labels['chat_placeholder'] }}"
                     autocomplete="off"
                 >
+                <button type="button" data-chat-mic class="chat-mic" aria-label="{{ $labels['chat_mic'] }}" aria-pressed="false" title="{{ $labels['chat_mic'] }}" hidden>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+                </button>
                 <button type="submit" data-chat-submit>{{ $labels['chat_send'] }}</button>
             </form>
 

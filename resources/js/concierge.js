@@ -51,6 +51,10 @@ function initConcierge() {
             error: root.dataset.labelError,
             slow: root.dataset.labelSlow,
             retry: root.dataset.labelRetry,
+            mic: root.dataset.labelMic,
+            micListening: root.dataset.labelMicListening,
+            micDenied: root.dataset.labelMicDenied,
+            micNoSpeech: root.dataset.labelMicNospeech,
         },
     };
 
@@ -58,6 +62,7 @@ function initConcierge() {
     const formEl = root.querySelector('[data-chat-form]');
     const inputEl = root.querySelector('[data-chat-input]');
     const submitEl = root.querySelector('[data-chat-submit]');
+    const micEl = root.querySelector('[data-chat-mic]');
     const statusBanner = root.querySelector('[data-status-banner]');
     const chatStatus = root.querySelector('[data-chat-status]');
     const thinkingIndicator = root.querySelector('[data-thinking-indicator]');
@@ -123,6 +128,7 @@ function initConcierge() {
 
     function finishClosePanel({ restoreFocus = true } = {}) {
         isOpen = false;
+        stopListening({ discard: true });
         syncPanelState();
         hideDraftDialog();
         if (restoreFocus) launcher?.focus();
@@ -343,6 +349,8 @@ function initConcierge() {
         const disabled = busy || !ready || handedOver;
         inputEl.disabled = disabled;
         submitEl.disabled = disabled;
+        if (micEl) micEl.disabled = disabled;
+        if (disabled) stopListening({ discard: true });
         if (launcher) launcher.disabled = busy || !ready;
         root.setAttribute('aria-busy', String(busy));
         document.body.classList.toggle('is-thinking', busy);
@@ -639,6 +647,80 @@ function initConcierge() {
         }
 
         scrollToBottom();
+    }
+
+    // Voice input: the browser's speech recognition turns what the guest says
+    // into text, which then goes through the same path as a typed message.
+    // The button stays hidden where the browser has no speech recognition.
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const speechLocales = { id: 'id-ID', en: 'en-US', ja: 'ja-JP' };
+    let recognition = null;
+    let micFailure = null;
+    let micDiscard = false;
+
+    function setListening(value) {
+        micEl.classList.toggle('is-listening', value);
+        micEl.setAttribute('aria-pressed', String(value));
+        const label = value ? config.labels.micListening : config.labels.mic;
+        micEl.setAttribute('aria-label', label);
+        micEl.title = label;
+        inputEl.placeholder = value ? config.labels.micListening : config.labels.placeholder;
+    }
+
+    function stopListening({ discard = false } = {}) {
+        micDiscard = discard;
+        if (discard) recognition?.abort();
+        else recognition?.stop();
+    }
+
+    function startListening() {
+        if (!SpeechRecognitionClass || recognition || !ready || busy || handedOver) return;
+
+        const session = new SpeechRecognitionClass();
+        let transcript = '';
+        micFailure = null;
+        micDiscard = false;
+        session.lang = speechLocales[config.locale] || 'en-US';
+        session.interimResults = true;
+        session.continuous = false;
+        session.maxAlternatives = 1;
+
+        session.onresult = (event) => {
+            transcript = Array.from(event.results).map((result) => result[0].transcript).join('').trim();
+            inputEl.value = transcript;
+        };
+        session.onerror = (event) => {
+            micFailure = event.error;
+        };
+        session.onend = () => {
+            recognition = null;
+            setListening(false);
+
+            if (micDiscard) return;
+
+            if (micFailure === 'not-allowed' || micFailure === 'service-not-allowed') {
+                setChatStatus(config.labels.micDenied, 'error');
+            } else if (!transcript && micFailure !== 'aborted') {
+                setChatStatus(config.labels.micNoSpeech, 'error');
+            } else if (transcript && !busy && !handedOver) {
+                inputEl.value = '';
+                sendMessage(transcript);
+            }
+        };
+
+        recognition = session;
+        setListening(true);
+        try {
+            session.start();
+        } catch {
+            recognition = null;
+            setListening(false);
+        }
+    }
+
+    if (micEl && SpeechRecognitionClass) {
+        micEl.hidden = false;
+        micEl.addEventListener('click', () => (recognition ? stopListening() : startListening()));
     }
 
     formEl.addEventListener('submit', (event) => {
