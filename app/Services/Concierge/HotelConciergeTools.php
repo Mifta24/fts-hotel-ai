@@ -380,10 +380,9 @@ class HotelConciergeTools
         $tag = filled($input['image_tag'] ?? null) ? Str::lower(trim((string) $input['image_tag'])) : null;
         $slug = filled($input['room_type_slug'] ?? null) ? (string) $input['room_type_slug'] : null;
 
-        $rooms = $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')
-            ->when($slug, fn ($q) => $q->where('slug', $slug))
-            ->with('images')
-            ->get();
+        $rooms = $slug
+            ? $this->matchRoomTypes($slug)->load('images')
+            : $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')->with('images')->get();
 
         $photos = $rooms->flatMap(function (RoomType $roomType) use ($tag, $slug) {
             $images = $roomType->images->filter(fn ($image) => filled($image->image_source));
@@ -405,7 +404,9 @@ class HotelConciergeTools
 
         if ($photos === []) {
             return [
-                'text' => 'No room photo matches that. Say so honestly and offer to show a room\'s details with get_room_detail or recommend_rooms.',
+                'text' => $rooms->isEmpty() && $slug
+                    ? 'No room matches that name. The rooms are: '.$this->roomDirectory().'. Call show_room_photos again with one of these slugs, or recommend_rooms.'
+                    : 'No room photo matches that. Say so honestly and offer to show a room\'s details with get_room_detail or recommend_rooms.',
                 'ui' => null,
             ];
         }
@@ -594,9 +595,9 @@ class HotelConciergeTools
 
     private function getRoomDetail(array $input): array
     {
-        $roomType = $this->findRoomType($input['room_type_slug']);
+        $roomType = $this->findRoomType($input['room_type_slug']) ?? $this->singleMatchingRoomType($input['room_type_slug']);
         if (! $roomType) {
-            return ['text' => 'Room type not found.', 'ui' => null];
+            return ['text' => 'Room type not found. The rooms are: '.$this->roomDirectory().'.', 'ui' => null];
         }
 
         $images = $roomType->images;
@@ -851,6 +852,49 @@ class HotelConciergeTools
     private function findRoomType(string $slug): ?RoomType
     {
         return $this->hotel->roomTypes()->where('slug', $slug)->first();
+    }
+
+    /**
+     * The active rooms a guest's wording points at: the exact slug, else any
+     * room whose slug or name (in any language) contains the term or one of
+     * its words — so "suite room" finds "Family Suite".
+     *
+     * @return Collection<int, RoomType>
+     */
+    private function matchRoomTypes(string $term): Collection
+    {
+        $rooms = $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')->get();
+        $term = Str::lower(trim($term));
+
+        $exact = $rooms->where('slug', $term);
+        if ($exact->isNotEmpty()) {
+            return $exact->values();
+        }
+
+        $words = collect(preg_split('/[\s_-]+/u', $term))
+            ->filter(fn ($word) => mb_strlen($word) >= 3 && ! in_array($word, ['room', 'rooms', 'kamar', 'the', 'type'], true))
+            ->values();
+
+        return $rooms->filter(function (RoomType $room) use ($term, $words) {
+            $haystack = Str::lower(str_replace('-', ' ', $room->slug).' '.$room->name.' '.collect($room->translations ?? [])->pluck('name')->filter()->implode(' '));
+
+            return Str::contains($haystack, str_replace('-', ' ', $term))
+                || $words->contains(fn ($word) => Str::contains($haystack, $word));
+        })->values();
+    }
+
+    private function singleMatchingRoomType(string $term): ?RoomType
+    {
+        $matches = $this->matchRoomTypes($term);
+
+        return $matches->count() === 1 ? $matches->first() : null;
+    }
+
+    private function roomDirectory(): string
+    {
+        return $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')->get()
+            ->map(fn (RoomType $room) => "{$room->name} (slug: {$room->slug})")
+            ->implode(', ');
     }
 
     /**

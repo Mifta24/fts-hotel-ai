@@ -131,6 +131,24 @@ class ConciergeRichCardsTest extends TestCase
         $this->assertNull($this->tools()->dispatch('show_room_photos', ['image_tag' => 'helipad'])['ui']);
     }
 
+    public function test_room_photos_find_a_room_by_a_loose_name_instead_of_its_exact_slug(): void
+    {
+        $suite = $this->hotel->roomTypes()->where('slug', 'family-suite')->first();
+        $suite->images()->create(['image_url' => 'https://img.test/suite.jpg', 'alt_text' => 'Suite living area', 'sort_order' => 0]);
+
+        foreach (['suite', 'suite room', 'Family Suite', 'family-suite'] as $term) {
+            $result = $this->tools()->dispatch('show_room_photos', ['room_type_slug' => $term]);
+
+            $this->assertSame('room_photos', $result['ui']['type'], $term);
+            $this->assertSame(['family-suite'], array_values(array_unique(array_column($result['ui']['photos'], 'room_type_slug'))), $term);
+        }
+
+        $unknown = $this->tools()->dispatch('show_room_photos', ['room_type_slug' => 'castle']);
+
+        $this->assertNull($unknown['ui']);
+        $this->assertStringContainsString('family-suite', $unknown['text']);
+    }
+
     public function test_the_menu_card_lists_the_dishes_and_hours_the_hotel_entered(): void
     {
         $this->hotel->knowledgeItems()->create([

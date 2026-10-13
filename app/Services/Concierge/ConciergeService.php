@@ -361,6 +361,7 @@ class ConciergeService
             "Current scene: {$scene}",
             'Selected room: '.($room ? "{$room->name} (slug: {$room->slug})" : 'none'),
             'Selected facility: '.($conversation->selectedFacility?->title ?? 'none'),
+            'Rooms (use these slugs): '.$conversation->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')->get()->map(fn ($roomType) => "{$roomType->name} ({$roomType->slug})")->implode(', '),
         ];
 
         $draft = $conversation->reservation_state;
