@@ -86,6 +86,9 @@ class KnowledgeItemController extends Controller
             'translations.ja.body' => ['nullable', 'string'],
             'tags' => ['nullable', 'string'],
             'image_url' => ['nullable', 'url:http,https', 'max:2048'],
+            'gallery' => ['nullable', 'string', 'max:4000'],
+            'hours' => ['nullable', 'string', 'max:255'],
+            'menu' => ['nullable', 'string', 'max:4000'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -100,9 +103,48 @@ class KnowledgeItemController extends Controller
             ],
             'tags' => collect(explode(',', (string) ($data['tags'] ?? '')))->map(fn ($t) => trim($t))->filter()->values()->all(),
             'image_url' => $data['image_url'] ?? null,
+            'images' => $this->galleryUrls((string) ($data['gallery'] ?? '')),
+            'details' => $this->details($data),
             'is_active' => $request->boolean('is_active'),
             'sort_order' => $data['sort_order'] ?? 0,
         ];
+    }
+
+    /**
+     * One photo address per line; anything that is not an http(s) URL is dropped.
+     *
+     * @return list<string>
+     */
+    private function galleryUrls(string $lines): array
+    {
+        return collect(preg_split('/\R/', $lines))
+            ->map(fn ($line) => trim($line))
+            ->filter(fn ($line) => filter_var($line, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $line))
+            ->unique()
+            ->take(8)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Opening hours, plus a menu typed as one "Name | Description | Price" per line.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{hours: ?string, menu: list<array{name: string, description: ?string, price: ?string}>}|null
+     */
+    private function details(array $data): ?array
+    {
+        $menu = collect(preg_split('/\R/', (string) ($data['menu'] ?? '')))
+            ->map(fn ($line) => array_map('trim', explode('|', $line)))
+            ->filter(fn ($parts) => ($parts[0] ?? '') !== '')
+            ->map(fn ($parts) => ['name' => $parts[0], 'description' => $parts[1] ?? null, 'price' => $parts[2] ?? null])
+            ->take(30)
+            ->values()
+            ->all();
+
+        $hours = filled($data['hours'] ?? null) ? trim($data['hours']) : null;
+
+        return $hours === null && $menu === [] ? null : ['hours' => $hours, 'menu' => $menu];
     }
 
     private function categories(): array

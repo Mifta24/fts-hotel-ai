@@ -23,8 +23,29 @@
                         <span class="facility-card-icon"><x-facility-icon :name="$facility->iconName()" /></span>
                     </div>
                 @endif
+                @if (count($facility->photoUrls()) > 1)
+                    <div class="facility-gallery mt-3">
+                        @foreach (array_slice($facility->photoUrls(), 1) as $photoUrl)
+                            <img src="{{ $photoUrl }}" alt="{{ $title }}" loading="lazy">
+                        @endforeach
+                    </div>
+                @endif
                 <h2>{{ $title }}</h2>
+                @if ($facility->openingHours())
+                    <p class="facility-hours">{{ $labels['chat_hours'] }}: {{ $facility->openingHours() }}</p>
+                @endif
                 @include('hotel.narrator', ['text' => $facility->translatedBody($locale), 'key' => 'facility-'.$facility->id, 'inline' => true])
+                @if ($facility->menuEntries() !== [])
+                    <ul class="rc-menu facility-menu mt-5">
+                        @foreach ($facility->menuEntries() as $dish)
+                            <li>
+                                <span class="rc-menu-name">{{ $dish['name'] }}</span>
+                                @if ($dish['price'])<span class="rc-menu-price">{{ $dish['price'] }}</span>@endif
+                                @if ($dish['description'])<span class="rc-menu-desc">{{ $dish['description'] }}</span>@endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
                 <div class="mt-8 flex flex-wrap gap-3">
                     <button type="button" class="lobby-action" data-hero-quick-message="{{ str_replace(':name', $title, $lobby['ask_facility_q']) }}">{{ $lobby['ask_facility'] }} <span aria-hidden="true">↗</span></button>
                     <a href="{{ route('hotel.facilities', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" data-stage-exit class="room-scene-step">{{ $lobby['back_facilities'] }}</a>

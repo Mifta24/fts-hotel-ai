@@ -47,6 +47,15 @@
             data-label-form-confirm="{{ $labels['chat_form_confirm'] }}"
             data-label-from="{{ $labels['from'] }}"
             data-label-showing-rooms="{{ $labels['chat_showing_rooms'] }}"
+            data-label-showing-facilities="{{ $labels['chat_showing_facilities'] }}"
+            data-label-open-map="{{ $labels['chat_open_map'] }}"
+            data-label-directions="{{ $labels['chat_directions'] }}"
+            data-label-getting-there="{{ $labels['chat_getting_there'] }}"
+            data-label-showing-photos="{{ $labels['chat_showing_photos'] }}"
+            data-label-hours="{{ $labels['chat_hours'] }}"
+            data-label-photo-prev="{{ $labels['chat_photo_prev'] }}"
+            data-label-photo-next="{{ $labels['chat_photo_next'] }}"
+            data-label-photo-close="{{ $labels['chat_photo_close'] }}"
             data-label-close-showcase="{{ $labels['chat_close_showcase'] }}"
             data-label-chat-new="{{ $labels['chat_new'] }}"
             data-label-chat-new-title="{{ $labels['chat_new_title'] }}"
@@ -74,6 +83,7 @@
             data-currency="{{ $hotel->currency }}"
             data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
             data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
+            data-facility-url="{{ route('hotel.facility', ['hotelSlug' => $hotel->slug, 'facilityId' => '__ID__', 'lang' => $locale]) }}"
             data-staff-url="{{ route('hotel.staff', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
         >
             <script type="application/json" data-wizard-labels>@json($wizard)</script>
@@ -87,7 +97,9 @@
                     'family' => ['label' => $labels['quick_family'], 'message' => $labels['quick_family_q']],
                     'view' => ['label' => $labels['quick_view'], 'message' => $labels['quick_view_q']],
                     'rooms' => ['label' => $labels['menu_rooms'], 'message' => $labels['menu_rooms_q']],
-                    'facilities' => ['label' => $labels['menu_facilities'], 'message' => $labels['menu_facilities_q']],
+                    'facilities' => ['label' => $labels['menu_facilities'], 'message' => $labels['quick_facilities_q']],
+                    'location' => ['label' => $labels['quick_location'], 'message' => $labels['quick_location_q']],
+                    'menu' => ['label' => $labels['quick_menu'], 'message' => $labels['quick_menu_q']],
                     'policies' => ['label' => $labels['menu_policies'], 'message' => $labels['menu_policies_q']],
                     'staff' => ['label' => $labels['menu_staff'], 'message' => $labels['menu_staff_q']],
                 ];

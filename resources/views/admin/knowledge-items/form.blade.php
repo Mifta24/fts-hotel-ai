@@ -29,6 +29,19 @@
                     <input type="url" name="image_url" value="{{ old('image_url', $item->image_url) }}" placeholder="https://…"
                         class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
                 </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-stone-700">More photos (one URL per line, shown as a gallery in the chat)</label>
+                    <textarea name="gallery" rows="3" placeholder="https://…" class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">{{ old('gallery', implode("\n", $item->images ?? [])) }}</textarea>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-stone-700">Opening hours (optional, e.g. 06:30–10:30)</label>
+                    <input type="text" name="hours" value="{{ old('hours', $item->details['hours'] ?? '') }}"
+                        class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-stone-700">Menu (optional, one per line: Name | Description | Price)</label>
+                    <textarea name="menu" rows="4" placeholder="Nasi goreng | Telur, ayam, kerupuk | Rp 65.000" class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">{{ old('menu', collect($item->menuEntries())->map(fn ($entry) => rtrim($entry['name'].' | '.($entry['description'] ?? '').' | '.($entry['price'] ?? ''), ' |'))->implode("\n")) }}</textarea>
+                </div>
                 <label class="col-span-2 flex items-center gap-2 text-sm text-stone-700">
                     <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $item->is_active)) class="rounded border-stone-300">
                     Active (the AI can use this entry)

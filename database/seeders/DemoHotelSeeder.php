@@ -277,6 +277,11 @@ class DemoHotelSeeder extends Seeder
                     'en' => ['title' => 'Swimming pool', 'body' => 'The ocean-facing infinity pool is open daily from 7:00 AM to 7:00 PM. It does not operate at night for safety reasons. Pool towels are provided free of charge at the pool bar.'],
                     'ja' => ['title' => 'スイミングプール', 'body' => '海に面したインフィニティプールは毎日7:00〜19:00に営業しています。安全上の理由により夜間は営業しておりません。プールタオルはプールバーで無料でご利用いただけます。'],
                 ],
+                'images' => [
+                    'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=800&q=80',
+                    'https://images.unsplash.com/photo-1519449556851-5720b33024e7?auto=format&fit=crop&w=800&q=80',
+                ],
+                'details' => ['hours' => '07:00–19:00', 'menu' => []],
                 'tags' => ['pool', 'swimming pool', 'hours'],
             ],
             [
@@ -309,6 +314,18 @@ class DemoHotelSeeder extends Seeder
                 'translations' => [
                     'en' => ['title' => 'Breakfast', 'body' => 'Buffet breakfast is served at Samudra Restaurant from 6:30 AM to 10:30 AM, with both Indonesian and international dishes. Breakfast is included with every room type unless stated otherwise.'],
                     'ja' => ['title' => '朝食について', 'body' => 'ビュッフェ形式の朝食はサムドラ・レストランにて6:30〜10:30に提供され、インドネシア料理と洋食の両方をお楽しみいただけます。特に記載がない限り、全ての客室タイプに朝食が含まれます。'],
+                ],
+                'images' => [
+                    'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+                ],
+                'details' => [
+                    'hours' => '06:30–10:30',
+                    'menu' => [
+                        ['name' => 'Nasi goreng kampung', 'description' => 'Telur mata sapi, ayam suwir, kerupuk', 'price' => null],
+                        ['name' => 'Bubur ayam', 'description' => 'Bubur hangat dengan ayam, cakwe, dan bawang goreng', 'price' => null],
+                        ['name' => 'Stasiun telur', 'description' => 'Omelet atau telur sesuai pesanan', 'price' => null],
+                        ['name' => 'Buah segar & roti', 'description' => 'Pilihan buah tropis, croissant, dan roti panggang', 'price' => null],
+                    ],
                 ],
                 'tags' => ['breakfast', 'restaurant'],
             ],
@@ -386,6 +403,8 @@ class DemoHotelSeeder extends Seeder
                     'translations' => $item['translations'],
                     'tags' => $item['tags'],
                     'image_url' => $item['image_url'] ?? null,
+                    'images' => $item['images'] ?? null,
+                    'details' => $item['details'] ?? null,
                     'is_active' => true,
                     'sort_order' => $sort++,
                 ]

@@ -577,6 +577,7 @@ a.info-fact:hover { background: #f1e9d6; border-color: #d9c9a0; }
 .rc-details.is-open { grid-template-rows: 1fr; opacity: 1; }
 .rc-details-inner { min-height: 0; overflow: hidden; }
 .rc-desc { margin-top: 8px; font-size: 12px; line-height: 1.55; color: var(--ink-soft); }
+.rc-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .rc-fact { margin-top: 6px; font-size: 11px; color: var(--muted); }
 .rc-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
 .rc-chips li { padding: 3px 8px; border-radius: var(--radius-pill); background: #f4eee0; color: #7b5f2d; font-size: 10.5px; }
@@ -790,3 +791,41 @@ a.info-fact:hover { background: #f1e9d6; border-color: #d9c9a0; }
 
 /* On a phone the sheet is the whole conversation while it is up, so the composer waits underneath. */
 @media (max-width: 899px) { .stage:has(.showcase.is-in) .chat-bar { opacity: 0 !important; pointer-events: none !important; } }
+
+/* Photo cards, location and menu cards in the chat */
+button.rc-photo { display: block; width: 100%; padding: 0; border: 0; cursor: zoom-in; }
+button.rc-photo:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.rc-facility:has(.rc-menu) { flex-basis: min(300px, 86%); }
+.rc-menu { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.rc-menu li { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--line); font-size: 12px; }
+.rc-menu li:last-child { padding-bottom: 0; border-bottom: 0; }
+.rc-menu-name { font-weight: 600; color: var(--ink); }
+.rc-menu-price { color: var(--forest); font-weight: 600; white-space: nowrap; }
+.rc-menu-desc { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.rc-location { flex: none; width: 100%; max-width: 420px; }
+.rc-location .rc-actions { flex-wrap: wrap; }
+.rc-route { margin-top: 10px; padding: 10px; border-radius: 10px; background: #f4eee0; }
+.rc-label { margin: 0 0 6px; color: #7b5f2d; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.rc-route ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.45; }
+.rc-route li strong { display: block; color: var(--ink); }
+.rc-route li span { color: var(--ink-soft); }
+a.rc-fact { display: inline-block; color: var(--forest); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Full-screen photo viewer */
+.lb { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 56px 12px 72px; background: #0c1514eb; animation: lb-in .2s ease; touch-action: pan-y; }
+.lb-img { max-width: 100%; max-height: 100%; border-radius: 10px; object-fit: contain; box-shadow: 0 20px 60px #0008; }
+.lb-btn { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ffffff1f; color: white; font-size: 26px; line-height: 1; cursor: pointer; backdrop-filter: blur(6px); transition: background .2s; }
+.lb-btn:hover { background: #ffffff38; }
+.lb-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.lb-close { top: 12px; right: 12px; }
+.lb-prev, .lb-next { top: 50%; transform: translateY(-50%); }
+.lb-prev { left: 10px; }
+.lb-next { right: 10px; }
+.lb-caption { position: absolute; left: 16px; right: 16px; bottom: 36px; margin: 0; color: white; font-size: 14px; text-align: center; text-shadow: 0 1px 8px #0009; }
+.lb-counter { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; color: #ffffffb3; font-size: 11px; text-align: center; }
+@keyframes lb-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lb { animation: none; } }
+.facility-gallery { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.facility-gallery img { flex: 0 0 auto; width: 132px; height: 88px; border-radius: 10px; object-fit: cover; }
+.facility-hours { margin-top: 6px; color: var(--forest); font-size: 13px; font-weight: 600; }
+.facility-menu { max-width: 460px; }

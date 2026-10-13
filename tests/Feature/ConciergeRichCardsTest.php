@@ -61,6 +61,107 @@ class ConciergeRichCardsTest extends TestCase
         return new HotelConciergeTools($this->hotel, $this->conversation, 'en');
     }
 
+    public function test_showing_facilities_returns_photo_cards_only_for_entries_with_a_photo(): void
+    {
+        $this->hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Swimming Pool', 'body' => 'Open 7am to 9pm.', 'tags' => ['pool'], 'image_url' => 'https://img.test/pool.jpg', 'is_active' => true, 'sort_order' => 0]);
+        $this->hotel->knowledgeItems()->create(['category' => 'facilities', 'title' => 'Pool Bar', 'body' => 'Drinks by the pool.', 'tags' => ['pool'], 'is_active' => true, 'sort_order' => 1]);
+        $this->hotel->knowledgeItems()->create(['category' => 'policies', 'title' => 'Pool rules', 'body' => 'No diving.', 'image_url' => 'https://img.test/rules.jpg', 'is_active' => true, 'sort_order' => 2]);
+
+        $result = $this->tools()->dispatch('show_facility_photos', ['query' => 'pool']);
+
+        $this->assertSame('facility_results', $result['ui']['type']);
+        $this->assertCount(1, $result['ui']['facilities']);
+        $this->assertSame('Swimming Pool', $result['ui']['facilities'][0]['title']);
+        $this->assertSame('https://img.test/pool.jpg', $result['ui']['facilities'][0]['image_url']);
+        $this->assertStringNotContainsString('img.test', $result['text']);
+    }
+
+    public function test_showing_facilities_without_a_matching_photo_shows_no_cards(): void
+    {
+        $result = $this->tools()->dispatch('show_facility_photos', ['query' => 'helipad']);
+
+        $this->assertNull($result['ui']);
+    }
+
+    public function test_a_facility_card_carries_its_whole_gallery_and_hours(): void
+    {
+        $this->hotel->knowledgeItems()->create([
+            'category' => 'facilities', 'title' => 'Swimming Pool', 'body' => 'Open daily.', 'image_url' => 'https://img.test/pool.jpg',
+            'images' => ['https://img.test/pool.jpg', 'https://img.test/pool-night.jpg'], 'details' => ['hours' => '07:00–19:00', 'menu' => []],
+            'is_active' => true, 'sort_order' => 0,
+        ]);
+
+        $facility = $this->tools()->dispatch('show_facility_photos', [])['ui']['facilities'][0];
+
+        $this->assertSame(['https://img.test/pool.jpg', 'https://img.test/pool-night.jpg'], $facility['images']);
+        $this->assertSame('07:00–19:00', $facility['hours']);
+    }
+
+    public function test_the_location_card_has_map_links_and_how_to_get_there(): void
+    {
+        $this->hotel->update(['address' => 'Jl. Pantai 8', 'city' => 'Nusa Dua', 'country' => 'Indonesia', 'latitude' => -8.8008, 'longitude' => 115.2317]);
+        $this->hotel->knowledgeItems()->create(['category' => 'transport', 'title' => 'Airport transfer', 'body' => '30 minutes from the airport.', 'is_active' => true, 'sort_order' => 0]);
+
+        $result = $this->tools()->dispatch('show_location', []);
+
+        $this->assertSame('location', $result['ui']['type']);
+        $this->assertSame('Jl. Pantai 8, Nusa Dua, Indonesia', $result['ui']['location']['address']);
+        $this->assertStringContainsString('destination=-8.8008%2C115.2317', $result['ui']['location']['directions_url']);
+        $this->assertSame('Airport transfer', $result['ui']['location']['getting_there'][0]['title']);
+    }
+
+    public function test_the_location_card_is_skipped_when_the_hotel_has_no_address_or_point(): void
+    {
+        $this->hotel->update(['address' => null, 'city' => null, 'country' => null, 'latitude' => null, 'longitude' => null]);
+
+        $this->assertNull($this->tools()->dispatch('show_location', [])['ui']);
+    }
+
+    public function test_room_photos_can_be_filtered_by_what_the_guest_wants_to_see(): void
+    {
+        $this->deluxe->images()->create(['image_url' => 'https://img.test/deluxe-bath.jpg', 'tags' => ['bathroom'], 'alt_text' => 'Deluxe bathroom', 'sort_order' => 1]);
+
+        $result = $this->tools()->dispatch('show_room_photos', ['image_tag' => 'Bathroom']);
+
+        $this->assertSame('room_photos', $result['ui']['type']);
+        $this->assertCount(1, $result['ui']['photos']);
+        $this->assertSame('https://img.test/deluxe-bath.jpg', $result['ui']['photos'][0]['url']);
+        $this->assertSame('deluxe-king', $result['ui']['photos'][0]['room_type_slug']);
+        $this->assertStringNotContainsString('img.test', $result['text']);
+        $this->assertNull($this->tools()->dispatch('show_room_photos', ['image_tag' => 'helipad'])['ui']);
+    }
+
+    public function test_the_menu_card_lists_the_dishes_and_hours_the_hotel_entered(): void
+    {
+        $this->hotel->knowledgeItems()->create([
+            'category' => 'dining', 'title' => 'Breakfast', 'body' => 'Buffet at Samudra.', 'image_url' => 'https://img.test/breakfast.jpg',
+            'details' => ['hours' => '06:30–10:30', 'menu' => [['name' => 'Bubur ayam', 'description' => 'With chicken', 'price' => 'Rp 40.000'], ['name' => '']]],
+            'is_active' => true, 'sort_order' => 0,
+        ]);
+
+        $entry = $this->tools()->dispatch('show_menu', [])['ui']['entries'][0];
+
+        $this->assertSame('06:30–10:30', $entry['hours']);
+        $this->assertSame([['name' => 'Bubur ayam', 'description' => 'With chicken', 'price' => 'Rp 40.000']], $entry['menu']);
+        $this->assertSame(['https://img.test/breakfast.jpg'], $entry['images']);
+    }
+
+    public function test_quick_replies_after_the_new_cards_point_to_the_next_thing_to_see(): void
+    {
+        Http::fake(['llm.test/*' => Http::sequence()
+            ->push(['choices' => [['message' => ['content' => null, 'tool_calls' => [['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'show_location', 'arguments' => '{}']]]], 'finish_reason' => 'tool_calls']]])
+            ->push(['choices' => [['message' => ['content' => 'Here is where we are.'], 'finish_reason' => 'stop']]]),
+        ]);
+        $this->hotel->update(['address' => 'Jl. Pantai 8', 'latitude' => -8.8, 'longitude' => 115.2]);
+
+        $token = $this->postJson('/demo/concierge/start', ['locale' => 'en'])->json('guest_token');
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Where is the hotel?'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'location')
+            ->assertJsonPath('message.quick_replies', ['facilities', 'rooms', 'tour']);
+    }
+
     public function test_a_recommendation_shows_room_cards_without_asking_for_dates(): void
     {
         Http::fake(['llm.test/*' => Http::sequence()
@@ -210,7 +311,7 @@ class ConciergeRichCardsTest extends TestCase
         $this->assertSame(['facilities', 'policies', 'tour'], $history());
 
         $reply([], 'Happy to help!');
-        $this->assertSame(['rooms', 'facilities', 'policies', 'tour'], $history());
+        $this->assertSame(['rooms', 'facilities', 'location', 'policies', 'tour'], $history());
 
         $reply([['type' => 'handover']], null);
         $this->assertSame([], $history());

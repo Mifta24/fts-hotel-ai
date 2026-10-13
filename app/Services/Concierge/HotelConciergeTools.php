@@ -10,6 +10,7 @@ use App\Models\HotelKnowledgeItem;
 use App\Models\RoomType;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -22,6 +23,10 @@ class HotelConciergeTools
     private const MAX_RECOMMENDATIONS = 6;
 
     private const MAX_CARD_PHOTOS = 4;
+
+    private const MAX_FACILITY_CARDS = 6;
+
+    private const FACILITY_CATEGORIES = ['facilities', 'dining', 'transport'];
 
     public function __construct(
         private readonly Hotel $hotel,
@@ -53,6 +58,42 @@ class HotelConciergeTools
                             ],
                         ],
                         'required' => ['query'],
+                    ],
+                ],
+                [
+                    'name' => 'show_facility_photos',
+                    'description' => 'Show the hotel\'s facilities as tappable photo cards on screen. Use this when the guest wants to SEE a facility or the facilities (e.g. "tunjukkan foto kolam renang", "show me the gym", "can I see the restaurant", "lihat fasilitas"). Leave query empty to show every facility that has a photo. Call search_knowledge as well if the guest also asks a factual question about it.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'query' => ['type' => 'string', 'description' => 'Optional keywords for one facility, e.g. "pool", "gym", "restaurant". Empty shows all.'],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'show_location',
+                    'description' => 'Show the hotel\'s address and a map card with "open in maps" and "get directions" buttons, plus how to get there (airport, transfers). Use this when the guest asks where the hotel is, how to get there, wants to see the location or the map, or the address.',
+                    'parameters' => ['type' => 'object', 'properties' => new \stdClass],
+                ],
+                [
+                    'name' => 'show_room_photos',
+                    'description' => 'Show a photo gallery of rooms. Use this when the guest wants to SEE a specific part of the rooms — the bathroom, the view, the bed, the balcony — without naming one room, or wants a photo set of one room. Pass image_tag (e.g. "bathroom", "bathtub", "view", "balcony", "bedroom") and/or room_type_slug.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'image_tag' => ['type' => 'string', 'description' => 'What to see, e.g. "bathroom", "view", "bedroom"'],
+                            'room_type_slug' => ['type' => 'string', 'description' => 'Optional: only this room'],
+                        ],
+                    ],
+                ],
+                [
+                    'name' => 'show_menu',
+                    'description' => 'Show the restaurant / dining card with opening hours, photos and the menu the hotel listed. Use this when the guest wants to see the menu, the restaurant, breakfast or what food is available. Leave query empty for every dining entry.',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'query' => ['type' => 'string', 'description' => 'Optional keywords, e.g. "breakfast", "restaurant"'],
+                        ],
                     ],
                 ],
                 [
@@ -192,6 +233,10 @@ class HotelConciergeTools
     {
         return match ($name) {
             'search_knowledge' => $this->searchKnowledge($input),
+            'show_facility_photos' => $this->showFacilityPhotos($input),
+            'show_location' => $this->showLocation(),
+            'show_room_photos' => $this->showRoomPhotos($input),
+            'show_menu' => $this->showMenu($input),
             'search_rooms' => $this->searchRooms($input),
             'recommend_rooms' => $this->recommendRooms($input),
             'open_booking_form' => $this->openBookingForm($input),
@@ -207,25 +252,7 @@ class HotelConciergeTools
 
     private function searchKnowledge(array $input): array
     {
-        $query = trim((string) ($input['query'] ?? ''));
-        $category = $input['category'] ?? null;
-        $words = collect(preg_split('/\s+/', Str::lower($query)))->filter();
-
-        $items = $this->hotel->knowledgeItems()
-            ->where('is_active', true)
-            ->when($category, fn ($q) => $q->where('category', $category))
-            ->get()
-            ->filter(function (HotelKnowledgeItem $item) use ($query, $words) {
-                if ($query === '') {
-                    return true;
-                }
-
-                $haystack = Str::lower($item->title.' '.$item->body.' '.implode(' ', $item->tags ?? []));
-
-                return Str::contains($haystack, Str::lower($query))
-                    || $words->contains(fn ($word) => Str::contains($haystack, $word));
-            })
-            ->take(5);
+        $items = $this->matchingKnowledge((string) ($input['query'] ?? ''), $input['category'] ?? null)->take(5);
 
         if ($items->isEmpty()) {
             return [
@@ -241,6 +268,187 @@ class HotelConciergeTools
         ])->values()->all();
 
         return ['text' => json_encode($results, JSON_UNESCAPED_UNICODE), 'ui' => null];
+    }
+
+    /**
+     * Active knowledge entries whose title, body or tags mention the query.
+     *
+     * @return Collection<int, HotelKnowledgeItem>
+     */
+    private function matchingKnowledge(string $query, ?string $category = null): Collection
+    {
+        $query = trim($query);
+        $words = collect(preg_split('/\s+/', Str::lower($query)))->filter();
+
+        return $this->hotel->knowledgeItems()
+            ->where('is_active', true)
+            ->when($category, fn ($q) => $q->where('category', $category))
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(function (HotelKnowledgeItem $item) use ($query, $words) {
+                if ($query === '') {
+                    return true;
+                }
+
+                $haystack = Str::lower($item->title.' '.$item->body.' '.implode(' ', $item->tags ?? []));
+
+                return Str::contains($haystack, Str::lower($query))
+                    || $words->contains(fn ($word) => Str::contains($haystack, $word));
+            })
+            ->values();
+    }
+
+    private function showFacilityPhotos(array $input): array
+    {
+        $facilities = $this->matchingKnowledge((string) ($input['query'] ?? ''))
+            ->filter(fn (HotelKnowledgeItem $item) => in_array($item->category, self::FACILITY_CATEGORIES, true) && $item->photoUrls() !== [])
+            ->take(self::MAX_FACILITY_CARDS)
+            ->map(fn (HotelKnowledgeItem $item) => [
+                'id' => $item->id,
+                'title' => $item->translatedTitle($this->locale),
+                'body' => $item->translatedBody($this->locale),
+                'image_url' => $item->photoUrls()[0],
+                'images' => array_slice($item->photoUrls(), 0, self::MAX_CARD_PHOTOS + 1),
+                'hours' => $item->openingHours(),
+                'icon' => $item->iconName(),
+            ])
+            ->values()
+            ->all();
+
+        if ($facilities === []) {
+            return [
+                'text' => 'No facility photo matches that. Say so honestly, answer from search_knowledge if there is a text entry, or offer to show all facilities.',
+                'ui' => null,
+            ];
+        }
+
+        return [
+            'text' => json_encode([
+                'note' => 'The facility photo cards are now on screen. Comment on them in one or two short sentences; do not list every facility again and do not invent hours or fees.',
+                'facilities' => array_map(fn (array $facility) => ['title' => $facility['title'], 'body' => $facility['body']], $facilities),
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'facility_results', 'facilities' => $facilities],
+        ];
+    }
+
+    private function showLocation(): array
+    {
+        $hotel = $this->hotel;
+        $hasPoint = $hotel->latitude !== null && $hotel->longitude !== null;
+        $address = collect([$hotel->address, $hotel->city, $hotel->country])->filter()->implode(', ');
+
+        if (! $hasPoint && $address === '') {
+            return [
+                'text' => 'The hotel has no address or map point on file. Say so honestly and call request_human_handover if the guest needs directions.',
+                'ui' => null,
+            ];
+        }
+
+        $target = $hasPoint ? (float) $hotel->latitude.','.(float) $hotel->longitude : $address;
+        $getting = $this->matchingKnowledge('', HotelKnowledgeItem::CATEGORY_TRANSPORT)
+            ->take(3)
+            ->map(fn (HotelKnowledgeItem $item) => [
+                'title' => $item->translatedTitle($this->locale),
+                'body' => $item->translatedBody($this->locale),
+            ])
+            ->values()
+            ->all();
+
+        $card = [
+            'name' => $hotel->name,
+            'address' => $address,
+            'latitude' => $hasPoint ? (float) $hotel->latitude : null,
+            'longitude' => $hasPoint ? (float) $hotel->longitude : null,
+            'maps_url' => 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($target),
+            'directions_url' => 'https://www.google.com/maps/dir/?api=1&destination='.rawurlencode($target),
+            'phone' => $hotel->phone,
+            'getting_there' => $getting,
+        ];
+
+        return [
+            'text' => json_encode([
+                'note' => 'A location card with the address and map buttons is now on screen. Comment on it in one short sentence; use only the facts below for how to get there.',
+                'address' => $address,
+                'getting_there' => $getting,
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'location', 'location' => $card],
+        ];
+    }
+
+    private function showRoomPhotos(array $input): array
+    {
+        $tag = filled($input['image_tag'] ?? null) ? Str::lower(trim((string) $input['image_tag'])) : null;
+        $slug = filled($input['room_type_slug'] ?? null) ? (string) $input['room_type_slug'] : null;
+
+        $rooms = $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')
+            ->when($slug, fn ($q) => $q->where('slug', $slug))
+            ->with('images')
+            ->get();
+
+        $photos = $rooms->flatMap(function (RoomType $roomType) use ($tag, $slug) {
+            $images = $roomType->images->filter(fn ($image) => filled($image->image_source));
+
+            if ($tag) {
+                $images = $images->filter(fn ($image) => collect($image->tags ?? [])->contains(fn ($t) => Str::lower($t) === $tag));
+            } elseif (! $slug) {
+                $images = $images->take(1);
+            }
+
+            return $images->map(fn ($image) => [
+                'url' => $image->image_source,
+                'alt' => $image->alt_text ?: $roomType->translatedName($this->locale),
+                'tags' => $image->tags ?? [],
+                'room_name' => $roomType->translatedName($this->locale),
+                'room_type_slug' => $roomType->slug,
+            ]);
+        })->take(12)->values()->all();
+
+        if ($photos === []) {
+            return [
+                'text' => 'No room photo matches that. Say so honestly and offer to show a room\'s details with get_room_detail or recommend_rooms.',
+                'ui' => null,
+            ];
+        }
+
+        return [
+            'text' => json_encode([
+                'note' => 'The room photo gallery is now on screen. Comment on it in one short sentence; do not list the photos.',
+                'rooms' => collect($photos)->pluck('room_name')->unique()->values()->all(),
+                'image_tag' => $tag,
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'room_photos', 'image_tag' => $tag, 'photos' => $photos],
+        ];
+    }
+
+    private function showMenu(array $input): array
+    {
+        $entries = $this->matchingKnowledge((string) ($input['query'] ?? ''), HotelKnowledgeItem::CATEGORY_DINING)
+            ->take(3)
+            ->map(fn (HotelKnowledgeItem $item) => [
+                'id' => $item->id,
+                'title' => $item->translatedTitle($this->locale),
+                'body' => $item->translatedBody($this->locale),
+                'hours' => $item->openingHours(),
+                'menu' => $item->menuEntries(),
+                'images' => array_slice($item->photoUrls(), 0, self::MAX_CARD_PHOTOS + 1),
+            ])
+            ->values()
+            ->all();
+
+        if ($entries === []) {
+            return [
+                'text' => 'No dining entry matches that. Say so honestly, or answer from search_knowledge, or call request_human_handover.',
+                'ui' => null,
+            ];
+        }
+
+        return [
+            'text' => json_encode([
+                'note' => 'The dining card is now on screen with the hours, photos and menu. Comment on it in one short sentence; use only these facts and never invent dishes, prices or hours.',
+                'dining' => array_map(fn (array $entry) => ['title' => $entry['title'], 'body' => $entry['body'], 'hours' => $entry['hours'], 'menu' => $entry['menu']], $entries),
+            ], JSON_UNESCAPED_UNICODE),
+            'ui' => ['type' => 'dining_menu', 'entries' => $entries],
+        ];
     }
 
     private function searchRooms(array $input): array

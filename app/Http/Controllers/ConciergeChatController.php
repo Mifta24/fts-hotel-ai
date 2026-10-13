@@ -161,15 +161,27 @@ class ConciergeChatController extends Controller
                 : ['pick_dates', 'cheapest', 'family', 'view'];
         }
 
-        if ($types->intersect(['room_detail', 'availability'])->isNotEmpty()) {
+        if ($types->intersect(['room_detail', 'availability', 'room_photos'])->isNotEmpty()) {
             return ['pick_dates', 'rooms'];
+        }
+
+        if ($types->contains('facility_results')) {
+            return ['location', 'menu', 'rooms'];
+        }
+
+        if ($types->contains('dining_menu')) {
+            return ['facilities', 'location', 'rooms'];
+        }
+
+        if ($types->contains('location')) {
+            return ['facilities', 'rooms', 'tour'];
         }
 
         if ($types->contains('booking_confirmation')) {
             return ['facilities', 'policies', 'tour'];
         }
 
-        return filled($message->content) ? ['rooms', 'facilities', 'policies', 'tour'] : [];
+        return filled($message->content) ? ['rooms', 'facilities', 'location', 'policies', 'tour'] : [];
     }
 
     /**

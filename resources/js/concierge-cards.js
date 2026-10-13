@@ -1,6 +1,7 @@
 /**
  * The tappable cards the AI concierge shows in the chat: a rail of room cards
- * (photo, details that open in place, a reserve button), the reservation form
+ * (photo, details that open in place, a reserve button), facility, room-photo and
+ * menu cards, the location card, the reservation form
  * the guest can finish by tapping, and the confirmation that follows. Prices
  * and availability always come from the server; nothing here decides them.
  *
@@ -9,6 +10,7 @@
  */
 import { calendarFile } from './concierge-celebrate';
 import { DONE, haptic } from './haptics';
+import { openLightbox } from './concierge-lightbox';
 
 const PHONE_PATTERN = /^\+?[0-9\s\-().]{6,20}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,14 +96,14 @@ export function createCards(ctx) {
             h('span', { text: labels.perNight }));
     }
 
-    /** The photo walks to the room's own page, growing into the big photo there. */
-    function openRoomPage(event, photo) {
+    /** The photo walks to its own page, growing into the big photo there. */
+    function openPage(event, photo) {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
 
         event.preventDefault();
         const href = event.currentTarget.href;
 
-        if (window.hotelStage) window.hotelStage.leave(href, null, null, { photo: photo.isConnected && photo.naturalWidth ? photo : null });
+        if (window.hotelStage) window.hotelStage.leave(href, null, null, { photo: photo?.isConnected && photo.naturalWidth ? photo : null });
         else window.location.href = href;
     }
 
@@ -157,7 +159,7 @@ export function createCards(ctx) {
                 class: 'rc-photo',
                 href: config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(room.room_type_slug)),
                 'aria-label': room.name,
-                onClick: (event) => openRoomPage(event, photo),
+                onClick: (event) => openPage(event, photo),
             },
                 gallery.length ? photo : h('span', { class: 'rc-photo-empty', 'aria-hidden': 'true' }),
                 h('span', { class: 'rc-photo-cue', 'aria-hidden': 'true', text: '↗' }),
@@ -179,11 +181,127 @@ export function createCards(ctx) {
                     }))));
     }
 
-    function roomRail(items, stay) {
-        const rail = h('div', { class: 'rc-rail', tabindex: items.length > 2 ? 0 : null, role: 'list' },
-            items.map((room, index) => roomCard(room, { index, stay: stay && { ...stay, nights: room.nights } })));
+    const lightboxLabels = () => ({ prev: labels.photoPrev, next: labels.photoNext, close: labels.photoClose });
 
-        if (items.length < 3) return rail;
+    /**
+     * A photo that grows full-screen when tapped, with `select` to swap which
+     * photo of the gallery it shows (for the thumbnail strip under it).
+     */
+    function photoFrame(gallery, name, { items = null, start = 0 } = {}) {
+        let at = 0;
+        const photo = h('img', {
+            class: 'rc-photo-img',
+            src: gallery[0]?.url,
+            alt: gallery[0]?.alt || name,
+            loading: 'lazy',
+            onLoad: (event) => event.target.classList.add('is-loaded'),
+            onError: (event) => event.target.remove(),
+        });
+        const frame = h('button', {
+            type: 'button',
+            class: 'rc-photo rc-photo-zoom',
+            'aria-label': name,
+            onClick: () => openLightbox(items ?? gallery.map((image) => ({ url: image.url, alt: image.alt || name, caption: image.caption || name })), items ? start : at, lightboxLabels()),
+        }, photo, h('span', { class: 'rc-photo-cue', 'aria-hidden': 'true', text: '⤢' }));
+
+        return {
+            frame,
+            select(position) {
+                at = position;
+                photo.src = gallery[position].url;
+                photo.alt = gallery[position].alt || name;
+            },
+        };
+    }
+
+    function thumbStrip(gallery, name, select) {
+        if (gallery.length < 2) return null;
+
+        return h('div', { class: 'rc-thumbs' }, gallery.map((image, position) => h('button', {
+            type: 'button',
+            'aria-label': `${name} ${position + 1}`,
+            'aria-current': position === 0 ? 'true' : null,
+            onClick: (event) => {
+                select(position);
+                event.currentTarget.parentElement.querySelectorAll('button').forEach((other) => other.toggleAttribute('aria-current', other === event.currentTarget));
+            },
+        }, h('img', { src: image.url, alt: '', loading: 'lazy' }))));
+    }
+
+    /** A facility's photos (tap to enlarge), when it is open, and a way to its own page. */
+    function facilityCard(facility, index) {
+        const gallery = (facility.images?.length ? facility.images : [facility.image_url]).map((url) => ({ url }));
+        const { frame, select } = photoFrame(gallery, facility.title);
+        const href = config.facilityUrlTemplate.replace('__ID__', encodeURIComponent(facility.id));
+
+        return h('article', { class: 'rc rc-facility', style: `--i:${index}`, role: 'listitem' },
+            frame,
+            h('div', { class: 'rc-body' },
+                h('h4', { class: 'rc-name', text: facility.title }),
+                facility.hours ? h('p', { class: 'rc-fact', text: `${labels.hours}: ${facility.hours}` }) : null,
+                h('p', { class: 'rc-desc rc-clamp', text: facility.body }),
+                thumbStrip(gallery, facility.title, select),
+                h('div', { class: 'rc-actions' },
+                    h('a', { class: 'rc-btn rc-btn-primary', href, text: labels.viewDetails, onClick: (event) => openPage(event, frame.querySelector('img')) }))));
+    }
+
+    /** One photo of a room, labelled with which room it is. */
+    function roomPhotoCard(photo, index, all) {
+        const { frame } = photoFrame([{ url: photo.url, alt: photo.alt }], photo.room_name, {
+            items: all.map((item) => ({ url: item.url, alt: item.alt, caption: item.room_name })),
+            start: index,
+        });
+        const href = config.roomUrlTemplate.replace('__SLUG__', encodeURIComponent(photo.room_type_slug));
+
+        return h('article', { class: 'rc rc-facility', style: `--i:${index}`, role: 'listitem' },
+            frame,
+            h('div', { class: 'rc-body' },
+                h('h4', { class: 'rc-name', text: photo.room_name }),
+                photo.tags?.length ? h('ul', { class: 'rc-chips' }, photo.tags.slice(0, 3).map((tag) => h('li', { text: amenity(tag) }))) : null,
+                h('div', { class: 'rc-actions' },
+                    h('a', { class: 'rc-btn rc-btn-primary', href, text: labels.viewDetails, onClick: (event) => openPage(event, frame.querySelector('img')) }))));
+    }
+
+    /** A restaurant: photos, opening hours and the menu the hotel listed. */
+    function diningCard(entry, index) {
+        const gallery = entry.images.map((url) => ({ url }));
+        const { frame, select } = photoFrame(gallery, entry.title);
+        const href = config.facilityUrlTemplate.replace('__ID__', encodeURIComponent(entry.id));
+
+        return h('article', { class: 'rc rc-facility', style: `--i:${index}`, role: 'listitem' },
+            gallery.length ? frame : null,
+            h('div', { class: 'rc-body' },
+                h('h4', { class: 'rc-name', text: entry.title }),
+                entry.hours ? h('p', { class: 'rc-fact', text: `${labels.hours}: ${entry.hours}` }) : null,
+                h('p', { class: 'rc-desc', text: entry.body }),
+                entry.menu.length ? h('ul', { class: 'rc-menu' }, entry.menu.map((dish) => h('li', {},
+                    h('span', { class: 'rc-menu-name', text: dish.name }),
+                    dish.price ? h('span', { class: 'rc-menu-price', text: dish.price }) : null,
+                    dish.description ? h('span', { class: 'rc-menu-desc', text: dish.description }) : null))) : null,
+                thumbStrip(gallery, entry.title, select),
+                h('div', { class: 'rc-actions' },
+                    h('a', { class: 'rc-btn rc-btn-primary', href, text: labels.viewDetails, onClick: (event) => openPage(event, null) }))));
+    }
+
+    /** The hotel's address with buttons that open the map, and how to get there. */
+    function locationCard(location) {
+        return h('article', { class: 'rc rc-location', role: 'group', 'aria-label': location.name },
+            h('div', { class: 'rc-body' },
+                h('h4', { class: 'rc-name', text: location.name }),
+                h('p', { class: 'rc-desc', text: location.address }),
+                location.phone ? h('a', { class: 'rc-fact', href: `tel:${location.phone.replace(/[^+\d]/g, '')}`, text: location.phone }) : null,
+                location.getting_there?.length ? h('div', { class: 'rc-route' },
+                    h('p', { class: 'rc-label', text: labels.gettingThere }),
+                    h('ul', {}, location.getting_there.map((way) => h('li', {}, h('strong', { text: way.title }), h('span', { text: way.body }))))) : null,
+                h('div', { class: 'rc-actions' },
+                    h('a', { class: 'rc-btn', href: location.maps_url, target: '_blank', rel: 'noopener', text: labels.openMap }),
+                    h('a', { class: 'rc-btn rc-btn-primary', href: location.directions_url, target: '_blank', rel: 'noopener', text: labels.directions }))));
+    }
+
+    function rail(items, build) {
+        const list = h('div', { class: 'rc-rail', tabindex: items.length > 2 ? 0 : null, role: 'list' }, items.map(build));
+
+        if (items.length < 3) return list;
 
         const arrow = (direction, symbol) => h('button', {
             type: 'button',
@@ -191,10 +309,14 @@ export function createCards(ctx) {
             tabindex: -1,
             'aria-hidden': 'true',
             text: symbol,
-            onClick: () => rail.scrollBy({ left: (direction === 'next' ? 1 : -1) * rail.clientWidth * 0.8, behavior: 'smooth' }),
+            onClick: () => list.scrollBy({ left: (direction === 'next' ? 1 : -1) * list.clientWidth * 0.8, behavior: 'smooth' }),
         });
 
-        return h('div', { class: 'rc-rail-wrap' }, rail, arrow('prev', '‹'), arrow('next', '›'));
+        return h('div', { class: 'rc-rail-wrap' }, list, arrow('prev', '‹'), arrow('next', '›'));
+    }
+
+    function roomRail(items, stay) {
+        return rail(items, (room, index) => roomCard(room, { index, stay: stay && { ...stay, nights: room.nights } }));
     }
 
     function availabilityCard(payload) {
@@ -574,6 +696,20 @@ export function createCards(ctx) {
                 return {
                     recap: text(labels.showingRooms, { count: payload.rooms.length }),
                     build: () => roomRail(payload.rooms, payload.check_in ? { check_in: payload.check_in, check_out: payload.check_out } : null),
+                };
+            case 'location':
+                return { recap: payload.location.name, build: () => locationCard(payload.location) };
+            case 'room_photos':
+                return {
+                    recap: text(labels.showingPhotos, { count: payload.photos.length }),
+                    build: () => rail(payload.photos, roomPhotoCard),
+                };
+            case 'dining_menu':
+                return { recap: payload.entries[0].title, build: () => rail(payload.entries, diningCard) };
+            case 'facility_results':
+                return {
+                    recap: text(labels.showingFacilities, { count: payload.facilities.length }),
+                    build: () => rail(payload.facilities, facilityCard),
                 };
             case 'room_detail':
                 return { recap: payload.room.name, build: () => roomCard(payload.room, { expanded: true }) };
