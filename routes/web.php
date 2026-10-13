@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HandoverController;
+use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\KnowledgeItemController;
 use App\Http\Controllers\Admin\RoomTypeController;
 use App\Http\Controllers\Auth\LoginController;
@@ -26,6 +27,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::resource('room-types', RoomTypeController::class)->except('show');
         Route::resource('knowledge-items', KnowledgeItemController::class)->except('show');
+
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::put('inventory', [InventoryController::class, 'update'])->name('inventory.update');
 
         Route::get('bookings', [BookingController::class, 'index'])->name('bookings.index');
         Route::patch('bookings/{booking}/status', [BookingController::class, 'updateStatus'])->name('bookings.status');

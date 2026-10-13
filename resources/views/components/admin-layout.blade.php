@@ -18,9 +18,15 @@
             </div>
             <nav class="space-y-1 px-2 py-4 text-sm">
                 @php
+                    $currentHotel = auth()->user()?->currentHotel();
+                    $badges = $currentHotel ? [
+                        'admin.bookings.index' => $currentHotel->bookings()->where('status', 'pending')->count(),
+                        'admin.handovers.index' => \App\Models\HandoverRequest::where('status', 'open')->whereHas('conversation', fn ($q) => $q->where('hotel_id', $currentHotel->id))->count(),
+                    ] : [];
                     $navItems = [
                         ['route' => 'admin.dashboard', 'label' => 'Dashboard'],
                         ['route' => 'admin.room-types.index', 'label' => 'Rooms'],
+                        ['route' => 'admin.inventory.index', 'label' => 'Availability'],
                         ['route' => 'admin.knowledge-items.index', 'label' => 'Knowledge base'],
                         ['route' => 'admin.bookings.index', 'label' => 'Bookings'],
                         ['route' => 'admin.handovers.index', 'label' => 'Handovers'],
@@ -30,7 +36,7 @@
                     <a
                         href="{{ route($item['route']) }}"
                         class="block rounded-lg px-3 py-2 {{ request()->routeIs($item['route'].'*') ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100' }}"
-                    >{{ $item['label'] }}</a>
+                    >{{ $item['label'] }}@if (($badges[$item['route']] ?? 0) > 0)<span class="ml-2 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ $badges[$item['route']] }}</span>@endif</a>
                 @endforeach
             </nav>
             <form method="POST" action="{{ route('admin.logout') }}" class="border-t border-stone-200 p-2">

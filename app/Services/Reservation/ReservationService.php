@@ -7,8 +7,11 @@ use App\Models\Conversation;
 use App\Models\Hotel;
 use App\Models\RoomInventory;
 use App\Models\RoomType;
+use App\Notifications\NewBookingRequest;
 use Carbon\CarbonImmutable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 
 /**
  * The single place where stay prices, availability and reservation requests
@@ -106,7 +109,7 @@ class ReservationService
         $rooms = $data['rooms'] ?? 1;
         $extraBed = (bool) ($data['extra_bed'] ?? false);
 
-        return DB::transaction(function () use ($hotel, $roomType, $data, $conversation, $rooms, $extraBed) {
+        $booking = DB::transaction(function () use ($hotel, $roomType, $data, $conversation, $rooms, $extraBed) {
             $quote = $this->quote($roomType, $data['check_in'], $data['check_out'], $rooms, $extraBed, lockForUpdate: true);
 
             if (! $quote) {
@@ -137,6 +140,24 @@ class ReservationService
 
             return $booking;
         });
+
+        if ($booking) {
+            $this->notifyStaff($hotel, new NewBookingRequest($booking));
+        }
+
+        return $booking;
+    }
+
+    /**
+     * A mail problem must never undo or hide a reservation the guest has already made.
+     */
+    public function notifyStaff(Hotel $hotel, Notification $notification): void
+    {
+        try {
+            NotificationFacade::send($hotel->notifiableStaff(), $notification);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\HandoverRequest;
 use App\Models\Hotel;
 use App\Models\HotelKnowledgeItem;
 use App\Models\RoomType;
+use App\Notifications\NewHandoverRequest;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -767,10 +768,14 @@ class HotelConciergeTools
         $reason = $input['reason'];
         $summary = $input['summary'];
 
-        HandoverRequest::updateOrCreate(
+        $handover = HandoverRequest::updateOrCreate(
             ['conversation_id' => $this->conversation->id, 'status' => HandoverRequest::STATUS_OPEN],
             ['reason' => $reason, 'summary' => $summary],
         );
+
+        if ($handover->wasRecentlyCreated) {
+            $this->reservations->notifyStaff($this->hotel, new NewHandoverRequest($handover));
+        }
 
         $this->conversation->update([
             'status' => Conversation::STATUS_HANDED_OVER,

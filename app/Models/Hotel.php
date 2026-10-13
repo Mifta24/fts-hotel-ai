@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -52,6 +53,14 @@ class Hotel extends Model
             ->using(HotelUser::class)
             ->withPivot(['role', 'status'])
             ->withTimestamps();
+    }
+
+    /**
+     * The people who answer for this hotel in the admin, and are told when a guest needs them.
+     */
+    public function notifiableStaff(): Collection
+    {
+        return $this->users()->wherePivot('status', 'active')->get();
     }
 
     public function roomTypes(): HasMany
