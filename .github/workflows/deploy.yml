@@ -13,7 +13,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -21,8 +21,18 @@ jobs:
           extensions: mbstring, pdo_sqlite, sqlite3
           coverage: none
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Build assets
+        run: |
+          npm ci
+          npm run build
 
       - name: Prepare environment
         run: |
@@ -36,7 +46,7 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
