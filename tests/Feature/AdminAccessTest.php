@@ -166,4 +166,19 @@ class AdminAccessTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertSame(1, $this->hotel->roomTypes()->count());
     }
+
+    public function test_only_real_web_addresses_are_accepted_for_room_photos(): void
+    {
+        $form = ['name' => 'Deluxe', 'max_adults' => 2, 'max_children' => 0, 'base_price' => 100, 'is_active' => 1];
+
+        $this->actingAs($this->staff)
+            ->post(route('admin.room-types.store'), [...$form, 'new_images' => [['url' => 'javascript:alert(1)']]])
+            ->assertSessionHasErrors('new_images.0.url');
+
+        $this->actingAs($this->staff)
+            ->post(route('admin.room-types.store'), [...$form, 'new_images' => [['url' => 'https://example.test/room.jpg', 'alt' => 'Room']]])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('https://example.test/room.jpg', $this->hotel->roomTypes()->firstOrFail()->images()->firstOrFail()->image_url);
+    }
 }

@@ -39,7 +39,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
 Route::post('narration/speech', NarrationSpeechController::class)->middleware('throttle:narration-speech')->name('narration.speech');
 
-Route::prefix('{hotelSlug}')->group(function () {
+Route::prefix('{hotelSlug}')->where(['hotelSlug' => '(?!(?:up|admin|narration)$)[^/]+'])->group(function () {
     Route::get('/', [HotelPageController::class, 'show'])->name('hotel.show');
     Route::get('rooms', [HotelPageController::class, 'rooms'])->name('hotel.rooms');
     Route::get('rooms/{roomSlug}', [HotelPageController::class, 'room'])->name('hotel.room');

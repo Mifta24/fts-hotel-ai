@@ -28,18 +28,23 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Every guest message costs an LLM round trip, so it is limited per
      * conversation and, as a backstop against rotating tokens, per address.
+     * The address limits are generous because every guest on a hotel's Wi-Fi
+     * shares one address.
      */
     private function configureRateLimiting(): void
     {
-        RateLimiter::for('concierge-start', fn (Request $request) => Limit::perMinute(10)->by('start:'.$request->ip()));
+        RateLimiter::for('concierge-start', fn (Request $request) => Limit::perMinute(30)->by('start:'.$request->ip()));
 
         RateLimiter::for('concierge-message', fn (Request $request) => [
             Limit::perMinute(12)->by('conversation:'.($request->input('guest_token') ?: $request->ip())),
-            Limit::perMinute(40)->by('ip:'.$request->ip()),
+            Limit::perMinute(120)->by('ip:'.$request->ip()),
         ]);
 
         RateLimiter::for('narration-speech', fn (Request $request) => Limit::perMinute(20)->by('speech:'.$request->ip()));
 
-        RateLimiter::for('concierge-history', fn (Request $request) => Limit::perMinute(60)->by('history:'.$request->ip()));
+        RateLimiter::for('concierge-history', fn (Request $request) => [
+            Limit::perMinute(20)->by('history-conversation:'.($request->input('guest_token') ?: $request->ip())),
+            Limit::perMinute(300)->by('history:'.$request->ip()),
+        ]);
     }
 }

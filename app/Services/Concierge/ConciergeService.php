@@ -29,6 +29,12 @@ class ConciergeService
     private const REQUEST_TIMEOUT_SECONDS = 120;
 
     /**
+     * How many of the latest messages the model is shown; a long chat would
+     * otherwise slow every turn until it no longer fits the reply budget.
+     */
+    private const MAX_HISTORY_MESSAGES = 40;
+
+    /**
      * Cloudflare drops a request that is still unanswered after 100s, so a
      * whole guest turn (every tool round trip included) has to fit inside this.
      */
@@ -278,9 +284,11 @@ class ConciergeService
         return $conversation->messages()
             ->whereIn('role', [ConversationMessage::ROLE_GUEST, ConversationMessage::ROLE_ASSISTANT])
             ->reorder()
-            ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(self::MAX_HISTORY_MESSAGES)
             ->get()
+            ->reverse()
             ->map(fn (ConversationMessage $message) => [
                 'role' => $message->role === ConversationMessage::ROLE_GUEST ? 'user' : 'assistant',
                 'content' => (string) $message->content,

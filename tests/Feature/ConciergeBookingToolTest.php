@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Booking;
 use App\Models\Conversation;
+use App\Models\HandoverRequest;
 use App\Models\Hotel;
 use App\Models\RoomInventory;
 use App\Services\Concierge\HotelConciergeTools;
@@ -84,5 +85,62 @@ class ConciergeBookingToolTest extends TestCase
             $this->assertNull($result['ui']);
             $this->assertStringContainsString('rejected', $result['text']);
         }
+    }
+
+    public function test_a_second_handover_call_updates_the_open_request_instead_of_duplicating_it(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $conversation = Conversation::create(['hotel_id' => $hotel->id, 'guest_token' => (string) Str::uuid(), 'locale' => 'en']);
+        $tools = new HotelConciergeTools($hotel, $conversation, 'en');
+
+        $tools->dispatch('request_human_handover', ['reason' => 'complaint', 'summary' => 'Noisy room']);
+        $tools->dispatch('request_human_handover', ['reason' => 'complaint', 'summary' => 'Noisy room and broken AC']);
+
+        $this->assertSame(1, HandoverRequest::count());
+        $this->assertSame('Noisy room and broken AC', HandoverRequest::firstOrFail()->summary);
+    }
+
+    public function test_availability_and_booking_agree_on_the_number_of_rooms_and_long_text_is_trimmed(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $room = $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 1000000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        $conversation = Conversation::create(['hotel_id' => $hotel->id, 'guest_token' => (string) Str::uuid(), 'locale' => 'en']);
+        $checkIn = CarbonImmutable::now()->addDays(5);
+        RoomInventory::create(['room_type_id' => $room->id, 'stay_date' => $checkIn->toDateString(), 'total_units' => 2, 'booked_units' => 0, 'price' => 1000000]);
+        $tools = new HotelConciergeTools($hotel, $conversation, 'en');
+        $stay = ['room_type_slug' => 'deluxe-king', 'check_in' => $checkIn->toDateString(), 'check_out' => $checkIn->addDay()->toDateString()];
+
+        $this->assertTrue($tools->dispatch('check_availability', [...$stay, 'rooms' => 2])['ui']['available']);
+        $this->assertFalse($tools->dispatch('check_availability', [...$stay, 'rooms' => 3])['ui']['available']);
+
+        $tools->dispatch('create_booking_request', [...$stay, 'adults' => 2, 'guest_name' => str_repeat('A', 300), 'guest_phone' => '+62 811 111 222', 'notes' => str_repeat('n', 900)]);
+
+        $booking = Booking::firstOrFail();
+        $this->assertSame(100, mb_strlen($booking->guest_name));
+        $this->assertSame(500, mb_strlen($booking->notes));
+    }
+
+    public function test_unconfirmed_requests_expire_and_release_their_rooms(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $room = $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 1000000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        $stay = CarbonImmutable::now()->addDays(5);
+        $inventory = RoomInventory::create(['room_type_id' => $room->id, 'stay_date' => $stay->toDateString(), 'total_units' => 3, 'booked_units' => 2, 'price' => 1000000]);
+
+        $make = fn (string $reference, string $status, int $hoursOld) => tap(Booking::create([
+            'reference' => $reference, 'hotel_id' => $hotel->id, 'room_type_id' => $room->id, 'guest_name' => 'Guest', 'room_count' => 1,
+            'check_in' => $stay->toDateString(), 'check_out' => $stay->addDay()->toDateString(), 'total_price' => 1, 'status' => $status,
+        ]), fn (Booking $booking) => $booking->forceFill(['created_at' => now()->subHours($hoursOld)])->save());
+
+        $old = $make('BK-OLD', Booking::STATUS_PENDING, 30);
+        $fresh = $make('BK-NEW', Booking::STATUS_PENDING, 2);
+        $confirmed = $make('BK-OK', Booking::STATUS_CONFIRMED, 90);
+
+        $this->artisan('bookings:expire-pending')->assertSuccessful();
+
+        $this->assertSame(Booking::STATUS_CANCELLED, $old->fresh()->status);
+        $this->assertSame(Booking::STATUS_PENDING, $fresh->fresh()->status);
+        $this->assertSame(Booking::STATUS_CONFIRMED, $confirmed->fresh()->status);
+        $this->assertSame(1, $inventory->fresh()->booked_units);
     }
 }

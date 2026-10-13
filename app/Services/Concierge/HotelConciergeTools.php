@@ -181,6 +181,7 @@ class HotelConciergeTools
                             'room_type_slug' => ['type' => 'string'],
                             'check_in' => ['type' => 'string'],
                             'check_out' => ['type' => 'string'],
+                            'rooms' => ['type' => 'integer', 'minimum' => 1, 'description' => 'Number of rooms, default 1'],
                             'extra_bed' => ['type' => 'boolean'],
                         ],
                         'required' => ['room_type_slug', 'check_in', 'check_out'],
@@ -667,7 +668,8 @@ class HotelConciergeTools
         }
 
         $extraBed = (bool) ($input['extra_bed'] ?? false);
-        $stay = $this->reservations->quote($roomType, $checkIn, $checkOut, extraBed: $extraBed);
+        $rooms = max(1, (int) ($input['rooms'] ?? 1));
+        $stay = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, $extraBed);
 
         if (! $stay) {
             return [
@@ -692,6 +694,7 @@ class HotelConciergeTools
             'extra_bed_total' => $stay['extra_bed_total'],
             'grand_total' => $stay['grand_total'],
             'currency' => $this->hotel->currency,
+            'rooms' => $rooms,
             'min_available_units' => $stay['min_available_units'],
         ];
 
@@ -738,10 +741,10 @@ class HotelConciergeTools
             'children' => (int) ($input['children'] ?? 0),
             'rooms' => $rooms,
             'extra_bed' => (bool) ($input['extra_bed'] ?? false),
-            'guest_name' => $input['guest_name'],
-            'guest_email' => $input['guest_email'] ?? null,
+            'guest_name' => Str::limit((string) $input['guest_name'], 100, ''),
+            'guest_email' => filled($input['guest_email'] ?? null) ? Str::limit((string) $input['guest_email'], 120, '') : null,
             'guest_phone' => $input['guest_phone'],
-            'notes' => $input['notes'] ?? null,
+            'notes' => filled($input['notes'] ?? null) ? Str::limit((string) $input['notes'], 500, '') : null,
         ], $this->conversation);
 
         if (! $booking) {
@@ -764,12 +767,10 @@ class HotelConciergeTools
         $reason = $input['reason'];
         $summary = $input['summary'];
 
-        HandoverRequest::create([
-            'conversation_id' => $this->conversation->id,
-            'reason' => $reason,
-            'summary' => $summary,
-            'status' => HandoverRequest::STATUS_OPEN,
-        ]);
+        HandoverRequest::updateOrCreate(
+            ['conversation_id' => $this->conversation->id, 'status' => HandoverRequest::STATUS_OPEN],
+            ['reason' => $reason, 'summary' => $summary],
+        );
 
         $this->conversation->update([
             'status' => Conversation::STATUS_HANDED_OVER,

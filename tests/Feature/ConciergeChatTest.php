@@ -377,7 +377,7 @@ class ConciergeChatTest extends TestCase
 
     public function test_starting_conversations_is_rate_limited(): void
     {
-        foreach (range(1, 10) as $attempt) {
+        foreach (range(1, 30) as $attempt) {
             $this->postJson('/demo/concierge/start')->assertOk();
         }
 
@@ -415,5 +415,37 @@ class ConciergeChatTest extends TestCase
             ->assertOk()
             ->assertJsonPath('messages.1.role', 'staff')
             ->assertJsonPath('messages.1.content', 'We are sending someone now.');
+    }
+
+    public function test_the_model_only_sees_the_latest_messages_of_a_long_conversation(): void
+    {
+        $this->fakeReply();
+        $token = $this->startConversation();
+        $conversation = Conversation::firstOrFail();
+
+        foreach (range(1, 60) as $number) {
+            $conversation->messages()->create(['role' => $number % 2 ? ConversationMessage::ROLE_GUEST : ConversationMessage::ROLE_ASSISTANT, 'content' => "message {$number}"]);
+        }
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Latest question'])->assertOk();
+
+        Http::assertSent(function (Request $request) {
+            $history = collect($request['messages'])->where('role', '!=', 'system');
+
+            return $history->count() <= 41 && str_contains($history->last()['content'], 'Latest question') && ! $history->contains(fn ($m) => $m['content'] === 'message 1');
+        });
+    }
+
+    public function test_history_polling_is_limited_per_conversation_not_for_the_whole_wifi(): void
+    {
+        $token = $this->startConversation();
+        $another = $this->startConversation();
+
+        foreach (range(1, 20) as $attempt) {
+            $this->getJson('/demo/concierge/history?guest_token='.$token)->assertOk();
+        }
+
+        $this->getJson('/demo/concierge/history?guest_token='.$token)->assertTooManyRequests();
+        $this->getJson('/demo/concierge/history?guest_token='.$another)->assertOk();
     }
 }
