@@ -144,7 +144,7 @@ class RoomTypeController extends Controller
         $slug = $base;
         $suffix = 1;
 
-        while ($hotel->roomTypes()->where('slug', $slug)->exists()) {
+        while ($hotel->roomTypes()->withTrashed()->where('slug', $slug)->exists()) {
             $slug = "{$base}-{$suffix}";
             $suffix++;
         }

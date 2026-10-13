@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Services\Reservation\ReservationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class BookingController extends Controller
@@ -43,11 +44,26 @@ class BookingController extends Controller
             'status' => ['required', 'in:'.implode(',', [Booking::STATUS_CONFIRMED, Booking::STATUS_CANCELLED])],
         ]);
 
-        if ($data['status'] === Booking::STATUS_CANCELLED && $booking->status !== Booking::STATUS_CANCELLED) {
-            $this->reservations->releaseInventory($booking);
-        }
+        $changed = DB::transaction(function () use ($booking, $data): bool {
+            $current = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
-        $booking->update(['status' => $data['status']]);
+            // A cancelled booking has given its rooms back; it cannot be revived without re-checking availability.
+            if ($current->status === Booking::STATUS_CANCELLED || $current->status === $data['status']) {
+                return false;
+            }
+
+            if ($data['status'] === Booking::STATUS_CANCELLED) {
+                $this->reservations->releaseInventory($current);
+            }
+
+            $current->update(['status' => $data['status']]);
+
+            return true;
+        });
+
+        if (! $changed) {
+            return back()->withErrors(['status' => "Booking {$booking->reference} is already {$booking->fresh()->status} and cannot be changed to {$data['status']}."]);
+        }
 
         return back()->with('status', "Booking {$booking->reference} marked as {$data['status']}.");
     }

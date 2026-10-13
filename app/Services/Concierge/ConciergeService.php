@@ -191,7 +191,8 @@ class ConciergeService
 
             foreach ($message['tool_calls'] as $call) {
                 $name = $call['function']['name'] ?? '';
-                $input = json_decode($call['function']['arguments'] ?? '{}', true) ?? [];
+                $decoded = json_decode($call['function']['arguments'] ?? '{}', true);
+                $input = is_array($decoded) ? $decoded : [];
 
                 $result = $tools->dispatch($name, $input);
 
@@ -276,7 +277,9 @@ class ConciergeService
     {
         return $conversation->messages()
             ->whereIn('role', [ConversationMessage::ROLE_GUEST, ConversationMessage::ROLE_ASSISTANT])
+            ->reorder()
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get()
             ->map(fn (ConversationMessage $message) => [
                 'role' => $message->role === ConversationMessage::ROLE_GUEST ? 'user' : 'assistant',

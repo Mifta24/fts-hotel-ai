@@ -50,7 +50,7 @@ class Booking extends Model
 
     public function roomType(): BelongsTo
     {
-        return $this->belongsTo(RoomType::class);
+        return $this->belongsTo(RoomType::class)->withTrashed();
     }
 
     public function conversation(): BelongsTo

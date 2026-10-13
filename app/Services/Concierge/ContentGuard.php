@@ -33,7 +33,8 @@ class ContentGuard
         '(?:membuat|bikin|cara\s+buat|cara\s+membuat|rakit|merakit)\s+(?:bom|senjata|racun|peledak)',
         '(?:lelucon|guyon|candaan|humor|joke)\s+(?:sara|rasis|rasial)',
         // English
-        '(?:fuck\w*|shit\w*|bitch\w*|asshole|bastard|dickhead|cunt|whore|slut|pussy|cock|dick|nigg\w+|motherfucker|porn\w*|nude\w*|erotic\w*|blowjob|handjob|horny|escort|hooker|prostitute\w*)',
+        '(?:fuck\w*|shit\w*|bitch\w*|asshole|bastard|dickhead|cunt|whore|slut|pussy|cock|dick|nigg\w+|motherfucker|porn\w*|nude\w*|erotic\w*|blowjob|handjob|horny|hooker|prostitute\w*)',
+        '(?:escort\s+(?:girls?|agency)|(?:hire|book|find|get)\s+(?:me\s+)?an?\s+escort)',
         '(?:cocaine|heroin|meth|methamphetamine|marijuana\s+dealer|buy\s+(?:drugs|weed|coke))',
         '(?:make|build|making|how\s+to\s+make)\s+(?:a\s+)?(?:bomb|explosive|poison)',
         '(?:you|u)\s+(?:are|r)\s+(?:so\s+)?(?:stupid|idiot|dumb|trash|useless)',
@@ -45,7 +46,7 @@ class ContentGuard
      * @var list<string>
      */
     private const JAPANESE_TERMS = [
-        'くそ', 'クソ', 'バカ', 'ばか', '馬鹿', '死ね', 'ちんこ', 'チンコ', 'まんこ', 'マンコ',
+        'くそ', 'クソ', '馬鹿', '死ね', 'ちんこ', 'チンコ', 'まんこ', 'マンコ',
         'エロ', 'セックス', 'ポルノ', 'アダルト', '風俗', 'デリヘル', '売春', '麻薬', '覚醒剤', '爆弾',
     ];
 
@@ -66,6 +67,11 @@ class ContentGuard
             if (preg_match('/(?<![\p{L}\p{N}])'.$pattern.'(?![\p{L}\p{N}])/iu', $normalized) === 1) {
                 return true;
             }
+        }
+
+        // 'バカ' and 'ばか' are also inside ordinary words (バカンス = vacation, ばかり = only).
+        if (preg_match('/バカ(?!ンス)|ばか(?!り)/u', $text) === 1) {
+            return true;
         }
 
         foreach (self::JAPANESE_TERMS as $term) {

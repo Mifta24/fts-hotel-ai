@@ -88,8 +88,10 @@ class ConciergeChatController extends Controller
         $conversation = $this->findConversation($hotel, $data['guest_token']);
 
         $messages = $conversation->messages()
-            ->whereIn('role', [ConversationMessage::ROLE_GUEST, ConversationMessage::ROLE_ASSISTANT, ConversationMessage::ROLE_SYSTEM])
+            ->whereIn('role', [ConversationMessage::ROLE_GUEST, ConversationMessage::ROLE_ASSISTANT, ConversationMessage::ROLE_STAFF, ConversationMessage::ROLE_SYSTEM])
+            ->reorder()
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get()
             ->map(fn (ConversationMessage $m) => $this->formatMessage($m))
             ->values();

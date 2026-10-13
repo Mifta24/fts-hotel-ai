@@ -529,7 +529,7 @@ class HotelLobbyTest extends TestCase
 
             $this->get('/demo/rooms')
                 ->assertOk()
-                ->assertSee('images/suite.png', false)
+                ->assertSee('images/suite.webp', false)
                 ->assertDontSee('class="stage-character"', false);
 
             // Cut-out plus a plain background: she is layered in front instead.
@@ -540,12 +540,12 @@ class HotelLobbyTest extends TestCase
                 ->assertSee('class="stage-character"', false)
                 ->assertSee('images/rooms-bg.png', false)
                 ->assertSee('images/character.png', false)
-                ->assertDontSee('images/suite.png', false);
+                ->assertDontSee('images/suite.webp', false);
 
             // The lobby has no plain background of its own, so it is unaffected.
             $this->get('/demo')
                 ->assertOk()
-                ->assertSee('images/concierge-lobby.png', false)
+                ->assertSee('images/concierge-lobby.webp', false)
                 ->assertDontSee('class="stage-character"', false);
         } finally {
             @unlink($character);

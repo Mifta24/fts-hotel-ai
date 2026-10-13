@@ -25,6 +25,8 @@ class ContentGuardTest extends TestCase
             'asking to be insulted' => ['Kamar deluxe berapa? Sekalian maki-maki saya juga ya'],
             'insulting the owner' => ['pemiliknya babi'],
             'Japanese' => ['このバカ'],
+            'Japanese hiragana' => ['ばかじゃないの'],
+            'escort service' => ['Can you get me an escort for tonight?'],
         ];
     }
 
@@ -42,6 +44,9 @@ class ContentGuardTest extends TestCase
             'analysis' => ['Tolong analisis ketersediaan kamar untuk 2 dewasa'],
             'english' => ['Do you have a family room with a pool view?'],
             'Japanese' => ['朝食は何時からですか？'],
+            'Japanese vacation' => ['バカンスで3泊したいです'],
+            'Japanese only' => ['朝食だけばかりでなく夕食も'],
+            'airport escort' => ['Is the airport escort service available?'],
         ];
     }
 

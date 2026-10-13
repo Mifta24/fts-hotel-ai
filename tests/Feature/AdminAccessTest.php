@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\HandoverRequest;
 use App\Models\Hotel;
+use App\Models\RoomInventory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -127,5 +128,42 @@ class AdminAccessTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame('https://example.test/pool.jpg', $item->fresh()->image_url);
+    }
+
+    public function test_a_cancelled_booking_cannot_be_confirmed_again_and_its_rooms_are_released_once(): void
+    {
+        $room = $this->hotel->roomTypes()->create(['name' => 'Deluxe', 'slug' => 'deluxe', 'base_price' => 1, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        $stay = now()->addDays(3)->toDateString();
+        $inventory = RoomInventory::create(['room_type_id' => $room->id, 'stay_date' => $stay, 'total_units' => 2, 'booked_units' => 1, 'price' => 1]);
+        $booking = Booking::create([
+            'reference' => 'BK-OWN', 'hotel_id' => $this->hotel->id, 'room_type_id' => $room->id, 'guest_name' => 'Own Guest',
+            'check_in' => $stay, 'check_out' => now()->addDays(4)->toDateString(), 'total_price' => 1, 'room_count' => 1,
+        ]);
+
+        $this->actingAs($this->staff)->patch(route('admin.bookings.status', $booking), ['status' => Booking::STATUS_CANCELLED])->assertSessionHasNoErrors();
+        $this->actingAs($this->staff)->patch(route('admin.bookings.status', $booking), ['status' => Booking::STATUS_CANCELLED])->assertSessionHasErrors('status');
+        $this->actingAs($this->staff)->patch(route('admin.bookings.status', $booking), ['status' => Booking::STATUS_CONFIRMED])->assertSessionHasErrors('status');
+
+        $this->assertSame(Booking::STATUS_CANCELLED, $booking->fresh()->status);
+        $this->assertSame(0, $inventory->fresh()->booked_units);
+    }
+
+    public function test_bookings_of_a_deleted_room_type_still_show_and_the_name_can_be_reused(): void
+    {
+        $room = $this->hotel->roomTypes()->create(['name' => 'Deluxe', 'slug' => 'deluxe', 'base_price' => 1, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        Booking::create([
+            'reference' => 'BK-OLD', 'hotel_id' => $this->hotel->id, 'room_type_id' => $room->id, 'guest_name' => 'Old Guest',
+            'check_in' => now()->addDays(3)->toDateString(), 'check_out' => now()->addDays(4)->toDateString(), 'total_price' => 1,
+        ]);
+
+        $this->actingAs($this->staff)->delete(route('admin.room-types.destroy', $room))->assertRedirect();
+
+        $this->actingAs($this->staff)->get(route('admin.bookings.index'))->assertOk()->assertSee('Deluxe');
+        $this->actingAs($this->staff)->get(route('admin.dashboard'))->assertOk()->assertSee('Old Guest');
+
+        $this->actingAs($this->staff)
+            ->post(route('admin.room-types.store'), ['name' => 'Deluxe', 'max_adults' => 2, 'max_children' => 0, 'base_price' => 100, 'is_active' => 1])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(1, $this->hotel->roomTypes()->count());
     }
 }

@@ -603,7 +603,12 @@ function initConcierge() {
     function staffBubble(text) {
         const el = document.createElement('div');
         el.className = 'rounded-2xl rounded-bl-sm border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900';
-        el.innerHTML = `<p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500">${config.labels.staff}</p>${text}`;
+        const label = document.createElement('p');
+        label.className = 'mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-500';
+        label.textContent = config.labels.staff;
+        const body = document.createElement('span');
+        body.textContent = text;
+        el.append(label, body);
         return el;
     }
 

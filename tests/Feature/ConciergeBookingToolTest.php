@@ -48,4 +48,41 @@ class ConciergeBookingToolTest extends TestCase
         $this->assertNull($tooMany['ui']);
         $this->assertSame(1, Booking::count());
     }
+
+    public function test_ai_tools_cannot_book_a_room_type_the_hotel_has_hidden(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $room = $hotel->roomTypes()->create(['name' => 'Hidden Suite', 'slug' => 'hidden-suite', 'base_price' => 1000000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => false]);
+        $conversation = Conversation::create(['hotel_id' => $hotel->id, 'guest_token' => (string) Str::uuid(), 'locale' => 'en']);
+
+        $checkIn = CarbonImmutable::now()->addDays(5);
+        RoomInventory::create(['room_type_id' => $room->id, 'stay_date' => $checkIn->toDateString(), 'total_units' => 3, 'booked_units' => 0, 'price' => 1000000]);
+
+        $result = (new HotelConciergeTools($hotel, $conversation, 'en'))->dispatch('create_booking_request', [
+            'room_type_slug' => 'hidden-suite', 'check_in' => $checkIn->toDateString(), 'check_out' => $checkIn->addDay()->toDateString(),
+            'adults' => 2, 'guest_name' => 'Ayu', 'guest_phone' => '+62 811 111 222',
+        ]);
+
+        $this->assertNull($result['ui']);
+        $this->assertSame(0, Booking::count());
+    }
+
+    public function test_a_tool_call_with_bad_arguments_is_reported_back_instead_of_failing_the_turn(): void
+    {
+        $hotel = Hotel::create(['name' => 'Demo', 'slug' => 'demo', 'public_status' => 'published', 'currency' => 'IDR']);
+        $hotel->roomTypes()->create(['name' => 'Deluxe King', 'slug' => 'deluxe-king', 'base_price' => 1000000, 'max_adults' => 2, 'max_children' => 0, 'is_active' => true]);
+        $conversation = Conversation::create(['hotel_id' => $hotel->id, 'guest_token' => (string) Str::uuid(), 'locale' => 'en']);
+        $tools = new HotelConciergeTools($hotel, $conversation, 'en');
+
+        foreach ([
+            ['check_availability', ['room_type_slug' => 'deluxe-king', 'check_in' => 'besok', 'check_out' => 'lusa']],
+            ['search_rooms', ['adults' => 2]],
+            ['request_human_handover', ['reason' => 'complaint']],
+        ] as [$tool, $input]) {
+            $result = $tools->dispatch($tool, $input);
+
+            $this->assertNull($result['ui']);
+            $this->assertStringContainsString('rejected', $result['text']);
+        }
+    }
 }

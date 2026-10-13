@@ -11,6 +11,7 @@ use App\Models\RoomType;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -231,6 +232,24 @@ class HotelConciergeTools
      */
     public function dispatch(string $name, array $input): array
     {
+        try {
+            return $this->run($name, $input);
+        } catch (\Throwable $e) {
+            Log::warning('Concierge tool call failed', ['tool' => $name, 'input' => $input, 'error' => $e->getMessage()]);
+
+            return [
+                'text' => "The {$name} call was rejected because its arguments were missing or invalid (dates must be YYYY-MM-DD, slugs must come from the room list). Do not guess: call it again with corrected arguments, or ask the guest for what is missing.",
+                'ui' => null,
+            ];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array{text: string, ui: array|null}
+     */
+    private function run(string $name, array $input): array
+    {
         return match ($name) {
             'search_knowledge' => $this->searchKnowledge($input),
             'show_facility_photos' => $this->showFacilityPhotos($input),
@@ -278,7 +297,7 @@ class HotelConciergeTools
     private function matchingKnowledge(string $query, ?string $category = null): Collection
     {
         $query = trim($query);
-        $words = collect(preg_split('/\s+/', Str::lower($query)))->filter();
+        $words = collect(preg_split('/\s+/', Str::lower($query)))->filter(fn ($word) => mb_strlen($word) >= 3);
 
         return $this->hotel->knowledgeItems()
             ->where('is_active', true)
@@ -851,7 +870,7 @@ class HotelConciergeTools
 
     private function findRoomType(string $slug): ?RoomType
     {
-        return $this->hotel->roomTypes()->where('slug', $slug)->first();
+        return $this->hotel->roomTypes()->where('is_active', true)->where('slug', $slug)->first();
     }
 
     /**

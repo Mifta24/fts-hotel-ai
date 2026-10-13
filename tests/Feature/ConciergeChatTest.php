@@ -403,4 +403,17 @@ class ConciergeChatTest extends TestCase
 
         $this->assertSame($pool->id, Conversation::firstOrFail()->selected_facility_id);
     }
+
+    public function test_a_staff_reply_reaches_the_guest_through_the_history(): void
+    {
+        $token = $this->startConversation();
+        $conversation = Conversation::firstOrFail();
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_GUEST, 'content' => 'My AC is broken']);
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_STAFF, 'content' => 'We are sending someone now.']);
+
+        $this->getJson('/demo/concierge/history?guest_token='.$token)
+            ->assertOk()
+            ->assertJsonPath('messages.1.role', 'staff')
+            ->assertJsonPath('messages.1.content', 'We are sending someone now.');
+    }
 }
