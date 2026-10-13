@@ -1,0 +1,57 @@
+name: Deploy to Plesk
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-plesk
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Run tests
+        run: php artisan test --compact
+
+  deploy:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure SSH
+        env:
+          PLESK_SSH_PRIVATE_KEY: ${{ secrets.PLESK_SSH_PRIVATE_KEY }}
+          PLESK_SSH_KNOWN_HOSTS: ${{ secrets.PLESK_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PLESK_SSH_PRIVATE_KEY" > ~/.ssh/plesk_deploy
+          chmod 600 ~/.ssh/plesk_deploy
+          printf '%s\n' "$PLESK_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Push to Plesk Git
+        env:
+          PLESK_REMOTE_URL: ${{ secrets.PLESK_REMOTE_URL }}
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/plesk_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        run: git push "$PLESK_REMOTE_URL" HEAD:refs/heads/master
