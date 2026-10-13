@@ -152,7 +152,13 @@ class ConciergeService
 
     private const ROOM_DETAIL_EXCLUDE_PATTERN = '/harga|tarif|biaya|price|\brates?\b|cost|how much|berapa|tersedia|ketersediaan|availab|kosong|pesan|booking|\bbook|reserv|menginap|料金|価格|空室|予約/iu';
 
-    private const HOTEL_TOPIC_PATTERN = '/hotel|kolam|swimming|pool|restor|gym|\bspa\b|lokasi|location|peta|\bmap|menu|sarapan|breakfast|ホテル|プール|レストラン/iu';
+    private const OTHER_TOPIC_PATTERN = '/lokasi|location|peta|\bmap|menu|sarapan|breakfast|restor|ロケーション|レストラン/iu';
+
+    private const HOTEL_FACILITY_PATTERN = '/fasilitas|facilit|施設/iu';
+
+    private const SPECIFIC_FACILITY_PATTERN = '/\b(kolam|renang|pool|swimming|gym|kebugaran|fitness|spa|parkir|parking)\b|プール|ジム/iu';
+
+    private const ROOM_SCOPE_PATTERN = '/\b(?:kamar|room|rooms)\b|客室|部屋/iu';
 
     private const PHOTO_OFFER_PATTERN = '/foto|gambar|photo|picture|写真/iu';
 
@@ -164,11 +170,16 @@ class ConciergeService
     }
 
     /**
-     * The room the guest wants to see: named in their message, or — for a
-     * short "yes, show me" after the concierge offered photos — the room the
-     * chat was just about. The model is not trusted to call the tool itself.
+     * The tool the guest's message is plainly asking for, so the card appears
+     * even when the local model answers in text instead of calling it: a
+     * named room (or "this room's facilities") gets the room card, hotel
+     * facilities and a named facility get the facility photos, and a short
+     * "yes, show me" after a photo offer gets whatever was just offered. The
+     * model is not trusted to call these tools itself.
+     *
+     * @return array{name: string, input: array<string, mixed>}|null
      */
-    private function roomDetailRequest(Hotel $hotel, Conversation $conversation, HotelConciergeTools $tools): ?RoomType
+    private function preemptedToolCall(Hotel $hotel, Conversation $conversation, HotelConciergeTools $tools): ?array
     {
         $guest = $this->lastGuestMessage($conversation);
 
@@ -179,12 +190,28 @@ class ConciergeService
         $wantsDetail = preg_match(self::ROOM_DETAIL_INTENT_PATTERN, $guest) === 1;
 
         if ($wantsDetail && ($room = $tools->roomNamedIn($guest)) !== null) {
-            return $room;
+            return $this->roomDetailCall($room);
+        }
+
+        $roomScoped = preg_match(self::ROOM_SCOPE_PATTERN, $guest) === 1;
+        $mentionsFacilities = preg_match(self::HOTEL_FACILITY_PATTERN, $guest) === 1;
+        $mentionsRoomAmenities = preg_match('/amenit|設備/iu', $guest) === 1;
+
+        if ($roomScoped && ($mentionsFacilities || $mentionsRoomAmenities)) {
+            $room = $this->recentRoom($hotel, $conversation, $tools, null);
+
+            return $room !== null ? $this->roomDetailCall($room) : null;
+        }
+
+        $specific = preg_match(self::SPECIFIC_FACILITY_PATTERN, $guest, $found) === 1 ? Str::lower(filled($found[1] ?? null) ? $found[1] : $found[0]) : null;
+
+        if (! $roomScoped && ($mentionsFacilities || $specific !== null)) {
+            return $this->facilityPhotosCall($specific);
         }
 
         $isShortYes = mb_strlen($guest) <= 40
             && ($wantsDetail || preg_match(self::AFFIRMATION_PATTERN, $guest) === 1)
-            && preg_match(self::HOTEL_TOPIC_PATTERN, $guest) !== 1;
+            && preg_match(self::OTHER_TOPIC_PATTERN, $guest) !== 1;
 
         if (! $isShortYes) {
             return null;
@@ -196,13 +223,34 @@ class ConciergeService
             return null;
         }
 
-        $recentTexts = [
-            (string) $previous->content,
+        $offered = (string) $previous->content;
+
+        if (($room = $tools->roomNamedIn($offered)) !== null) {
+            return $this->roomDetailCall($room);
+        }
+
+        if (preg_match(self::HOTEL_FACILITY_PATTERN, $offered) === 1 || preg_match(self::SPECIFIC_FACILITY_PATTERN, $offered) === 1) {
+            return $this->facilityPhotosCall(null);
+        }
+
+        $room = $this->recentRoom($hotel, $conversation, $tools, $offered);
+
+        return $room !== null ? $this->roomDetailCall($room) : null;
+    }
+
+    /**
+     * The room the chat is about: one named in the latest messages, else the
+     * one the guest has open on screen.
+     */
+    private function recentRoom(Hotel $hotel, Conversation $conversation, HotelConciergeTools $tools, ?string $previousText): ?RoomType
+    {
+        $texts = [
+            ...($previousText !== null ? [$previousText] : []),
             ...$conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->latest('id')->limit(6)->pluck('content')->all(),
         ];
 
-        foreach ($recentTexts as $text) {
-            if (($room = $tools->roomNamedIn($text)) !== null) {
+        foreach ($texts as $text) {
+            if (($room = $tools->roomNamedIn((string) $text)) !== null) {
                 return $room;
             }
         }
@@ -210,6 +258,22 @@ class ConciergeService
         return $conversation->selected_room_type_id
             ? $hotel->roomTypes()->where('is_active', true)->find($conversation->selected_room_type_id)
             : null;
+    }
+
+    /**
+     * @return array{name: string, input: array<string, mixed>}
+     */
+    private function roomDetailCall(RoomType $room): array
+    {
+        return ['name' => 'get_room_detail', 'input' => ['room_type_slug' => $room->slug]];
+    }
+
+    /**
+     * @return array{name: string, input: array<string, mixed>}
+     */
+    private function facilityPhotosCall(?string $query): array
+    {
+        return ['name' => 'show_facility_photos', 'input' => $query !== null ? ['query' => $query] : []];
     }
 
     /**
@@ -247,30 +311,33 @@ class ConciergeService
         $uiPayloads = [];
         $deadline = microtime(true) + self::REPLY_BUDGET_SECONDS;
 
-        $room = $this->roomDetailRequest($hotel, $conversation, $tools);
+        $preempted = false;
+        $call = $this->preemptedToolCall($hotel, $conversation, $tools);
 
-        if ($room !== null) {
-            $input = ['room_type_slug' => $room->slug];
-            $result = $tools->dispatch('get_room_detail', $input);
-            $callId = 'call_'.Str::random(12);
+        if ($call !== null) {
+            $result = $tools->dispatch($call['name'], $call['input']);
 
-            $messages[] = ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => $callId, 'type' => 'function', 'function' => ['name' => 'get_room_detail', 'arguments' => json_encode($input)]]]];
-            $messages[] = ['role' => 'tool', 'tool_call_id' => $callId, 'content' => $result['text']];
-
-            $toolLog[] = ['name' => 'get_room_detail', 'input' => $input];
+            // A miss (e.g. no photo for that facility) is left to the model to say honestly.
             if ($result['ui'] !== null) {
+                $callId = 'call_'.Str::random(12);
+
+                $messages[] = ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => $callId, 'type' => 'function', 'function' => ['name' => $call['name'], 'arguments' => json_encode($call['input'])]]]];
+                $messages[] = ['role' => 'tool', 'tool_call_id' => $callId, 'content' => $result['text']];
+
+                $toolLog[] = ['name' => $call['name'], 'input' => $call['input']];
                 $this->addUiPayload($uiPayloads, $result['ui']);
+                $preempted = true;
             }
         }
 
         $message = $this->chatCompletion($messages, $definitions, $deadline);
 
-        if ($room === null && empty($message['tool_calls']) && $this->claimsToolData($message['content'] ?? '')) {
+        if (! $preempted && empty($message['tool_calls']) && $this->claimsToolData($message['content'] ?? '')) {
             $messages[] = ['role' => 'assistant', 'content' => $message['content']];
             $messages[] = ['role' => 'user', 'content' => '[System notice: your last reply stated a price or pretended to show room cards without calling a tool. Never state a room price or availability from memory. Call search_rooms or check_availability now, or ask the guest for the details you still need.]'];
 
             $message = $this->chatCompletion($messages, $definitions, $deadline);
-        } elseif ($room === null && empty($message['tool_calls']) && $this->promisesAction($message['content'] ?? '')) {
+        } elseif (! $preempted && empty($message['tool_calls']) && $this->promisesAction($message['content'] ?? '')) {
             $messages[] = ['role' => 'assistant', 'content' => $message['content']];
             $messages[] = ['role' => 'user', 'content' => '[System notice: your last reply said you would proceed, check or confirm something but called no tool, so nothing happened. Do not announce actions: call the tool now — create_booking_request if you have room, dates, party size, name and phone; open_booking_form if details are missing; search_rooms or check_availability for prices — or ask only for what is truly missing. Never ask for the email.]'];
 

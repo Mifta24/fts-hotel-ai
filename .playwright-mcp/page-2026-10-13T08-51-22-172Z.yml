@@ -1,0 +1,103 @@
+- main [ref=e2]:
+  - img "Resepsionis virtual Anda" [ref=e3]
+  - generic [ref=e5]:
+    - link "FTS Hotel AI Bali · Indonesia" [ref=e6] [cursor=pointer]:
+      - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai?lang=id
+      - generic [aria-hidden] [ref=e7]: F
+      - generic [ref=e8]:
+        - generic [ref=e9]: FTS Hotel AI
+        - generic [ref=e10]: Bali · Indonesia
+    - generic [ref=e11]:
+      - button "Suara aktif" [pressed] [ref=e12] [cursor=pointer]
+      - navigation "Language" [ref=e16]:
+        - link "Bahasa Indonesia" [ref=e17] [cursor=pointer]:
+          - /url: "?lang=id"
+          - text: id
+        - link "English" [ref=e18] [cursor=pointer]:
+          - /url: "?lang=en"
+          - text: en
+        - link "日本語" [ref=e19] [cursor=pointer]:
+          - /url: "?lang=ja"
+          - text: ja
+  - region "Fasilitas hotel" [ref=e21]:
+    - link "Kembali ke lobi" [ref=e22] [cursor=pointer]:
+      - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai?lang=id
+      - generic [aria-hidden] [ref=e23]: ×
+    - paragraph [ref=e24]: AI Concierge
+    - heading "Fasilitas hotel" [level=2] [ref=e25]
+    - generic [ref=e27]:
+      - paragraph [ref=e28]: Kami memiliki 6 fasilitas dan layanan, di antaranya Kolam renang; Gym, spa, dan area bisnis; Parkir dan Wi-Fi. Pilih salah satu untuk membaca detailnya, atau tanyakan apa saja kepada saya.
+      - paragraph [aria-hidden] [ref=e29]: K ami memiliki 6 fasilitas dan layanan, di antaranya Kolam renang; Gym, spa, dan area bisnis; Parkir dan Wi-Fi. Pilih salah satu untuk membaca detailnya, atau tanyakan apa saja kepada saya.
+      - generic [ref=e30]:
+        - button "Dengarkan" [ref=e31] [cursor=pointer]
+        - button "Lewati" [ref=e32] [cursor=pointer]
+    - generic [ref=e33]:
+      - link "Kolam renang Kolam renang infinity menghadap laut buka setiap hari pukul 07:00–19:00. Tidak beroperasi di malam hari untuk alasan keamanan. Handuk kolam disediakan gratis di pool bar." [ref=e34] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/4?lang=id
+        - generic [ref=e41]:
+          - generic [ref=e42]: Kolam renang
+          - generic [ref=e43]: Kolam renang infinity menghadap laut buka setiap hari pukul 07:00–19:00. Tidak beroperasi di malam hari untuk alasan keamanan. Handuk kolam disediakan gratis di pool bar.
+        - generic [aria-hidden] [ref=e44]: ›
+      - link "Gym, spa, dan area bisnis Pusat kebugaran buka 24 jam untuk tamu menginap. Spa buka pukul 10:00–21:00 dengan reservasi terlebih dahulu. Area bisnis dengan Wi-Fi cepat tersedia di lobi lantai 1." [ref=e45] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/5?lang=id
+        - generic [ref=e50]:
+          - generic [ref=e51]: Gym, spa, dan area bisnis
+          - generic [ref=e52]: Pusat kebugaran buka 24 jam untuk tamu menginap. Spa buka pukul 10:00–21:00 dengan reservasi terlebih dahulu. Area bisnis dengan Wi-Fi cepat tersedia di lobi lantai 1.
+        - generic [aria-hidden] [ref=e53]: ›
+      - link "Parkir dan Wi-Fi Parkir mobil dan motor tersedia gratis bagi tamu menginap. Wi-Fi gratis tersedia di seluruh area kamar dan fasilitas umum dengan kecepatan yang memadai untuk video call." [ref=e54] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/6?lang=id
+        - generic [ref=e61]:
+          - generic [ref=e62]: Parkir dan Wi-Fi
+          - generic [ref=e63]: Parkir mobil dan motor tersedia gratis bagi tamu menginap. Wi-Fi gratis tersedia di seluruh area kamar dan fasilitas umum dengan kecepatan yang memadai untuk video call.
+        - generic [aria-hidden] [ref=e64]: ›
+      - link "Sarapan Sarapan prasmanan disajikan di Restoran Samudra pukul 06:30–10:30, mencakup menu Indonesia dan internasional. Sarapan sudah termasuk pada semua tipe kamar kecuali disebutkan lain." [ref=e65] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/7?lang=id
+        - generic [ref=e70]:
+          - generic [ref=e71]: Sarapan
+          - generic [ref=e72]: Sarapan prasmanan disajikan di Restoran Samudra pukul 06:30–10:30, mencakup menu Indonesia dan internasional. Sarapan sudah termasuk pada semua tipe kamar kecuali disebutkan lain.
+        - generic [aria-hidden] [ref=e73]: ›
+      - link "Antar-jemput bandara Layanan antar-jemput dari dan ke Bandara Internasional Ngurah Rai tersedia dengan biaya tambahan, sekitar 30–40 menit perjalanan. Pemesanan harus dilakukan minimal 24 jam sebelum kedatangan dengan mengirimkan nomor penerbangan." [ref=e74] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/10?lang=id
+        - generic [ref=e79]:
+          - generic [ref=e80]: Antar-jemput bandara
+          - generic [ref=e81]: Layanan antar-jemput dari dan ke Bandara Internasional Ngurah Rai tersedia dengan biaya tambahan, sekitar 30–40 menit perjalanan. Pemesanan harus dilakukan minimal 24 jam sebelum kedatangan dengan mengirimkan nomor penerbangan.
+        - generic [aria-hidden] [ref=e82]: ›
+      - link "Atraksi terdekat Pantai Nusa Dua dapat dicapai dengan berjalan kaki 2 menit. Water Blow Nusa Dua sekitar 5 menit berkendara, dan Pura Uluwatu berjarak sekitar 45 menit berkendara ke arah selatan." [ref=e83] [cursor=pointer]:
+        - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities/11?lang=id
+        - generic [ref=e89]:
+          - generic [ref=e90]: Atraksi terdekat
+          - generic [ref=e91]: Pantai Nusa Dua dapat dicapai dengan berjalan kaki 2 menit. Water Blow Nusa Dua sekitar 5 menit berkendara, dan Pura Uluwatu berjarak sekitar 45 menit berkendara ke arah selatan.
+        - generic [aria-hidden] [ref=e92]: ›
+  - generic [ref=e94]:
+    - button "Chat dengan AI Concierge" [disabled] [ref=e95]:
+      - generic [aria-hidden] [ref=e98]: ↗
+    - list "Mulai dari sini" [ref=e99]:
+      - listitem [ref=e100]:
+        - link "Cari kamar" [ref=e101] [cursor=pointer]:
+          - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/rooms?lang=id
+          - text: Cari kamar
+          - generic [aria-hidden] [ref=e102]: ›
+      - listitem [ref=e103]:
+        - link "Fasilitas hotel" [ref=e104] [cursor=pointer]:
+          - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/facilities?lang=id
+          - text: Fasilitas hotel
+          - generic [aria-hidden] [ref=e105]: ›
+      - listitem [ref=e106]:
+        - link "Kebijakan & FAQ" [ref=e107] [cursor=pointer]:
+          - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/info?lang=id
+          - text: Kebijakan & FAQ
+          - generic [aria-hidden] [ref=e108]: ›
+      - listitem [ref=e109]:
+        - link "Rencanakan menginap" [ref=e110] [cursor=pointer]:
+          - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/reservation?lang=id
+          - text: Rencanakan menginap
+          - generic [aria-hidden] [ref=e111]: ›
+      - listitem [ref=e112]:
+        - link "Bicara dengan staf" [ref=e113] [cursor=pointer]:
+          - /url: https://hotel-ai.fts-tech.co.id/fts-hotel-ai/staff?lang=id
+          - text: Bicara dengan staf
+          - generic [aria-hidden] [ref=e114]: ›
+      - listitem [ref=e115]:
+        - button "Tur bersama AI" [ref=e116] [cursor=pointer]:
+          - generic [aria-hidden] [ref=e117]: ✦
+          - text: Tur bersama AI

@@ -524,4 +524,82 @@ class ConciergeChatTest extends TestCase
                 ->assertJsonPath('message.ui_payload', null);
         }
     }
+
+    private function addPoolFacility(): void
+    {
+        $this->hotel->knowledgeItems()->create([
+            'category' => 'facilities', 'title' => 'Kolam renang', 'body' => 'Open daily.', 'image_url' => 'https://img.test/pool.jpg', 'is_active' => true, 'sort_order' => 0,
+        ]);
+        $this->hotel->knowledgeItems()->create([
+            'category' => 'facilities', 'title' => 'Gym', 'body' => 'Open 24 hours.', 'image_url' => 'https://img.test/gym.jpg', 'is_active' => true, 'sort_order' => 1,
+        ]);
+    }
+
+    public function test_asking_for_hotel_facilities_shows_facility_photos_not_a_room(): void
+    {
+        $this->addGardenAndOceanRooms();
+        $this->addPoolFacility();
+        $this->fakeReply('Here they are.');
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'saya mau liat fasilitas hotelnya'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'facility_results')
+            ->assertJsonCount(2, 'message.ui_payload.0.facilities')
+            ->assertJsonCount(1, 'message.ui_payload');
+    }
+
+    public function test_asking_for_one_facility_shows_only_that_facility(): void
+    {
+        $this->addPoolFacility();
+        $this->fakeReply('Here it is.');
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'lihat foto kolam renang'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'facility_results')
+            ->assertJsonCount(1, 'message.ui_payload.0.facilities')
+            ->assertJsonPath('message.ui_payload.0.facilities.0.title', 'Kolam renang');
+    }
+
+    public function test_a_short_yes_after_a_facility_list_shows_facility_photos(): void
+    {
+        $this->addPoolFacility();
+        $this->fakeReply('Here they are.');
+        $token = $this->startConversation();
+
+        $conversation = Conversation::firstOrFail();
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_GUEST, 'content' => 'saya mau liat fasilitas hotelnya']);
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_ASSISTANT, 'content' => 'Fasilitas kami: kolam renang dan gym. Apakah Anda ingin melihat foto-foto dari salah satu fasilitas tersebut?']);
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'saya mau lihat fotonya'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'facility_results');
+    }
+
+    public function test_room_facilities_show_the_room_card_for_the_room_on_screen(): void
+    {
+        $this->addPoolFacility();
+        $this->fakeReply('Here is the room.');
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', [
+            'guest_token' => $token, 'message' => 'lihat fasilitas kamar', 'scene' => 'room_detail', 'selected_room' => 'deluxe-king',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'room_detail')
+            ->assertJsonPath('message.ui_payload.0.room.room_type_slug', 'deluxe-king')
+            ->assertJsonCount(1, 'message.ui_payload');
+    }
+
+    public function test_room_facilities_without_a_known_room_never_fall_back_to_hotel_facilities(): void
+    {
+        $this->addPoolFacility();
+        $this->fakeReply('Which room do you mean?');
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'fasilitas kamar apa saja?'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload', null);
+    }
 }
