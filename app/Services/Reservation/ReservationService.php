@@ -168,6 +168,14 @@ class ReservationService
         $this->adjustInventory($booking, -1);
     }
 
+    /**
+     * Takes the booking's rooms out of the inventory again (used when its stay moves).
+     */
+    public function holdInventory(Booking $booking): void
+    {
+        $this->adjustInventory($booking, +1);
+    }
+
     private function adjustInventory(Booking $booking, int $direction): void
     {
         RoomInventory::where('room_type_id', $booking->room_type_id)

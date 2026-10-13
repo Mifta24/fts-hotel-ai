@@ -10,6 +10,7 @@
                 <button type="button" data-hero-quick-message="{{ $labels['menu_staff_q'] }}" class="lobby-action">{{ $labels['menu_staff'] }} <span aria-hidden="true">↗</span></button>
                 @if($staffLinks['whatsapp_url'])<a href="{{ $staffLinks['whatsapp_url'] }}" target="_blank" rel="noopener" class="wizard-secondary">{{ $wizard['whatsapp'] }}</a>@endif
                 @if($staffLinks['phone_url'])<a href="{{ $staffLinks['phone_url'] }}" class="wizard-secondary">{{ $wizard['call_hotel'] }}</a>@endif
+                <a href="{{ route('hotel.booking', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" class="wizard-secondary">{{ \App\Http\Controllers\GuestBookingController::LABELS[$locale]['title'] }}</a>
                 @if($staffLinks['email_url'])<a href="{{ $staffLinks['email_url'] }}" class="wizard-secondary">{{ $wizard['email_hotel'] }}</a>@endif
             </div>
 
