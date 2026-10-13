@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'content',
     'ui_payload',
     'tool_calls',
+    'rating',
 ])]
 class ConversationMessage extends Model
 {

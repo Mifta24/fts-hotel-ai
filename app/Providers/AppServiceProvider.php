@@ -40,7 +40,14 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(120)->by('ip:'.$request->ip()),
         ]);
 
+        RateLimiter::for('booking-manage', fn (Request $request) => [
+            Limit::perMinute(10)->by('booking-ref:'.strtoupper((string) $request->input('reference')).'|'.$request->ip()),
+            Limit::perMinute(60)->by('booking-ip:'.$request->ip()),
+        ]);
+
         RateLimiter::for('narration-speech', fn (Request $request) => Limit::perMinute(20)->by('speech:'.$request->ip()));
+
+        RateLimiter::for('concierge-feedback', fn (Request $request) => Limit::perMinute(30)->by('feedback:'.($request->input('guest_token') ?: $request->ip())));
 
         RateLimiter::for('concierge-history', fn (Request $request) => [
             Limit::perMinute(20)->by('history-conversation:'.($request->input('guest_token') ?: $request->ip())),

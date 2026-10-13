@@ -20,6 +20,7 @@ function initConcierge() {
         startUrl: root.dataset.startUrl,
         messageUrl: root.dataset.messageUrl,
         historyUrl: root.dataset.historyUrl,
+        feedbackUrl: root.dataset.feedbackUrl,
         storageKey: root.dataset.storageKey,
         locale: root.dataset.locale,
         currency: root.dataset.currency,
@@ -547,6 +548,58 @@ function initConcierge() {
         }
     }
 
+    const ratingWords = {
+        id: { up: 'Jawaban membantu', down: 'Jawaban kurang membantu' },
+        en: { up: 'Helpful answer', down: 'Not helpful' },
+        ja: { up: '役に立った', down: '役に立たなかった' },
+    };
+
+    /**
+     * Thumbs under a reply, so the hotel learns which answers help. Tapping
+     * the same thumb again takes the rating back.
+     */
+    function ratingRow(message) {
+        const words = ratingWords[config.locale] || ratingWords.en;
+        const row = document.createElement('div');
+        row.className = 'flex gap-1 pl-10 text-xs';
+        let current = message.rating || 0;
+
+        const buttons = [
+            [1, '👍', words.up],
+            [-1, '👎', words.down],
+        ].map(([value, symbol, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = symbol;
+            button.setAttribute('aria-label', label);
+            button.title = label;
+            button.addEventListener('click', async () => {
+                const next = current === value ? 0 : value;
+                try {
+                    await api(config.feedbackUrl, { guest_token: localStorage.getItem(config.storageKey), message_id: message.id, rating: next });
+                    current = next;
+                    paint();
+                } catch {
+                    // the thumb is a courtesy; a failed save must never get in the guest's way
+                }
+            });
+            row.appendChild(button);
+
+            return [value, button];
+        });
+
+        function paint() {
+            buttons.forEach(([value, button]) => {
+                button.className = `rounded-full px-2 py-0.5 transition ${current === value ? 'bg-amber-100 opacity-100' : 'opacity-40 hover:opacity-100'}`;
+                button.setAttribute('aria-pressed', String(current === value));
+            });
+        }
+
+        paint();
+
+        return row;
+    }
+
     function renderMessage(message, { fresh = false } = {}) {
         let presented = false;
 
@@ -555,6 +608,7 @@ function initConcierge() {
         } else if (message.role === 'assistant') {
             if (message.content) {
                 messagesEl.appendChild(bubble('assistant', message.content));
+                if (message.id && config.feedbackUrl) messagesEl.appendChild(ratingRow(message));
             }
             presented = renderUiPayload(message.ui_payload, { fresh, comment: message.content || '', quick: message.quick_replies });
             const chips = actionChips(message.suggested_actions);

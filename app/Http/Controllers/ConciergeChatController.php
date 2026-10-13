@@ -79,6 +79,27 @@ class ConciergeChatController extends Controller
         ]);
     }
 
+    /**
+     * The guest's thumbs up (1) or down (-1) on one of the concierge's replies; 0 takes it back.
+     */
+    public function feedback(Request $request, string $hotelSlug): JsonResponse
+    {
+        $hotel = $this->publishedHotel($hotelSlug);
+
+        $data = $request->validate([
+            'guest_token' => ['required', 'uuid'],
+            'message_id' => ['required', 'integer'],
+            'rating' => ['required', 'integer', 'in:-1,0,1'],
+        ]);
+
+        $conversation = $this->findConversation($hotel, $data['guest_token']);
+
+        $message = $conversation->messages()->where('role', ConversationMessage::ROLE_ASSISTANT)->findOrFail($data['message_id']);
+        $message->update(['rating' => $data['rating'] === 0 ? null : $data['rating']]);
+
+        return response()->json(['id' => $message->id, 'rating' => $message->rating]);
+    }
+
     public function history(Request $request, string $hotelSlug): JsonResponse
     {
         $hotel = $this->publishedHotel($hotelSlug);
@@ -129,6 +150,8 @@ class ConciergeChatController extends Controller
     private function formatMessage(ConversationMessage $message): array
     {
         return [
+            'id' => $message->id,
+            'rating' => $message->rating,
             'role' => $message->role,
             'content' => $message->content,
             'ui_payload' => $message->ui_payload,

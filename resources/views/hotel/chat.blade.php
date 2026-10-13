@@ -7,6 +7,7 @@
             data-start-url="{{ route('concierge.start', $hotel->slug) }}"
             data-message-url="{{ route('concierge.message', $hotel->slug) }}"
             data-history-url="{{ route('concierge.history', $hotel->slug) }}"
+            data-feedback-url="{{ route('concierge.feedback', $hotel->slug) }}"
             data-storage-key="concierge_token_{{ $hotel->slug }}"
             data-label-placeholder="{{ $labels['chat_placeholder'] }}"
             data-label-send="{{ $labels['chat_send'] }}"
