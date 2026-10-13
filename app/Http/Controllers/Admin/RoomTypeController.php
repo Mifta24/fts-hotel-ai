@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\RoomType;
+use App\Services\ImageUploader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +15,8 @@ use Illuminate\View\View;
 class RoomTypeController extends Controller
 {
     use ResolvesCurrentHotel;
+
+    public function __construct(private readonly ImageUploader $images) {}
 
     public function index(Request $request): View
     {
@@ -40,6 +44,7 @@ class RoomTypeController extends Controller
 
         $roomType = $hotel->roomTypes()->create($data);
         $this->syncImages($roomType, $request);
+        AuditLog::record($hotel->id, 'room_type.created', "Created room type {$roomType->name}", $roomType, $request->user());
 
         return redirect()->route('admin.room-types.index')->with('status', "Room type \"{$roomType->name}\" created.");
     }
@@ -61,6 +66,7 @@ class RoomTypeController extends Controller
 
         $roomType->update($this->validated($request, $roomType));
         $this->syncImages($roomType, $request);
+        AuditLog::record($hotel->id, 'room_type.updated', "Updated room type {$roomType->name}", $roomType, $request->user());
 
         return redirect()->route('admin.room-types.index')->with('status', "Room type \"{$roomType->name}\" updated.");
     }
@@ -71,6 +77,7 @@ class RoomTypeController extends Controller
         abort_if($roomType->hotel_id !== $hotel->id, 404);
 
         $roomType->delete();
+        AuditLog::record($hotel->id, 'room_type.deleted', "Deleted room type {$roomType->name}", $roomType, $request->user());
 
         return redirect()->route('admin.room-types.index')->with('status', 'Room type deleted.');
     }
@@ -101,6 +108,7 @@ class RoomTypeController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'new_images' => ['nullable', 'array', 'max:20'],
             'new_images.*.url' => ['nullable', 'url:http,https', 'max:2048'],
+            'new_images.*.file' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.ImageUploader::MAX_KILOBYTES],
             'new_images.*.alt' => ['nullable', 'string', 'max:255'],
             'new_images.*.tags' => ['nullable', 'string', 'max:255'],
         ]);
@@ -160,17 +168,28 @@ class RoomTypeController extends Controller
     {
         $deleteIds = collect($request->input('delete_images', []))->map(fn ($id) => (int) $id);
         if ($deleteIds->isNotEmpty()) {
-            $roomType->images()->whereIn('id', $deleteIds)->delete();
+            $roomType->images()->whereIn('id', $deleteIds)->get()->each(function ($image) {
+                $this->images->delete($image->image_path);
+                $image->delete();
+            });
         }
 
-        $newImages = collect($request->input('new_images', []))
-            ->filter(fn ($row) => filled($row['url'] ?? null));
-
+        $rows = collect($request->input('new_images', []));
+        $files = collect($request->file('new_images', []));
         $sort = $roomType->images()->max('sort_order') + 1;
-        foreach ($newImages as $row) {
+
+        foreach ($rows->keys()->merge($files->keys())->unique() as $index) {
+            $row = $rows->get($index, []);
+            $file = $files->get($index)['file'] ?? null;
+
+            if (! $file && ! filled($row['url'] ?? null)) {
+                continue;
+            }
+
             $roomType->images()->create([
-                'image_url' => $row['url'],
-                'alt_text' => $row['alt'] ?? $roomType->name,
+                'image_url' => $file ? null : $row['url'],
+                'image_path' => $file ? $this->images->store($file, 'rooms') : null,
+                'alt_text' => ($row['alt'] ?? null) ?: $roomType->name,
                 'tags' => collect(explode(',', $row['tags'] ?? ''))->map(fn ($t) => trim($t))->filter()->values()->all(),
                 'sort_order' => $sort++,
             ]);

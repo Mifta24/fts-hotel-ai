@@ -1,7 +1,7 @@
 @php $isEdit = $item->exists; @endphp
 
 <x-admin-layout :title="$isEdit ? 'Edit knowledge item' : 'Add knowledge item'">
-    <form method="POST" action="{{ $isEdit ? route('admin.knowledge-items.update', $item) : route('admin.knowledge-items.store') }}" class="space-y-6">
+    <form method="POST" action="{{ $isEdit ? route('admin.knowledge-items.update', $item) : route('admin.knowledge-items.store') }}" class="space-y-6" enctype="multipart/form-data">
         @csrf
         @if ($isEdit) @method('PUT') @endif
 
@@ -28,10 +28,18 @@
                     <label class="block text-sm font-medium text-stone-700">Image URL (shown on the facilities cards)</label>
                     <input type="url" name="image_url" value="{{ old('image_url', $item->image_url) }}" placeholder="https://…"
                         class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                    <label class="mt-2 block text-xs text-stone-500">…or upload a photo instead (JPG, PNG or WebP; it is resized automatically)
+                        <input type="file" name="image_file" accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full text-sm">
+                    </label>
+                    @error('image_file')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="col-span-2">
                     <label class="block text-sm font-medium text-stone-700">More photos (one URL per line, shown as a gallery in the chat)</label>
                     <textarea name="gallery" rows="3" placeholder="https://…" class="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-sm">{{ old('gallery', implode("\n", $item->images ?? [])) }}</textarea>
+                    <label class="mt-2 block text-xs text-stone-500">…and/or upload more photos (up to 8 in total)
+                        <input type="file" name="gallery_files[]" multiple accept="image/jpeg,image/png,image/webp" class="mt-1 block w-full text-sm">
+                    </label>
+                    @error('gallery_files.*')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="col-span-2">
                     <label class="block text-sm font-medium text-stone-700">Opening hours (optional, e.g. 06:30–10:30)</label>

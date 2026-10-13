@@ -5,7 +5,7 @@
 @endphp
 
 <x-admin-layout :title="$isEdit ? 'Edit room type' : 'Add room type'">
-    <form method="POST" action="{{ $isEdit ? route('admin.room-types.update', $roomType) : route('admin.room-types.store') }}" class="space-y-8">
+    <form method="POST" action="{{ $isEdit ? route('admin.room-types.update', $roomType) : route('admin.room-types.store') }}" class="space-y-8" enctype="multipart/form-data">
         @csrf
         @if ($isEdit) @method('PUT') @endif
 
@@ -141,7 +141,8 @@
             <p class="mt-4 text-xs text-stone-500">Add photos by URL (e.g. an Unsplash or CDN link). Tag them so the AI Concierge can pick the right one — e.g. "bathroom, bathtub" or "view, balcony".</p>
             @for ($i = 0; $i < 3; $i++)
                 <div class="mt-2 grid grid-cols-6 gap-2">
-                    <input type="url" name="new_images[{{ $i }}][url]" placeholder="https://…" class="col-span-3 rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                    <input type="url" name="new_images[{{ $i }}][url]" placeholder="https://… or choose a file →" class="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm">
+                    <input type="file" name="new_images[{{ $i }}][file]" accept="image/jpeg,image/png,image/webp" class="col-span-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs">
                     <input type="text" name="new_images[{{ $i }}][tags]" placeholder="bedroom, view" class="col-span-2 rounded-lg border border-stone-300 px-3 py-2 text-sm">
                     <input type="text" name="new_images[{{ $i }}][alt]" placeholder="Alt text" class="rounded-lg border border-stone-300 px-3 py-2 text-sm">
                 </div>
