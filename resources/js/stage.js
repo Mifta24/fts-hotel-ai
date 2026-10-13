@@ -101,6 +101,19 @@ function initStage() {
     window.hotelStage = { leave };
 }
 
+/**
+ * The big room photo only carries a transition name while the page is being
+ * revealed. Left on permanently, the browser paints it outside the scrolling
+ * panel instead of clipping it to the panel's edge.
+ */
+window.addEventListener('pagereveal', (event) => {
+    const photo = document.querySelector('[data-room-photo]');
+    if (!photo || !event.viewTransition) return;
+
+    photo.style.viewTransitionName = 'room-photo';
+    event.viewTransition.finished.finally(() => { photo.style.viewTransitionName = ''; });
+});
+
 /** The topic the guest picked on the previous scene, if any (read once). */
 window.takePendingConciergeTopic = () => {
     try {
