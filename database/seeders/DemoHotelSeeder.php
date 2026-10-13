@@ -88,6 +88,8 @@ class DemoHotelSeeder extends Seeder
                 );
             }
 
+            $roomType->images()->whereNotIn('image_url', array_column($images, 'url'))->delete();
+
             $this->seedInventory($roomType, $totalUnits);
         }
 
@@ -121,8 +123,8 @@ class DemoHotelSeeder extends Seeder
                 'total_units' => 10,
                 'images' => [
                     ['url' => 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Tempat tidur king Deluxe Garden View'],
-                    ['url' => 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom'], 'alt' => 'Kamar mandi Deluxe Garden View'],
-                    ['url' => 'https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&q=80', 'tags' => ['view', 'balcony'], 'alt' => 'Pemandangan taman dari balkon'],
+                    ['url' => 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom'], 'alt' => 'Kamar mandi Deluxe Garden View'],
+                    ['url' => 'https://images.unsplash.com/photo-1693585576674-2e1b7166f583?auto=format&fit=crop&w=1200&q=80', 'tags' => ['balcony'], 'alt' => 'Balkon Deluxe Garden View'],
                 ],
             ],
             [
@@ -146,9 +148,10 @@ class DemoHotelSeeder extends Seeder
                 'amenities' => ['air_conditioning', 'wifi', 'minibar', 'safe_deposit_box', 'bathtub', 'balcony', 'coffee_maker'],
                 'total_units' => 8,
                 'images' => [
-                    ['url' => 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Tempat tidur Deluxe Ocean View'],
-                    ['url' => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub'],
-                    ['url' => 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80', 'tags' => ['view', 'balcony'], 'alt' => 'Pemandangan laut dari balkon'],
+                    ['url' => 'https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Tempat tidur Deluxe Ocean View'],
+                    ['url' => 'https://images.unsplash.com/photo-1776482128011-c707121f081a?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub'],
+                    ['url' => 'https://images.unsplash.com/photo-1644417520671-ae8ecc3064ce?auto=format&fit=crop&w=1200&q=80', 'tags' => ['view'], 'alt' => 'Pemandangan pantai dan laut dari kamar'],
+                    ['url' => 'https://images.unsplash.com/photo-1733829994889-4a224e674c7b?auto=format&fit=crop&w=1200&q=80', 'tags' => ['balcony', 'view'], 'alt' => 'Balkon Deluxe Ocean View'],
                 ],
             ],
             [
@@ -173,8 +176,8 @@ class DemoHotelSeeder extends Seeder
                 'total_units' => 5,
                 'images' => [
                     ['url' => 'https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Kamar tidur utama Family Suite'],
-                    ['url' => 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1200&q=80', 'tags' => ['living_room'], 'alt' => 'Ruang tamu Family Suite'],
-                    ['url' => 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80', 'tags' => ['living_room'], 'alt' => 'Ruang tamu Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1753605788101-04d1e653e74a?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi Family Suite'],
                 ],
             ],
             [
@@ -200,7 +203,7 @@ class DemoHotelSeeder extends Seeder
                 'images' => [
                     ['url' => 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80', 'tags' => ['pool', 'view'], 'alt' => 'Kolam renang pribadi Honeymoon Villa'],
                     ['url' => 'https://images.unsplash.com/photo-1615874959474-d609969a20ed?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Kamar tidur Honeymoon Villa'],
-                    ['url' => 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub Honeymoon Villa'],
+                    ['url' => 'https://images.unsplash.com/photo-1753104175195-3fd0d11c7316?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub Honeymoon Villa'],
                 ],
             ],
         ];
