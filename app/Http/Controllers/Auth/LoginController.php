@@ -28,7 +28,10 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.dashboard'));
+        $user = $request->user();
+        $home = $user->is_platform_admin && ! $user->currentHotel() ? route('platform.hotels.index') : route('admin.dashboard');
+
+        return redirect()->intended($home);
     }
 
     public function destroy(Request $request): RedirectResponse
