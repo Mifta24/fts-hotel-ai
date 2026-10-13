@@ -24,7 +24,7 @@
             <tbody class="divide-y divide-stone-100">
                 @forelse ($bookings as $booking)
                     <tr>
-                        <td class="px-4 py-3 font-mono text-xs">{{ $booking->reference }}</td>
+                        <td class="px-4 py-3 font-mono text-xs"><a href="{{ route('admin.bookings.show', $booking) }}" class="text-stone-900 underline decoration-stone-300 hover:decoration-stone-900">{{ $booking->reference }}</a></td>
                         <td class="px-4 py-3">
                             <p class="font-medium text-stone-900">{{ $booking->guest_name }}</p>
                             <p class="text-xs text-stone-500">{{ $booking->contact_type ? ucfirst($booking->contact_type).': ' : '' }}{{ $booking->guest_phone ?? $booking->guest_email }}</p>
@@ -42,7 +42,7 @@
                             ])>{{ ucfirst($booking->status) }}</span>
                         </td>
                         <td class="px-4 py-3 text-right">
-                            @if ($booking->status === 'pending')
+                            @if ($booking->status === 'pending' && auth()->user()->canInHotel('bookings.manage'))
                                 <form method="POST" action="{{ route('admin.bookings.status', $booking) }}" class="inline">
                                     @csrf @method('PATCH')
                                     <input type="hidden" name="status" value="confirmed">

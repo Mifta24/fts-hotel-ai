@@ -15,6 +15,15 @@
             <div class="border-b border-stone-200 px-4 py-4">
                 <p class="text-sm font-semibold text-stone-900">{{ auth()->user()?->currentHotel()?->name }}</p>
                 <p class="text-xs text-stone-500">Admin Dashboard</p>
+                @php $myHotels = auth()->user()?->hotels()->wherePivot('status', 'active')->get() ?? collect(); @endphp
+                @if ($myHotels->count() > 1)
+                    <form method="POST" action="{{ route('admin.switch-hotel') }}" class="mt-2">
+                        @csrf
+                        <select name="hotel_id" onchange="this.form.submit()" aria-label="Switch hotel" class="w-full rounded-lg border border-stone-300 bg-white px-2 py-1 text-xs">
+                            @foreach ($myHotels as $option)<option value="{{ $option->id }}" @selected($option->id === auth()->user()->currentHotel()?->id)>{{ $option->name }}</option>@endforeach
+                        </select>
+                    </form>
+                @endif
             </div>
             <nav class="space-y-1 px-2 py-4 text-sm">
                 @php
@@ -24,15 +33,19 @@
                         'admin.handovers.index' => \App\Models\HandoverRequest::where('status', 'open')->whereHas('conversation', fn ($q) => $q->where('hotel_id', $currentHotel->id))->count(),
                     ] : [];
                     $navItems = [
-                        ['route' => 'admin.dashboard', 'label' => 'Dashboard'],
-                        ['route' => 'admin.room-types.index', 'label' => 'Rooms'],
-                        ['route' => 'admin.inventory.index', 'label' => 'Availability'],
-                        ['route' => 'admin.knowledge-items.index', 'label' => 'Knowledge base'],
-                        ['route' => 'admin.bookings.index', 'label' => 'Bookings'],
-                        ['route' => 'admin.handovers.index', 'label' => 'Handovers'],
+                        ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'ability' => null],
+                        ['route' => 'admin.room-types.index', 'label' => 'Rooms', 'ability' => 'content'],
+                        ['route' => 'admin.inventory.index', 'label' => 'Availability', 'ability' => 'inventory'],
+                        ['route' => 'admin.knowledge-items.index', 'label' => 'Knowledge base', 'ability' => 'content'],
+                        ['route' => 'admin.bookings.index', 'label' => 'Bookings', 'ability' => 'bookings.view'],
+                        ['route' => 'admin.handovers.index', 'label' => 'Handovers', 'ability' => 'handovers'],
+                        ['route' => 'admin.analytics.index', 'label' => 'Analytics', 'ability' => 'analytics'],
+                        ['route' => 'admin.activity.index', 'label' => 'Activity', 'ability' => 'activity'],
+                        ['route' => 'platform.hotels.index', 'label' => 'All hotels', 'ability' => 'platform'],
                     ];
                 @endphp
                 @foreach ($navItems as $item)
+                    @continue($item['ability'] && ! ($item['ability'] === 'platform' ? auth()->user()?->is_platform_admin : auth()->user()?->canInHotel($item['ability'])))
                     <a
                         href="{{ route($item['route']) }}"
                         class="block rounded-lg px-3 py-2 {{ request()->routeIs($item['route'].'*') ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100' }}"
