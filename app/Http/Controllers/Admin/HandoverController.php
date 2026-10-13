@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\HandoverRequest;
@@ -36,7 +37,7 @@ class HandoverController extends Controller
         $hotel = $this->currentHotel($request);
         abort_if($handover->conversation->hotel_id !== $hotel->id, 404);
 
-        $handover->load('conversation.messages');
+        $handover->load(['conversation.messages', 'internalNotes.author']);
 
         return view('admin.handovers.show', compact('hotel', 'handover'));
     }
@@ -53,6 +54,8 @@ class HandoverController extends Controller
             'content' => $data['message'],
         ]);
 
+        AuditLog::record($hotel->id, 'handover.reply', 'Replied to the guest', $handover, $request->user());
+
         return back()->with('status', 'Reply sent to the guest.');
     }
 
@@ -63,6 +66,8 @@ class HandoverController extends Controller
 
         $handover->update(['status' => HandoverRequest::STATUS_RESOLVED, 'resolved_at' => now(), 'assigned_to' => $request->user()->id]);
         $handover->conversation->update(['status' => Conversation::STATUS_ACTIVE]);
+
+        AuditLog::record($hotel->id, 'handover.resolved', 'Marked the handover resolved', $handover, $request->user());
 
         return redirect()->route('admin.handovers.index')->with('status', 'Handover resolved — the AI Concierge is back in the conversation.');
     }

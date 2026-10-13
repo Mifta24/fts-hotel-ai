@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Services\Reservation\ReservationService;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,22 @@ class BookingController extends Controller
         return view('admin.bookings.index', compact('hotel', 'bookings', 'status'));
     }
 
+    public function show(Request $request, Booking $booking): View
+    {
+        $hotel = $this->currentHotel($request);
+        abort_if($booking->hotel_id !== $hotel->id, 404);
+
+        $booking->load(['roomType', 'internalNotes.author']);
+        $history = AuditLog::where('hotel_id', $hotel->id)
+            ->where('subject_type', $booking->getMorphClass())
+            ->where('subject_id', $booking->id)
+            ->with('user')
+            ->latest('id')
+            ->get();
+
+        return view('admin.bookings.show', compact('hotel', 'booking', 'history'));
+    }
+
     public function updateStatus(Request $request, Booking $booking): RedirectResponse
     {
         $hotel = $this->currentHotel($request);
@@ -43,6 +60,8 @@ class BookingController extends Controller
         $data = $request->validate([
             'status' => ['required', 'in:'.implode(',', [Booking::STATUS_CONFIRMED, Booking::STATUS_CANCELLED])],
         ]);
+
+        $before = $booking->status;
 
         $changed = DB::transaction(function () use ($booking, $data): bool {
             $current = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
@@ -64,6 +83,8 @@ class BookingController extends Controller
         if (! $changed) {
             return back()->withErrors(['status' => "Booking {$booking->reference} is already {$booking->fresh()->status} and cannot be changed to {$data['status']}."]);
         }
+
+        AuditLog::record($hotel->id, 'booking.status', "Changed status from {$before} to {$data['status']}", $booking, $request->user(), ['from' => $before, 'to' => $data['status']]);
 
         return back()->with('status', "Booking {$booking->reference} marked as {$data['status']}.");
     }

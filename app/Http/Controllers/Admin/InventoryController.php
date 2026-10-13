@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\RoomInventory;
 use App\Services\Reservation\InventoryService;
 use Carbon\CarbonImmutable;
@@ -63,6 +64,8 @@ class InventoryController extends Controller
             isset($data['price']) ? (float) $data['price'] : null,
             isset($data['weekdays']) ? array_map('intval', $data['weekdays']) : null,
         );
+
+        AuditLog::record($hotel->id, 'inventory.updated', "Changed {$written} night(s) of {$roomType->name} ({$data['from']} to {$data['to']})", $roomType, $request->user(), array_filter(['total_units' => $data['total_units'] ?? null, 'price' => $data['price'] ?? null], fn ($v) => $v !== null));
 
         return redirect()
             ->route('admin.inventory.index', ['room' => $roomType->id, 'month' => substr($data['from'], 0, 7)])

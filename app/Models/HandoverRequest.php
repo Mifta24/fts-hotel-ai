@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 #[Fillable([
     'conversation_id',
@@ -39,6 +40,11 @@ class HandoverRequest extends Model
         return [
             'resolved_at' => 'datetime',
         ];
+    }
+
+    public function internalNotes(): MorphMany
+    {
+        return $this->morphMany(InternalNote::class, 'notable')->latest();
     }
 
     public function conversation(): BelongsTo

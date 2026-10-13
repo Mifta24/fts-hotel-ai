@@ -39,6 +39,8 @@
                 <p class="mt-2 text-sm text-amber-900">{{ $handover->summary }}</p>
             </div>
 
+            <x-admin.notes :subject="$handover" type="handover" />
+
             @if ($handover->status === 'open')
                 <form method="POST" action="{{ route('admin.handovers.resolve', $handover) }}">
                     @csrf
