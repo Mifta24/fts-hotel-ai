@@ -448,4 +448,80 @@ class ConciergeChatTest extends TestCase
         $this->getJson('/demo/concierge/history?guest_token='.$token)->assertTooManyRequests();
         $this->getJson('/demo/concierge/history?guest_token='.$another)->assertOk();
     }
+
+    private function addGardenAndOceanRooms(): RoomType
+    {
+        $garden = $this->hotel->roomTypes()->create([
+            'name' => 'Deluxe Garden View', 'slug' => 'deluxe-garden-view', 'base_price' => 950000, 'max_adults' => 2, 'max_children' => 1,
+            'amenities' => ['wifi', 'minibar'], 'is_active' => true, 'sort_order' => 1,
+        ]);
+        $garden->images()->create(['image_url' => 'https://img.test/garden.jpg', 'tags' => ['bedroom'], 'sort_order' => 0]);
+        $this->hotel->roomTypes()->create([
+            'name' => 'Deluxe Ocean View', 'slug' => 'deluxe-ocean-view', 'base_price' => 1450000, 'max_adults' => 2, 'max_children' => 1, 'is_active' => true, 'sort_order' => 2,
+        ]);
+
+        return $garden;
+    }
+
+    public function test_asking_for_a_rooms_details_shows_its_card_even_when_the_model_skips_the_tool(): void
+    {
+        $this->addGardenAndOceanRooms();
+        $this->fakeReply('Here is the room.');
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'lihat detail fasilitas kamar deluxw gardene view'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'room_detail')
+            ->assertJsonPath('message.ui_payload.0.room.room_type_slug', 'deluxe-garden-view')
+            ->assertJsonPath('message.ui_payload.0.room.amenities', ['wifi', 'minibar'])
+            ->assertJsonCount(1, 'message.ui_payload');
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request) => collect($request['messages'])->contains(
+            fn ($m) => $m['role'] === 'tool' && str_contains($m['content'], 'deluxe-garden-view') && str_contains($m['content'], 'minibar')
+        ));
+    }
+
+    public function test_the_card_is_not_duplicated_when_the_model_calls_the_tool_too(): void
+    {
+        $this->addGardenAndOceanRooms();
+        Http::fake(['llm.test/*' => Http::sequence()
+            ->push($this->completion(null, [$this->toolCall('get_room_detail', ['room_type_slug' => 'deluxe-garden-view'])]))
+            ->push($this->completion('Here it is.')),
+        ]);
+        $token = $this->startConversation();
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'Show me the Deluxe Garden View'])
+            ->assertOk()
+            ->assertJsonCount(1, 'message.ui_payload');
+    }
+
+    public function test_a_short_yes_after_a_photo_offer_shows_the_room_that_was_discussed(): void
+    {
+        $garden = $this->addGardenAndOceanRooms();
+        $this->fakeReply('Here are the photos.');
+        $token = $this->startConversation();
+
+        $conversation = Conversation::firstOrFail();
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_GUEST, 'content' => 'Tell me about the Deluxe Garden View']);
+        $conversation->messages()->create(['role' => ConversationMessage::ROLE_ASSISTANT, 'content' => 'It has a king bed and a balcony. Would you like to see photos of the room?']);
+
+        $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => 'iya saya mau lihat'])
+            ->assertOk()
+            ->assertJsonPath('message.ui_payload.0.type', 'room_detail')
+            ->assertJsonPath('message.ui_payload.0.room.room_type_slug', $garden->slug);
+    }
+
+    public function test_price_questions_and_vague_room_words_still_go_to_the_model(): void
+    {
+        $this->addGardenAndOceanRooms();
+        $this->fakeReply('Let me help.');
+        $token = $this->startConversation();
+
+        foreach (['berapa harga Deluxe Garden View', 'show me the deluxe rooms', 'lihat foto kolam renang'] as $message) {
+            $this->postJson('/demo/concierge/message', ['guest_token' => $token, 'message' => $message])
+                ->assertOk()
+                ->assertJsonPath('message.ui_payload', null);
+        }
+    }
 }

@@ -4,14 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\HotelKnowledgeItem;
+use App\Services\ImageUploader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\View\View;
 
 class KnowledgeItemController extends Controller
 {
     use ResolvesCurrentHotel;
+
+    public function __construct(private readonly ImageUploader $images) {}
 
     public function index(Request $request): View
     {
@@ -38,6 +43,7 @@ class KnowledgeItemController extends Controller
         $hotel = $this->currentHotel($request);
 
         $item = $hotel->knowledgeItems()->create($this->validated($request));
+        AuditLog::record($hotel->id, 'knowledge.created', "Created knowledge item {$item->title}", $item, $request->user());
 
         return redirect()->route('admin.knowledge-items.index')->with('status', "Knowledge item \"{$item->title}\" created.");
     }
@@ -60,6 +66,7 @@ class KnowledgeItemController extends Controller
         abort_if($knowledgeItem->hotel_id !== $hotel->id, 404);
 
         $knowledgeItem->update($this->validated($request));
+        AuditLog::record($hotel->id, 'knowledge.updated', "Updated knowledge item {$knowledgeItem->title}", $knowledgeItem, $request->user());
 
         return redirect()->route('admin.knowledge-items.index')->with('status', "Knowledge item \"{$knowledgeItem->title}\" updated.");
     }
@@ -70,6 +77,7 @@ class KnowledgeItemController extends Controller
         abort_if($knowledgeItem->hotel_id !== $hotel->id, 404);
 
         $knowledgeItem->delete();
+        AuditLog::record($hotel->id, 'knowledge.deleted', "Deleted knowledge item {$knowledgeItem->title}", $knowledgeItem, $request->user());
 
         return redirect()->route('admin.knowledge-items.index')->with('status', 'Knowledge item deleted.');
     }
@@ -87,6 +95,9 @@ class KnowledgeItemController extends Controller
             'tags' => ['nullable', 'string'],
             'image_url' => ['nullable', 'url:http,https', 'max:2048'],
             'gallery' => ['nullable', 'string', 'max:4000'],
+            'image_file' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:'.ImageUploader::MAX_KILOBYTES],
+            'gallery_files' => ['nullable', 'array', 'max:8'],
+            'gallery_files.*' => ['image', 'mimes:jpeg,png,webp', 'max:'.ImageUploader::MAX_KILOBYTES],
             'hours' => ['nullable', 'string', 'max:255'],
             'menu' => ['nullable', 'string', 'max:4000'],
             'is_active' => ['sometimes', 'boolean'],
@@ -102,12 +113,22 @@ class KnowledgeItemController extends Controller
                 'ja' => ['title' => $data['translations']['ja']['title'] ?? null, 'body' => $data['translations']['ja']['body'] ?? null],
             ],
             'tags' => collect(explode(',', (string) ($data['tags'] ?? '')))->map(fn ($t) => trim($t))->filter()->values()->all(),
-            'image_url' => $data['image_url'] ?? null,
-            'images' => $this->galleryUrls((string) ($data['gallery'] ?? '')),
+            'image_url' => $request->file('image_file') ? $this->upload($request->file('image_file')) : ($data['image_url'] ?? null),
+            'images' => collect($this->galleryUrls((string) ($data['gallery'] ?? '')))
+                ->merge(collect($request->file('gallery_files', []))->map(fn ($file) => $this->upload($file)))
+                ->unique()
+                ->take(8)
+                ->values()
+                ->all(),
             'details' => $this->details($data),
             'is_active' => $request->boolean('is_active'),
             'sort_order' => $data['sort_order'] ?? 0,
         ];
+    }
+
+    private function upload(UploadedFile $file): string
+    {
+        return $this->images->url($this->images->store($file, 'knowledge'));
     }
 
     /**

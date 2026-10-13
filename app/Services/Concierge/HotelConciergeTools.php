@@ -230,7 +230,7 @@ class HotelConciergeTools
 
     /**
      * @param  array<string, mixed>  $input
-     * @return array{text: string, ui: array|null}
+     * @return array{text: string, ui: array|null, miss?: bool}
      */
     public function dispatch(string $name, array $input): array
     {
@@ -279,6 +279,7 @@ class HotelConciergeTools
             return [
                 'text' => 'No matching knowledge base entry was found. Do not guess the answer — tell the guest you will check with the team, or call request_human_handover.',
                 'ui' => null,
+                'miss' => true,
             ];
         }
 
@@ -340,6 +341,7 @@ class HotelConciergeTools
             return [
                 'text' => 'No facility photo matches that. Say so honestly, answer from search_knowledge if there is a text entry, or offer to show all facilities.',
                 'ui' => null,
+                'miss' => true,
             ];
         }
 
@@ -461,6 +463,7 @@ class HotelConciergeTools
             return [
                 'text' => 'No dining entry matches that. Say so honestly, or answer from search_knowledge, or call request_human_handover.',
                 'ui' => null,
+                'miss' => true,
             ];
         }
 
@@ -906,6 +909,71 @@ class HotelConciergeTools
             return Str::contains($haystack, str_replace('-', ' ', $term))
                 || $words->contains(fn ($word) => Str::contains($haystack, $word));
         })->values();
+    }
+
+    /**
+     * The one active room a guest's free text names. A full room name (in any
+     * language) wins; otherwise at least two words of a room's name must be
+     * found, typos tolerated, and one of them must belong to that room alone
+     * — so "deluxe" or "pool" never pick a room by themselves.
+     */
+    public function roomNamedIn(string $text): ?RoomType
+    {
+        $rooms = $this->hotel->roomTypes()->where('is_active', true)->orderBy('sort_order')->get();
+        $text = Str::lower($text);
+
+        $named = $rooms->filter(fn (RoomType $room) => $this->roomNames($room)->contains(fn (string $name) => Str::contains($text, $name)));
+        if ($named->count() === 1) {
+            return $named->first();
+        }
+
+        $guestWords = $this->nameWords($text);
+        $wordsByRoom = $rooms->mapWithKeys(fn (RoomType $room) => [$room->id => $this->roomNames($room)->flatMap(fn (string $name) => $this->nameWords($name))->unique()->values()]);
+        $roomsPerWord = $wordsByRoom->flatten()->countBy();
+
+        $scored = $rooms->map(function (RoomType $room) use ($guestWords, $wordsByRoom, $roomsPerWord) {
+            $found = $wordsByRoom[$room->id]->filter(fn (string $word) => $guestWords->contains(fn (string $guestWord) => $this->isSameWord($guestWord, $word)));
+
+            return [
+                'room' => $room,
+                'score' => $found->count(),
+                'distinctive' => $found->contains(fn (string $word) => $roomsPerWord[$word] === 1),
+            ];
+        })->filter(fn (array $row) => $row['score'] >= 2 && $row['distinctive'])->sortByDesc('score')->values();
+
+        if ($scored->isEmpty() || ($scored->count() > 1 && $scored[0]['score'] === $scored[1]['score'])) {
+            return null;
+        }
+
+        return $scored[0]['room'];
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    private function roomNames(RoomType $room): Collection
+    {
+        return collect([$room->name, ...collect($room->translations ?? [])->pluck('name')->all()])
+            ->filter()
+            ->map(fn ($name) => Str::lower((string) $name))
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    private function nameWords(string $text): Collection
+    {
+        return collect(preg_split('/[^\p{L}\p{N}]+/u', Str::lower($text), -1, PREG_SPLIT_NO_EMPTY))
+            ->filter(fn (string $word) => mb_strlen($word) >= 3 && ! in_array($word, ['room', 'rooms', 'kamar', 'the', 'type', 'with'], true))
+            ->values();
+    }
+
+    private function isSameWord(string $guestWord, string $roomWord): bool
+    {
+        return $guestWord === $roomWord
+            || (mb_strlen($guestWord) >= 5 && mb_strlen($roomWord) >= 5 && levenshtein($guestWord, $roomWord) <= 1);
     }
 
     private function singleMatchingRoomType(string $term): ?RoomType
