@@ -125,6 +125,9 @@ class DemoHotelSeeder extends Seeder
                     ['url' => 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Tempat tidur king Deluxe Garden View'],
                     ['url' => 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom'], 'alt' => 'Kamar mandi Deluxe Garden View'],
                     ['url' => 'https://images.unsplash.com/photo-1693585576674-2e1b7166f583?auto=format&fit=crop&w=1200&q=80', 'tags' => ['balcony'], 'alt' => 'Balkon Deluxe Garden View'],
+                    ['url' => 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['minibar'], 'alt' => 'Minibar Deluxe Garden View'],
+                    ['url' => 'https://images.unsplash.com/photo-1759264244749-a45833759810?auto=format&fit=crop&w=1200&q=80', 'tags' => ['coffee_maker'], 'alt' => 'Mesin kopi dan teh Deluxe Garden View'],
+                    ['url' => 'https://images.unsplash.com/photo-1762341123870-d706f257a12e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['air_conditioning'], 'alt' => 'AC Deluxe Garden View'],
                 ],
             ],
             [
@@ -152,6 +155,9 @@ class DemoHotelSeeder extends Seeder
                     ['url' => 'https://images.unsplash.com/photo-1776482128011-c707121f081a?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub'],
                     ['url' => 'https://images.unsplash.com/photo-1644417520671-ae8ecc3064ce?auto=format&fit=crop&w=1200&q=80', 'tags' => ['view'], 'alt' => 'Pemandangan pantai dan laut dari kamar'],
                     ['url' => 'https://images.unsplash.com/photo-1733829994889-4a224e674c7b?auto=format&fit=crop&w=1200&q=80', 'tags' => ['balcony', 'view'], 'alt' => 'Balkon Deluxe Ocean View'],
+                    ['url' => 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['minibar'], 'alt' => 'Minibar Deluxe Ocean View'],
+                    ['url' => 'https://images.unsplash.com/photo-1759264244749-a45833759810?auto=format&fit=crop&w=1200&q=80', 'tags' => ['coffee_maker'], 'alt' => 'Mesin kopi dan teh Deluxe Ocean View'],
+                    ['url' => 'https://images.unsplash.com/photo-1762341123870-d706f257a12e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['air_conditioning'], 'alt' => 'AC Deluxe Ocean View'],
                 ],
             ],
             [
@@ -178,6 +184,10 @@ class DemoHotelSeeder extends Seeder
                     ['url' => 'https://images.unsplash.com/photo-1590073844006-33379778ae09?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Kamar tidur utama Family Suite'],
                     ['url' => 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=80', 'tags' => ['living_room'], 'alt' => 'Ruang tamu Family Suite'],
                     ['url' => 'https://images.unsplash.com/photo-1753605788101-04d1e653e74a?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1733829994889-4a224e674c7b?auto=format&fit=crop&w=1200&q=80', 'tags' => ['balcony'], 'alt' => 'Balkon Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['minibar'], 'alt' => 'Minibar Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1759264244749-a45833759810?auto=format&fit=crop&w=1200&q=80', 'tags' => ['coffee_maker'], 'alt' => 'Mesin kopi dan teh Family Suite'],
+                    ['url' => 'https://images.unsplash.com/photo-1762341123870-d706f257a12e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['air_conditioning'], 'alt' => 'AC Family Suite'],
                 ],
             ],
             [
@@ -201,9 +211,12 @@ class DemoHotelSeeder extends Seeder
                 'amenities' => ['air_conditioning', 'wifi', 'minibar', 'safe_deposit_box', 'bathtub', 'private_pool', 'coffee_maker'],
                 'total_units' => 3,
                 'images' => [
-                    ['url' => 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80', 'tags' => ['pool', 'view'], 'alt' => 'Kolam renang pribadi Honeymoon Villa'],
+                    ['url' => 'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?auto=format&fit=crop&w=1200&q=80', 'tags' => ['pool', 'private_pool', 'view'], 'alt' => 'Kolam renang pribadi Honeymoon Villa'],
                     ['url' => 'https://images.unsplash.com/photo-1615874959474-d609969a20ed?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bedroom'], 'alt' => 'Kamar tidur Honeymoon Villa'],
                     ['url' => 'https://images.unsplash.com/photo-1753104175195-3fd0d11c7316?auto=format&fit=crop&w=1200&q=80', 'tags' => ['bathroom', 'bathtub'], 'alt' => 'Kamar mandi dengan bathtub Honeymoon Villa'],
+                    ['url' => 'https://images.unsplash.com/photo-1540961403310-79825242906e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['minibar'], 'alt' => 'Minibar Honeymoon Villa'],
+                    ['url' => 'https://images.unsplash.com/photo-1759264244749-a45833759810?auto=format&fit=crop&w=1200&q=80', 'tags' => ['coffee_maker'], 'alt' => 'Mesin kopi dan teh Honeymoon Villa'],
+                    ['url' => 'https://images.unsplash.com/photo-1762341123870-d706f257a12e?auto=format&fit=crop&w=1200&q=80', 'tags' => ['air_conditioning'], 'alt' => 'AC Honeymoon Villa'],
                 ],
             ],
         ];
