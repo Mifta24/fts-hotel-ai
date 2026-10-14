@@ -13,6 +13,7 @@
     <div class="flex min-h-screen">
         <aside class="w-56 shrink-0 border-r border-stone-200 bg-white">
             <div class="border-b border-stone-200 px-4 py-4">
+                @if (auth()->user()?->currentHotel()?->logoUrl())<img src="{{ auth()->user()->currentHotel()->logoUrl() }}" alt="" class="mb-2 h-8 max-w-full object-contain">@endif
                 <p class="text-sm font-semibold text-stone-900">{{ auth()->user()?->currentHotel()?->name }}</p>
                 <p class="text-xs text-stone-500">Admin Dashboard</p>
                 @php $myHotels = auth()->user()?->hotels()->wherePivot('status', 'active')->get() ?? collect(); @endphp
@@ -39,12 +40,17 @@
                         ['route' => 'admin.knowledge-items.index', 'label' => 'Knowledge base', 'ability' => 'content'],
                         ['route' => 'admin.bookings.index', 'label' => 'Bookings', 'ability' => 'bookings.view'],
                         ['route' => 'admin.handovers.index', 'label' => 'Handovers', 'ability' => 'handovers'],
+                        ['route' => 'admin.members.index', 'label' => 'Members', 'ability' => 'members', 'feature' => 'member'],
                         ['route' => 'admin.analytics.index', 'label' => 'Analytics', 'ability' => 'analytics'],
+                        ['route' => 'admin.team.index', 'label' => 'Team', 'ability' => 'team'],
+                        ['route' => 'admin.settings.edit', 'label' => 'Hotel settings', 'ability' => 'settings'],
                         ['route' => 'admin.activity.index', 'label' => 'Activity', 'ability' => 'activity'],
+                        ['route' => 'admin.account.edit', 'label' => 'My account', 'ability' => null],
                         ['route' => 'platform.hotels.index', 'label' => 'All hotels', 'ability' => 'platform'],
                     ];
                 @endphp
                 @foreach ($navItems as $item)
+                    @continue(isset($item['feature']) && ! $currentHotel?->hasFeature($item['feature']))
                     @continue($item['ability'] && ! ($item['ability'] === 'platform' ? auth()->user()?->is_platform_admin : auth()->user()?->canInHotel($item['ability'])))
                     <a
                         href="{{ route($item['route']) }}"

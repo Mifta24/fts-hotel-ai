@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use App\Core\Member\Contracts\MemberTenant;
+use App\Core\Member\Models\Member;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -33,15 +37,26 @@ use Illuminate\Support\Str;
     'logo_path',
     'cover_path',
     'public_status',
+    'settings',
+    'features',
 ])]
-class Hotel extends Model
+class Hotel extends Model implements MemberTenant
 {
     use HasFactory, SoftDeletes;
+
+    /**
+     * Optional add-ons a hotel can be given; the platform admin switches them on.
+     */
+    public const FEATURE_MEMBER = 'member';
+
+    public const FEATURES = [self::FEATURE_MEMBER];
 
     protected function casts(): array
     {
         return [
             'translations' => 'array',
+            'settings' => 'array',
+            'features' => 'array',
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
         ];
@@ -83,11 +98,61 @@ class Hotel extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function members(): MorphMany
+    {
+        return $this->morphMany(Member::class, 'tenant');
+    }
+
+    public function hasFeature(string $feature): bool
+    {
+        return in_array($feature, $this->features ?? [], true);
+    }
+
+    public function supportsMembers(): bool
+    {
+        return $this->hasFeature(self::FEATURE_MEMBER);
+    }
+
+    public function memberBrandName(): string
+    {
+        return $this->name;
+    }
+
+    public function memberDefaultLocale(): string
+    {
+        return $this->default_locale;
+    }
+
+    public function memberReplyTo(): ?string
+    {
+        return filled($this->email) ? $this->email : null;
+    }
+
     public function translatedDescription(string $locale): ?string
     {
         $value = $this->translations[$locale]['description'] ?? null;
 
         return filled($value) ? $value : $this->description;
+    }
+
+    /**
+     * A per-hotel option kept in the settings column (ai_model, ai_instructions).
+     */
+    public function setting(string $key, mixed $default = null): mixed
+    {
+        $value = $this->settings[$key] ?? null;
+
+        return filled($value) ? $value : $default;
+    }
+
+    public function logoUrl(): ?string
+    {
+        return filled($this->logo_path) ? Storage::disk('public')->url($this->logo_path) : null;
+    }
+
+    public function coverUrl(): ?string
+    {
+        return filled($this->cover_path) ? Storage::disk('public')->url($this->cover_path) : null;
     }
 
     public function isPublished(): bool

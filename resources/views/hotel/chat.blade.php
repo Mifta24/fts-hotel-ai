@@ -82,6 +82,8 @@
             data-quote-url="{{ route('reservation.quote', $hotel->slug) }}"
             data-reserve-url="{{ route('reservation.store', $hotel->slug) }}"
             data-currency="{{ $hotel->currency }}"
+            data-member-name="{{ $prefill['name'] ?? '' }}"
+            data-member-phone="{{ $prefill['phone'] ?? '' }}"
             data-lobby-url="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}"
             data-room-url="{{ route('hotel.room', ['hotelSlug' => $hotel->slug, 'roomSlug' => '__SLUG__', 'lang' => $locale]) }}"
             data-facility-url="{{ route('hotel.facility', ['hotelSlug' => $hotel->slug, 'facilityId' => '__ID__', 'lang' => $locale]) }}"

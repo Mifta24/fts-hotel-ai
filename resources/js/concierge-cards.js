@@ -411,9 +411,9 @@ export function createCards(ctx) {
             check_out: values.check_out || '',
             adults: Math.min(Math.max(Number(values.adults) || 2, 1), maxAdults),
             children: Math.min(Math.max(Number(values.children) || 0, 0), maxChildren),
-            guest_name: values.guest_name || '',
+            guest_name: values.guest_name || config.memberName || '',
             contact_type: 'whatsapp',
-            contact_value: values.contact_value || '',
+            contact_value: values.contact_value || config.memberPhone || '',
         };
         const fields = {};
         let quoteTicket = 0;

@@ -1,5 +1,6 @@
 <?php
 
+use App\Core\Member\Models\MemberLoginCode;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -10,3 +11,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('inventory:extend')->daily();
 Schedule::command('bookings:expire-pending')->hourly()->withoutOverlapping();
+Schedule::command('model:prune', ['--model' => [MemberLoginCode::class]])->daily();

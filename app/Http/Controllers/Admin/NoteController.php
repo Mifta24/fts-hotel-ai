@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Core\Member\Models\Member;
 use App\Http\Controllers\Concerns\ResolvesCurrentHotel;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\HandoverRequest;
+use App\Models\Hotel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -21,6 +23,7 @@ class NoteController extends Controller
         $subject = match ($type) {
             'booking' => $this->booking($request, $hotel->id, $id),
             'handover' => $this->handover($request, $hotel->id, $id),
+            'member' => $this->member($request, $hotel, $id),
             default => abort(404),
         };
 
@@ -37,6 +40,13 @@ class NoteController extends Controller
         abort_unless($request->user()->canInHotel('bookings.view'), 403);
 
         return Booking::where('hotel_id', $hotelId)->findOrFail($id);
+    }
+
+    private function member(Request $request, Hotel $hotel, int $id): Member
+    {
+        abort_unless($request->user()->canInHotel('members') && $hotel->supportsMembers(), 403);
+
+        return $hotel->members()->findOrFail($id);
     }
 
     private function handover(Request $request, int $hotelId, int $id): HandoverRequest

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Hotel;
 use App\Models\HotelKnowledgeItem;
 use App\Models\RoomType;
+use App\Services\Reservation\MemberBookings;
 use App\Services\Reservation\ReservationHandover;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,7 +19,10 @@ class HotelPageController extends Controller
     /** The default cut-out of the concierge, layered in front of a scene's background when a scene does not name its own. */
     private const CHARACTER_IMAGE = 'images/character.png';
 
-    public function __construct(private readonly ReservationHandover $handover) {}
+    public function __construct(
+        private readonly ReservationHandover $handover,
+        private readonly MemberBookings $memberBookings,
+    ) {}
 
     /**
      * What the AI concierge says when the guest steps into the rooms scenes.
@@ -218,6 +222,27 @@ class HotelPageController extends Controller
     }
 
     /**
+     * What a signed-in member does not have to type again in the reservation form.
+     *
+     * @return array{name?: string, phone?: string, contact_type?: string, contact_value?: string}
+     */
+    private function memberPrefill(Hotel $hotel): array
+    {
+        $member = $this->memberBookings->signedIn($hotel);
+
+        if (! $member) {
+            return [];
+        }
+
+        return [
+            'name' => (string) $member->name,
+            'phone' => (string) $member->phone,
+            'contact_type' => filled($member->phone) ? 'whatsapp' : 'email',
+            'contact_value' => filled($member->phone) ? $member->phone : $member->email,
+        ];
+    }
+
+    /**
      * @return array{0: Hotel, 1: string}
      */
     private function resolveStage(Request $request, string $hotelSlug): array
@@ -272,6 +297,7 @@ class HotelPageController extends Controller
             'roomNarrations' => $this->roomNarrations($hotel, $roomTypes, $locale),
             'staffLinks' => $this->handover->forStaff($hotel, $locale),
             'today' => now($hotel->timezone)->toDateString(),
+            'prefill' => $this->memberPrefill($hotel),
             'infoItems' => $hotel->knowledgeItems()->where('is_active', true)
                 ->whereIn('category', ['general', 'policies', 'faq'])
                 ->orderBy('sort_order')->get()->groupBy('category'),

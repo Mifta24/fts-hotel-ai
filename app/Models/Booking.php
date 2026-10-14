@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Core\Member\Models\Member;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'hotel_id',
     'room_type_id',
     'conversation_id',
+    'member_id',
     'guest_name',
     'guest_email',
     'guest_phone',
@@ -57,6 +59,11 @@ class Booking extends Model
     public function internalNotes(): MorphMany
     {
         return $this->morphMany(InternalNote::class, 'notable')->latest();
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class);
     }
 
     public function conversation(): BelongsTo

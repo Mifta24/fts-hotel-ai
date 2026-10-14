@@ -102,7 +102,7 @@ class ReservationService
      * Creates a pending reservation request and holds the inventory for it.
      * Returns null when the room is no longer available for those nights.
      *
-     * @param  array{check_in: CarbonImmutable, check_out: CarbonImmutable, adults: int, children?: int, rooms?: int, extra_bed?: bool, guest_name: string, guest_email?: ?string, guest_phone?: ?string, contact_type?: ?string, notes?: ?string}  $data
+     * @param  array{check_in: CarbonImmutable, check_out: CarbonImmutable, adults: int, children?: int, rooms?: int, extra_bed?: bool, guest_name: string, guest_email?: ?string, guest_phone?: ?string, contact_type?: ?string, notes?: ?string, member_id?: ?int}  $data
      */
     public function createRequest(Hotel $hotel, RoomType $roomType, array $data, ?Conversation $conversation = null): ?Booking
     {
@@ -121,6 +121,7 @@ class ReservationService
                 'hotel_id' => $hotel->id,
                 'room_type_id' => $roomType->id,
                 'conversation_id' => $conversation?->id,
+                'member_id' => $data['member_id'] ?? null,
                 'guest_name' => $data['guest_name'],
                 'guest_email' => $data['guest_email'] ?? null,
                 'guest_phone' => $data['guest_phone'] ?? null,

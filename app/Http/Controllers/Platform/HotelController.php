@@ -46,6 +46,37 @@ class HotelController extends Controller
         return redirect()->route('platform.hotels.index')->with('status', $message);
     }
 
+    public function updateAiModel(Request $request, Hotel $hotel): RedirectResponse
+    {
+        $data = $request->validate(['ai_model' => ['nullable', 'string', 'max:120', 'regex:/^[A-Za-z0-9._:\/-]+$/']]);
+
+        $hotel->update(['settings' => [...($hotel->settings ?? []), 'ai_model' => filled($data['ai_model'] ?? null) ? $data['ai_model'] : null]]);
+        AuditLog::record($hotel->id, 'hotel.ai_model', 'Changed the AI model of the concierge', $hotel, $request->user(), ['ai_model' => $data['ai_model'] ?? null]);
+
+        return back()->with('status', "{$hotel->name} now uses ".($hotel->setting('ai_model') ?? 'the default AI model').'.');
+    }
+
+    public function updateFeature(Request $request, Hotel $hotel): RedirectResponse
+    {
+        $data = $request->validate([
+            'feature' => ['required', Rule::in(Hotel::FEATURES)],
+            'enabled' => ['required', 'boolean'],
+        ]);
+
+        $features = collect($hotel->features ?? [])->reject(fn (string $feature) => $feature === $data['feature']);
+
+        if ($request->boolean('enabled')) {
+            $features->push($data['feature']);
+        }
+
+        $hotel->update(['features' => $features->unique()->values()->all()]);
+
+        $state = $request->boolean('enabled') ? 'on' : 'off';
+        AuditLog::record($hotel->id, 'hotel.feature', "Switched the {$data['feature']} add-on {$state}", $hotel, $request->user(), ['feature' => $data['feature'], 'enabled' => $request->boolean('enabled')]);
+
+        return back()->with('status', "The {$data['feature']} add-on is now {$state} for {$hotel->name}.");
+    }
+
     public function updateStatus(Request $request, Hotel $hotel): RedirectResponse
     {
         $data = $request->validate(['public_status' => ['required', Rule::in(['draft', 'published'])]]);

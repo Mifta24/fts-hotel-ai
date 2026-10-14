@@ -32,6 +32,8 @@ function initConcierge() {
         maxNights: Number(root.dataset.maxNights),
         quoteUrl: root.dataset.quoteUrl,
         reserveUrl: root.dataset.reserveUrl,
+        memberName: root.dataset.memberName || '',
+        memberPhone: root.dataset.memberPhone || '',
         hotelName: root.dataset.hotelName,
         storageSlug: root.dataset.hotelSlug,
         labels: {

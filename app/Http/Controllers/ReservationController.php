@@ -8,6 +8,7 @@ use App\Models\ConversationMessage;
 use App\Models\Hotel;
 use App\Models\RoomType;
 use App\Services\Concierge\HotelConciergeTools;
+use App\Services\Reservation\MemberBookings;
 use App\Services\Reservation\ReservationHandover;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
@@ -64,6 +65,7 @@ class ReservationController extends Controller
     public function __construct(
         private readonly ReservationService $reservations,
         private readonly ReservationHandover $handover,
+        private readonly MemberBookings $memberBookings,
     ) {}
 
     public function quote(Request $request, string $hotelSlug): JsonResponse
@@ -134,6 +136,7 @@ class ReservationController extends Controller
             'guest_phone' => $isEmail ? null : $data['contact_value'],
             'contact_type' => $data['contact_type'],
             'notes' => $data['special_request'] ?? null,
+            'member_id' => $this->memberBookings->signedIn($hotel)?->id,
         ], $conversation);
 
         if (! $booking) {

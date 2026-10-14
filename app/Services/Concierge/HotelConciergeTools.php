@@ -9,6 +9,7 @@ use App\Models\Hotel;
 use App\Models\HotelKnowledgeItem;
 use App\Models\RoomType;
 use App\Notifications\NewHandoverRequest;
+use App\Services\Reservation\MemberBookings;
 use App\Services\Reservation\ReservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -35,6 +36,7 @@ class HotelConciergeTools
         private readonly Conversation $conversation,
         private readonly string $locale,
         private readonly ReservationService $reservations = new ReservationService,
+        private readonly MemberBookings $memberBookings = new MemberBookings,
     ) {}
 
     /**
@@ -749,6 +751,7 @@ class HotelConciergeTools
             'guest_email' => filled($input['guest_email'] ?? null) ? Str::limit((string) $input['guest_email'], 120, '') : null,
             'guest_phone' => $input['guest_phone'],
             'notes' => filled($input['notes'] ?? null) ? Str::limit((string) $input['notes'], 500, '') : null,
+            'member_id' => $this->memberBookings->signedIn($this->hotel)?->id,
         ], $this->conversation);
 
         if (! $booking) {

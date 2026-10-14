@@ -18,8 +18,8 @@ class HotelUser extends Pivot
      * @var array<string, list<string>>
      */
     public const ABILITIES = [
-        self::ROLE_OWNER => ['content', 'inventory', 'bookings.view', 'bookings.manage', 'handovers', 'analytics', 'activity'],
-        self::ROLE_FRONT_DESK => ['inventory', 'bookings.view', 'bookings.manage', 'handovers', 'analytics'],
+        self::ROLE_OWNER => ['content', 'inventory', 'bookings.view', 'bookings.manage', 'handovers', 'analytics', 'activity', 'settings', 'team', 'members'],
+        self::ROLE_FRONT_DESK => ['inventory', 'bookings.view', 'bookings.manage', 'handovers', 'analytics', 'members'],
         self::ROLE_STAFF => ['bookings.view', 'handovers'],
     ];
 

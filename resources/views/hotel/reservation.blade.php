@@ -84,19 +84,19 @@
                 <div data-step="4" class="wizard-step" hidden>
                     <label class="wizard-field wizard-field-wide">
                         <span>{{ $wizard['name'] }}</span>
-                        <input type="text" name="guest_name" maxlength="100" autocomplete="name" required>
+                        <input type="text" name="guest_name" maxlength="100" autocomplete="name" value="{{ $prefill['name'] ?? '' }}" required>
                     </label>
                     <fieldset class="wizard-field-wide">
                         <legend>{{ $wizard['contact_method'] }}</legend>
                         <div class="wizard-pills">
                             @foreach (['whatsapp', 'phone', 'email'] as $method)
-                                <label><input type="radio" name="contact_type" value="{{ $method }}" @checked($method === 'whatsapp')><span>{{ $wizard[$method] }}</span></label>
+                                <label><input type="radio" name="contact_type" value="{{ $method }}" @checked($method === ($prefill['contact_type'] ?? 'whatsapp'))><span>{{ $wizard[$method] }}</span></label>
                             @endforeach
                         </div>
                     </fieldset>
                     <label class="wizard-field wizard-field-wide">
                         <span>{{ $wizard['contact_value'] }}</span>
-                        <input type="text" name="contact_value" maxlength="120" autocomplete="tel" required>
+                        <input type="text" name="contact_value" maxlength="120" autocomplete="tel" value="{{ $prefill['contact_value'] ?? '' }}" required>
                     </label>
                     <label class="wizard-field wizard-field-wide">
                         <span>{{ $wizard['special'] }}</span>

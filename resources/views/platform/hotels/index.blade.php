@@ -8,7 +8,7 @@
     <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
         <table class="w-full text-left text-sm">
             <thead class="border-b border-stone-200 bg-stone-50 text-xs uppercase text-stone-500">
-                <tr><th class="px-4 py-3">Hotel</th><th class="px-4 py-3">Owner</th><th class="px-4 py-3">Rooms</th><th class="px-4 py-3">Bookings</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+                <tr><th class="px-4 py-3">Hotel</th><th class="px-4 py-3">Owner</th><th class="px-4 py-3">Rooms</th><th class="px-4 py-3">Bookings</th><th class="px-4 py-3">AI model</th><th class="px-4 py-3">Member add-on</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
                 @forelse ($hotels as $hotel)
@@ -17,6 +17,22 @@
                         <td class="px-4 py-3 text-xs text-stone-600">{{ $hotel->users->filter(fn ($user) => $user->pivot->role === 'owner')->pluck('email')->implode(', ') ?: '—' }}</td>
                         <td class="px-4 py-3">{{ $hotel->room_types_count }}</td>
                         <td class="px-4 py-3">{{ $hotel->bookings_count }}</td>
+                        <td class="px-4 py-3">
+                            <form method="POST" action="{{ route('platform.hotels.ai-model', $hotel) }}" class="flex gap-1">
+                                @csrf @method('PATCH')
+                                <input name="ai_model" value="{{ $hotel->setting('ai_model') }}" placeholder="default" aria-label="AI model of {{ $hotel->name }}" class="w-40 rounded-lg border border-stone-300 px-2 py-1 text-xs">
+                                <button type="submit" class="text-xs text-stone-600 hover:underline">Save</button>
+                            </form>
+                        </td>
+                        <td class="px-4 py-3">
+                            <form method="POST" action="{{ route('platform.hotels.features', $hotel) }}" class="flex items-center gap-2">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="feature" value="member">
+                                <input type="hidden" name="enabled" value="{{ $hotel->supportsMembers() ? 0 : 1 }}">
+                                <span class="rounded-full px-2 py-0.5 text-xs {{ $hotel->supportsMembers() ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500' }}">{{ $hotel->supportsMembers() ? 'On' : 'Off' }}</span>
+                                <button type="submit" class="text-xs text-stone-600 hover:underline" aria-label="{{ $hotel->supportsMembers() ? 'Switch member add-on off' : 'Switch member add-on on' }} for {{ $hotel->name }}">{{ $hotel->supportsMembers() ? 'Switch off' : 'Switch on' }}</button>
+                            </form>
+                        </td>
                         <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs {{ $hotel->isPublished() ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500' }}">{{ $hotel->isPublished() ? 'Published' : 'Draft' }}</span></td>
                         <td class="px-4 py-3 text-right">
                             <form method="POST" action="{{ route('platform.hotels.status', $hotel) }}">
@@ -27,7 +43,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-stone-400">No hotels yet.</td></tr>
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-stone-400">No hotels yet.</td></tr>
                 @endforelse
             </tbody>
         </table>
