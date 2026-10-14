@@ -51,7 +51,8 @@
 @keyframes character-arrive { from { opacity: 0; transform: translateY(18px) scale(.99); } to { opacity: 1; transform: none; } }
 .stage-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #0f1d1bde 0, #0f1d1b70 24%, transparent 46%), linear-gradient(90deg, #0f1d1bb3, transparent 50%); }
 .stage-header { position: absolute; inset: 0 0 auto; z-index: 5; display: flex; height: var(--header); align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; }
-.hotel-monogram { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 46px; border: 1px solid #e6d3a3; border-radius: 16px 16px 3px 3px; color: #f4e6c4; font: 28px Georgia, serif; }
+.hotel-monogram img { width: 100%; height: 100%; padding: 4px; object-fit: contain; }
+.hotel-monogram { display: grid; overflow: hidden; place-items: center; flex-shrink: 0; width: 42px; height: 46px; border: 1px solid #e6d3a3; border-radius: 16px 16px 3px 3px; color: #f4e6c4; font: 28px Georgia, serif; }
 .stage-lang { display: flex; gap: 4px; padding: 4px; border: 1px solid #ffffff40; border-radius: 999px; background: #18312d80; backdrop-filter: blur(12px); font-size: 12px; text-transform: uppercase; }
 .stage-lang a { border-radius: 999px; padding: 6px 12px; }
 .stage-lang a[aria-current] { background: white; color: #26312f; }

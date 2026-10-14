@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\HandoverRequest;
+use App\Notifications\Concerns\SentOnBehalfOfHotel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class NewHandoverRequest extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SentOnBehalfOfHotel;
 
     public function __construct(public HandoverRequest $handover)
     {
@@ -27,7 +28,7 @@ class NewHandoverRequest extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->fromHotel((new MailMessage), $this->handover->conversation->hotel)
             ->subject('A guest is waiting for the hotel team')
             ->line('Reason: '.str_replace('_', ' ', $this->handover->reason))
             ->line($this->handover->summary)

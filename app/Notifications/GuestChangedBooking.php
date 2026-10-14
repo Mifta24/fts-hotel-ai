@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Notifications\Concerns\SentOnBehalfOfHotel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class GuestChangedBooking extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SentOnBehalfOfHotel;
 
     /**
      * @param  'rescheduled'|'cancelled'  $change
@@ -33,7 +34,7 @@ class GuestChangedBooking extends Notification implements ShouldQueue
         $booking = $this->booking;
         $stay = "{$booking->check_in->toFormattedDateString()} → {$booking->check_out->toFormattedDateString()}";
 
-        return (new MailMessage)
+        return $this->fromHotel((new MailMessage), $booking->hotel)
             ->subject("Guest {$this->change} booking {$booking->reference}")
             ->line($this->change === 'cancelled'
                 ? "{$booking->guest_name} cancelled booking {$booking->reference}. The rooms are free again."

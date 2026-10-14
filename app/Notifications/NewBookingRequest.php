@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Booking;
+use App\Notifications\Concerns\SentOnBehalfOfHotel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,7 +11,7 @@ use Illuminate\Notifications\Notification;
 
 class NewBookingRequest extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, SentOnBehalfOfHotel;
 
     public function __construct(public Booking $booking)
     {
@@ -30,7 +31,7 @@ class NewBookingRequest extends Notification implements ShouldQueue
         $booking = $this->booking;
         $contact = $booking->guest_phone ?? $booking->guest_email;
 
-        return (new MailMessage)
+        return $this->fromHotel((new MailMessage), $booking->hotel)
             ->subject("New reservation request {$booking->reference}")
             ->line("{$booking->guest_name} asked to book {$booking->room_count} × {$booking->roomType->name}.")
             ->line("Stay: {$booking->check_in->toFormattedDateString()} → {$booking->check_out->toFormattedDateString()} · {$booking->adults} adults".($booking->children ? ", {$booking->children} children" : ''))

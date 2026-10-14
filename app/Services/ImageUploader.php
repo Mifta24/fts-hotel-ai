@@ -35,6 +35,11 @@ class ImageUploader
         $image = $this->upright($image, $file);
         $image = $this->shrink($image);
 
+        // Keep transparent logos transparent instead of turning them black.
+        imagepalettetotruecolor($image);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+
         ob_start();
         imagewebp($image, null, 82);
         $bytes = (string) ob_get_clean();

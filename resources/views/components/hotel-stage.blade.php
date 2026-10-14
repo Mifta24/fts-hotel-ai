@@ -1,4 +1,4 @@
-@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'wizard', 'roomTerms', 'today', 'tourStops', 'title' => null, 'welcome' => null, 'sidebar' => null, 'menu' => true])
+@props(['hotel', 'locale', 'supportedLocales', 'labels', 'lobby', 'narration', 'scene', 'backdrop', 'menuItems', 'wizard', 'roomTerms', 'today', 'tourStops', 'prefill' => [], 'title' => null, 'welcome' => null, 'sidebar' => null, 'menu' => true])
 {{-- The fixed full-screen stage every scene shares: backdrop, header, menu and the concierge chat dock. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}">
@@ -7,12 +7,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? $hotel->name.' · AI Concierge' }}</title>
+    <meta property="og:title" content="{{ $hotel->name }}">
+    @if ($hotel->coverUrl())<meta property="og:image" content="{{ $hotel->coverUrl() }}">@endif
+    @if (filled($hotel->description))<meta property="og:description" content="{{ \Illuminate\Support\Str::limit($hotel->description, 200) }}">@endif
     @fonts
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="stage-page antialiased" style="--concierge-image: url('{{ $backdrop['avatarImage'] }}'); --stage-focus: {{ $backdrop['focus'] }}; --stage-focus-mobile: {{ $backdrop['focusMobile'] }}; --concierge-zoom: {{ $backdrop['avatarZoom'] }}; --concierge-focus: {{ $backdrop['avatarFocus'] }}">
     <main class="stage" data-lobby data-scene="{{ $scene }}" data-page="{{ $scene === 'lobby' ? 'home' : $scene }}" data-chat-dock="{{ $scene === 'info' ? 'center' : ($scene === 'staff' ? 'left' : 'right') }}">
-        <div class="stage-loader" data-stage-loader role="status"><span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span><p>{{ $lobby['loading'] }}</p></div>
+        <div class="stage-loader" data-stage-loader role="status"><span class="hotel-monogram" aria-hidden="true">@if ($hotel->logoUrl())<img src="{{ $hotel->logoUrl() }}" alt="">@else{{ mb_substr($hotel->name, 0, 1) }}@endif</span><p>{{ $lobby['loading'] }}</p></div>
         <img src="{{ $backdrop['image'] }}" alt="{{ $backdrop['character'] ? '' : $lobby['assistant'] }}" class="stage-image" fetchpriority="high">
         <div class="stage-shade"></div>
         @if ($backdrop['character'])
@@ -22,7 +25,7 @@
 
         <header class="stage-header">
             <a href="{{ route('hotel.show', ['hotelSlug' => $hotel->slug, 'lang' => $locale]) }}" @if($scene !== 'lobby') data-stage-exit data-tour-line="{{ $narration['tour_lobby'] }}" @endif class="flex min-w-0 items-center gap-3">
-                <span class="hotel-monogram" aria-hidden="true">{{ mb_substr($hotel->name, 0, 1) }}</span>
+                <span class="hotel-monogram" aria-hidden="true">@if ($hotel->logoUrl())<img src="{{ $hotel->logoUrl() }}" alt="">@else{{ mb_substr($hotel->name, 0, 1) }}@endif</span>
                 <span class="min-w-0"><span class="block truncate font-semibold tracking-tight">{{ $hotel->name }}</span><span class="block truncate text-xs opacity-75">{{ $hotel->city }} · {{ $hotel->country }}</span></span>
             </a>
             <div class="stage-tools">
