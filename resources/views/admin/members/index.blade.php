@@ -8,7 +8,7 @@
     <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
         <table class="w-full text-left text-sm">
             <thead class="border-b border-stone-200 bg-stone-50 text-xs uppercase text-stone-500">
-                <tr><th class="px-4 py-3">Member</th><th class="px-4 py-3">Phone</th><th class="px-4 py-3">Reservations</th><th class="px-4 py-3">Joined</th><th class="px-4 py-3">Last sign-in</th></tr>
+                <tr><th class="px-4 py-3">Member</th><th class="px-4 py-3">Phone</th>@if ($program)<th class="px-4 py-3">Tier</th><th class="px-4 py-3">Points</th>@endif<th class="px-4 py-3">Reservations</th><th class="px-4 py-3">Joined</th><th class="px-4 py-3">Last sign-in</th></tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
                 @forelse ($members as $member)
@@ -18,12 +18,17 @@
                             <p class="text-xs text-stone-500">{{ $member->email }}</p>
                         </td>
                         <td class="px-4 py-3 text-xs text-stone-600">{{ $member->phone ?: '—' }}</td>
+                        @if ($program)
+                            @php $balance = (int) ($balances[$member->id] ?? 0); @endphp
+                            <td class="px-4 py-3 text-xs">{{ $program->tierFor($balance)?->name ?? '—' }}</td>
+                            <td class="px-4 py-3">{{ number_format($balance, 0, ',', '.') }}</td>
+                        @endif
                         <td class="px-4 py-3">{{ $bookingCounts[$member->id] ?? 0 }}</td>
                         <td class="px-4 py-3 text-xs text-stone-500">{{ $member->created_at->format('j M Y') }}</td>
                         <td class="px-4 py-3 text-xs text-stone-500">{{ $member->last_login_at?->diffForHumans() ?? '—' }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-4 py-8 text-center text-stone-400">{{ $search !== '' ? 'No member matches that search.' : 'No members yet. Guests join from the hotel page.' }}</td></tr>
+                    <tr><td colspan="{{ $program ? 7 : 5 }}" class="px-4 py-8 text-center text-stone-400">{{ $search !== '' ? 'No member matches that search.' : 'No members yet. Guests join from the hotel page.' }}</td></tr>
                 @endforelse
             </tbody>
         </table>

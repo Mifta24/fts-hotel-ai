@@ -24,6 +24,18 @@ class MemberBookings
     }
 
     /**
+     * The percent off a member gets today: the discount of the tier their points
+     * have reached. Zero for guests, for another hotel's members and when the
+     * hotel has no loyalty add-on. Fixed on a booking when it is made.
+     */
+    public function discountFor(Hotel $hotel, ?Member $member): float
+    {
+        $program = $hotel->loyaltyProgram();
+
+        return $member && $program && $member->belongsToTenant($hotel) ? $program->discountFor($member->pointsBalance()) : 0.0;
+    }
+
+    /**
      * A member's reservations at the hotel, the next stay first.
      *
      * @return Builder<Booking>

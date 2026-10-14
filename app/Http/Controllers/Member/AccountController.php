@@ -36,7 +36,15 @@ class AccountController extends Controller
             ->get()
             ->each(fn ($booking) => $booking->setAttribute('changeable', $this->changes->isChangeable($booking, $hotel)));
 
+        $program = $hotel->loyaltyProgram();
+        $points = $program ? $member->pointsBalance() : 0;
+
         return view('member.account', [
+            'program' => $program,
+            'points' => $points,
+            'tier' => $program?->tierFor($points),
+            'nextTier' => $program?->nextTierAfter($points),
+            'pointsHistory' => $program ? $member->points()->limit(20)->get() : collect(),
             'hotel' => $hotel,
             'member' => $member,
             'locale' => $locale,

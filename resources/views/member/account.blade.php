@@ -12,6 +12,43 @@
         <p class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{{ $labels['welcome'] }}</p>
     @endif
 
+    @if ($program)
+        <section class="mt-6 rounded-xl border border-stone-200 bg-white p-4 text-sm">
+            <h2 class="font-semibold">{{ $labels['loyalty_title'] }}</h2>
+            <div class="mt-3 flex items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs text-stone-500">{{ $labels['tier'] }}</p>
+                    <p class="text-lg font-semibold">{{ $tier?->name ?? $labels['no_tier'] }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-stone-500">{{ $labels['your_points'] }}</p>
+                    <p class="text-lg font-semibold">{{ number_format($points, 0, ',', '.') }}</p>
+                </div>
+            </div>
+            @if ($tier && $tier->discountPercent > 0)
+                <p class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-emerald-800">{{ \App\Core\Member\Support\MemberLabels::fill($labels['discount_benefit'], ['percent' => rtrim(rtrim(number_format($tier->discountPercent, 2, '.', ''), '0'), '.')]) }}</p>
+            @endif
+            @if ($nextTier)
+                <p class="mt-3 text-stone-600">{{ \App\Core\Member\Support\MemberLabels::fill($labels['next_tier'], ['points' => number_format($nextTier->minPoints - $points, 0, ',', '.'), 'tier' => $nextTier->name]) }}</p>
+                <div class="mt-2 h-2 overflow-hidden rounded-full bg-stone-100" role="progressbar" aria-valuemin="0" aria-valuemax="{{ $nextTier->minPoints }}" aria-valuenow="{{ $points }}">
+                    <div class="h-full bg-stone-900" style="width: {{ min(100, (int) round($points / max(1, $nextTier->minPoints) * 100)) }}%"></div>
+                </div>
+            @elseif ($tier)
+                <p class="mt-3 text-stone-600">{{ $labels['top_tier'] }}</p>
+            @endif
+            <p class="mt-3 text-xs text-stone-400">{{ \App\Core\Member\Support\MemberLabels::fill($labels['earn_rule'], ['spend' => $hotel->currency.' '.number_format($program->spendPerPoint, 0, ',', '.')]) }}</p>
+
+            <h3 class="mt-4 font-medium">{{ $labels['points_history'] }}</h3>
+            <ul class="mt-2 divide-y divide-stone-100">
+                @forelse ($pointsHistory as $line)
+                    <li class="flex justify-between gap-3 py-2"><span class="text-stone-600">{{ $line->note ?: ucfirst($line->type) }} <span class="text-xs text-stone-400">{{ $line->created_at->toDateString() }}</span></span><span @class(['font-medium', 'text-emerald-700' => $line->points > 0, 'text-red-700' => $line->points < 0])>{{ $line->points > 0 ? '+' : '' }}{{ number_format($line->points, 0, ',', '.') }}</span></li>
+                @empty
+                    <li class="py-2 text-stone-400">{{ $labels['no_points'] }}</li>
+                @endforelse
+            </ul>
+        </section>
+    @endif
+
     <section class="mt-6 rounded-xl border border-stone-200 bg-white p-4 text-sm">
         <h2 class="font-semibold">{{ $labels['profile'] }}</h2>
         <form method="POST" action="{{ route('member.profile', ['hotelSlug' => $hotel->slug]) }}" class="mt-3 space-y-3">
@@ -44,6 +81,9 @@
                 <dl class="mt-3 space-y-2">
                     <div class="flex justify-between gap-4"><dt class="text-stone-500">{{ $labels['room'] }}</dt><dd class="text-right">{{ $booking->room_count }} × {{ $booking->roomType->name }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-stone-500">{{ $labels['stay'] }}</dt><dd class="text-right">{{ $booking->check_in->toDateString() }} → {{ $booking->check_out->toDateString() }} ({{ $booking->nights() }} {{ $labels['nights'] }})</dd></div>
+                    @if ((float) $booking->discount_percent > 0)
+                        <div class="flex justify-between gap-4"><dt class="text-stone-500">{{ $labels['member_discount'] }}</dt><dd>{{ rtrim(rtrim(number_format((float) $booking->discount_percent, 2, '.', ''), '0'), '.') }}% (−{{ $hotel->currency }} {{ number_format((float) $booking->discount_amount, 0, ',', '.') }})</dd></div>
+                    @endif
                     <div class="flex justify-between gap-4"><dt class="text-stone-500">{{ $labels['total'] }}</dt><dd>{{ $hotel->currency }} {{ number_format((float) $booking->total_price, 0, ',', '.') }}</dd></div>
                     <div class="flex justify-between gap-4"><dt class="text-stone-500">{{ $labels['status'] }}</dt><dd>{{ $labels[$booking->status] ?? $booking->status }}</dd></div>
                 </dl>

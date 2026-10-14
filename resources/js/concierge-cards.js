@@ -331,7 +331,7 @@ export function createCards(ctx) {
         return h('div', { class: 'rc-note rc-avail' },
             h('p', { class: 'rc-name', text: quote.name }),
             h('p', { class: 'rc-meta', text: `${day(quote.check_in)} → ${day(quote.check_out)} · ${quote.nights} ${labels.night}` }),
-            h('p', { class: 'rc-price' }, money(quote.grand_total)),
+            h('p', { class: 'rc-price' }, money(quote.grand_total), quote.member_discount_percent > 0 ? h('span', { text: ` ${wizard.member_discount} ${quote.member_discount_percent}%` }) : null),
             h('button', {
                 type: 'button',
                 class: 'rc-btn rc-btn-primary',
@@ -564,7 +564,8 @@ export function createCards(ctx) {
                 const data = await api(config.quoteUrl, stayBody());
                 if (ticket !== quoteTicket) return;
 
-                summary.textContent = `${wizard.estimated_total}: ${money(data.grand_total)} · ${data.nights} ${labels.night}`;
+                const discount = data.member_discount_percent > 0 ? ` · ${wizard.member_discount} ${data.member_discount_percent}%` : '';
+                summary.textContent = `${wizard.estimated_total}: ${money(data.grand_total)} · ${data.nights} ${labels.night}${discount}`;
             } catch (error) {
                 if (ticket !== quoteTicket) return;
 

@@ -12,6 +12,30 @@
                 </dl>
             </div>
 
+            @if ($program)
+                <div class="rounded-xl border border-stone-200 bg-white p-4 text-sm">
+                    <div class="flex items-end justify-between">
+                        <div><p class="text-xs text-stone-400">Tier</p><p class="text-lg font-semibold">{{ $program->tierFor($points)?->name ?? '—' }}</p></div>
+                        <div class="text-right"><p class="text-xs text-stone-400">Points</p><p class="text-lg font-semibold">{{ number_format($points, 0, ',', '.') }}</p></div>
+                    </div>
+                    <form method="POST" action="{{ route('admin.members.points', $member->id) }}" class="mt-4 grid grid-cols-[110px_1fr_auto] gap-2">
+                        @csrf
+                        <input type="number" name="points" required placeholder="+100 / -50" aria-label="Points to add or remove" class="rounded-lg border border-stone-300 px-3 py-2">
+                        <input name="note" required maxlength="200" placeholder="Why? e.g. Birthday gift" aria-label="Reason" class="rounded-lg border border-stone-300 px-3 py-2">
+                        <button type="submit" class="rounded-lg bg-stone-900 px-3 py-2 font-medium text-white hover:bg-stone-700">Adjust</button>
+                    </form>
+                    @error('points')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    @error('note')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    <ul class="mt-4 divide-y divide-stone-100">
+                        @forelse ($pointsHistory as $line)
+                            <li class="flex justify-between gap-3 py-2"><span class="text-stone-600">{{ $line->note ?: ucfirst($line->type) }}@if ($line->actor_name) <span class="text-xs text-stone-400">— {{ $line->actor_name }}</span>@endif <span class="text-xs text-stone-400">{{ $line->created_at->format('j M Y') }}</span></span><span class="font-medium">{{ $line->points > 0 ? '+' : '' }}{{ number_format($line->points, 0, ',', '.') }}</span></li>
+                        @empty
+                            <li class="py-2 text-stone-400">No points yet.</li>
+                        @endforelse
+                    </ul>
+                </div>
+            @endif
+
             <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
                 <p class="border-b border-stone-200 px-4 py-3 text-sm font-medium text-stone-900">Reservations</p>
                 <table class="w-full text-left text-sm">

@@ -3,6 +3,8 @@
 namespace App\Core\Member\Models;
 
 use App\Core\Member\Contracts\MemberTenant;
+use App\Core\Member\Support\LoyaltyProgram;
+use App\Core\Member\Support\LoyaltyTier;
 use App\Models\InternalNote;
 use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -10,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -39,6 +42,24 @@ class Member extends Authenticatable
     public function tenant(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function points(): HasMany
+    {
+        return $this->hasMany(MemberPoint::class)->orderByDesc('id');
+    }
+
+    public function pointsBalance(): int
+    {
+        return (int) $this->points()->reorder()->sum('points');
+    }
+
+    /**
+     * The tier the member's points have reached in the tenant's program, if any.
+     */
+    public function tierIn(LoyaltyProgram $program): ?LoyaltyTier
+    {
+        return $program->tierFor($this->pointsBalance());
     }
 
     public function internalNotes(): MorphMany

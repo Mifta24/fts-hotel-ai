@@ -76,7 +76,8 @@ class ReservationController extends Controller
         $data = $request->validate($this->stayRules($hotel), $this->validationMessages($locale));
         [$roomType, $checkIn, $checkOut, $rooms, $extraBed] = $this->resolveStay($hotel, $data, $locale);
 
-        $quote = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, $extraBed);
+        $discount = $this->memberBookings->discountFor($hotel, $this->memberBookings->signedIn($hotel));
+        $quote = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, $extraBed, discountPercent: $discount);
 
         if (! $quote) {
             return $this->unavailable($hotel, $roomType, $data, $locale);
@@ -87,6 +88,9 @@ class ReservationController extends Controller
             'nights' => $quote['nights'],
             'room_total' => $quote['room_total'],
             'extra_bed_total' => $quote['extra_bed_total'],
+            'subtotal' => $quote['subtotal'],
+            'member_discount_percent' => $quote['discount_percent'],
+            'discount_amount' => $quote['discount_amount'],
             'grand_total' => $quote['grand_total'],
             'currency' => $hotel->currency,
         ]);
@@ -262,6 +266,7 @@ class ReservationController extends Controller
         $rooms = (int) $data['rooms'];
         $adults = (int) $data['adults'];
         $children = (int) ($data['children'] ?? 0);
+        $discount = $this->memberBookings->discountFor($hotel, $this->memberBookings->signedIn($hotel));
 
         $alternatives = $hotel->roomTypes()
             ->where('is_active', true)
@@ -269,8 +274,8 @@ class ReservationController extends Controller
             ->orderBy('sort_order')
             ->get()
             ->filter(fn (RoomType $roomType) => $this->reservations->fitsOccupancy($roomType, $adults, $children, $rooms))
-            ->map(function (RoomType $roomType) use ($checkIn, $checkOut, $rooms, $locale) {
-                $quote = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms);
+            ->map(function (RoomType $roomType) use ($checkIn, $checkOut, $rooms, $locale, $discount) {
+                $quote = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, discountPercent: $discount);
 
                 return $quote ? [
                     'slug' => $roomType->slug,

@@ -8,7 +8,7 @@
     <div class="overflow-hidden rounded-xl border border-stone-200 bg-white">
         <table class="w-full text-left text-sm">
             <thead class="border-b border-stone-200 bg-stone-50 text-xs uppercase text-stone-500">
-                <tr><th class="px-4 py-3">Hotel</th><th class="px-4 py-3">Owner</th><th class="px-4 py-3">Rooms</th><th class="px-4 py-3">Bookings</th><th class="px-4 py-3">AI model</th><th class="px-4 py-3">Member add-on</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
+                <tr><th class="px-4 py-3">Hotel</th><th class="px-4 py-3">Owner</th><th class="px-4 py-3">Rooms</th><th class="px-4 py-3">Bookings</th><th class="px-4 py-3">AI model</th><th class="px-4 py-3">Add-ons</th><th class="px-4 py-3">Status</th><th class="px-4 py-3"></th></tr>
             </thead>
             <tbody class="divide-y divide-stone-100">
                 @forelse ($hotels as $hotel)
@@ -25,13 +25,16 @@
                             </form>
                         </td>
                         <td class="px-4 py-3">
-                            <form method="POST" action="{{ route('platform.hotels.features', $hotel) }}" class="flex items-center gap-2">
-                                @csrf @method('PATCH')
-                                <input type="hidden" name="feature" value="member">
-                                <input type="hidden" name="enabled" value="{{ $hotel->supportsMembers() ? 0 : 1 }}">
-                                <span class="rounded-full px-2 py-0.5 text-xs {{ $hotel->supportsMembers() ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500' }}">{{ $hotel->supportsMembers() ? 'On' : 'Off' }}</span>
-                                <button type="submit" class="text-xs text-stone-600 hover:underline" aria-label="{{ $hotel->supportsMembers() ? 'Switch member add-on off' : 'Switch member add-on on' }} for {{ $hotel->name }}">{{ $hotel->supportsMembers() ? 'Switch off' : 'Switch on' }}</button>
-                            </form>
+                            @foreach (['member' => 'Member', 'member_plus' => 'Plus'] as $feature => $featureLabel)
+                                <form method="POST" action="{{ route('platform.hotels.features', $hotel) }}" class="flex items-center gap-2 {{ $loop->first ? '' : 'mt-1' }}">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="feature" value="{{ $feature }}">
+                                    <input type="hidden" name="enabled" value="{{ $hotel->hasFeature($feature) ? 0 : 1 }}">
+                                    <span class="w-14 text-xs text-stone-500">{{ $featureLabel }}</span>
+                                    <span class="rounded-full px-2 py-0.5 text-xs {{ $hotel->hasFeature($feature) ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500' }}">{{ $hotel->hasFeature($feature) ? 'On' : 'Off' }}</span>
+                                    <button type="submit" class="text-xs text-stone-600 hover:underline" aria-label="{{ $hotel->hasFeature($feature) ? 'Switch '.$feature.' add-on off' : 'Switch '.$feature.' add-on on' }} for {{ $hotel->name }}">{{ $hotel->hasFeature($feature) ? 'Switch off' : 'Switch on' }}</button>
+                                </form>
+                            @endforeach
                         </td>
                         <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs {{ $hotel->isPublished() ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500' }}">{{ $hotel->isPublished() ? 'Published' : 'Draft' }}</span></td>
                         <td class="px-4 py-3 text-right">

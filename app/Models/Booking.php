@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
     'room_count',
     'extra_bed',
     'total_price',
+    'discount_percent',
+    'discount_amount',
     'status',
     'notes',
 ])]
@@ -43,6 +45,8 @@ class Booking extends Model
             'check_out' => 'date',
             'extra_bed' => 'boolean',
             'total_price' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Core\Member\Contracts;
 
+use App\Core\Member\Support\LoyaltyProgram;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -29,6 +30,11 @@ interface MemberTenant
      * The address the sign-in mail is answered at, if the tenant has one.
      */
     public function memberReplyTo(): ?string;
+
+    /**
+     * The tenant's points and tiers, or null when the loyalty add-on is off.
+     */
+    public function loyaltyProgram(): ?LoyaltyProgram;
 
     public function members(): MorphMany;
 }

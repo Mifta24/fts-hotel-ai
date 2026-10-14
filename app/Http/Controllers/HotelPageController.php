@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Core\Member\Support\MemberLabels;
 use App\Models\Hotel;
 use App\Models\HotelKnowledgeItem;
 use App\Models\RoomType;
@@ -587,7 +588,7 @@ class HotelPageController extends Controller
      */
     private function wizardLabels(string $locale): array
     {
-        return [...ReservationController::MESSAGES[$locale], ...match ($locale) {
+        return [...ReservationController::MESSAGES[$locale], 'member_discount' => MemberLabels::for($locale)['member_discount'], ...match ($locale) {
             'en' => [
                 'title' => 'Reservation request', 'intro' => 'A few quick steps. Final availability is confirmed by our team.',
                 'step_of' => 'Step :current of :total', 'steps' => ['Dates', 'Guests', 'Room', 'Your details', 'Summary'],

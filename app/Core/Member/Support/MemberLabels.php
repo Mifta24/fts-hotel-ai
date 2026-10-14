@@ -32,6 +32,9 @@ class MemberLabels
             'unavailable' => 'Those dates are not available for this room. Please try other dates.', 'not_changeable' => 'This reservation can no longer be changed online. Please contact the hotel.',
             'check_in_past' => 'Check-in cannot be in the past.', 'check_out_after' => 'Check-out must be after check-in.', 'too_long' => 'Stays are limited to :max nights.',
             'invalid' => 'Please check this field.', 'logout' => 'Sign out', 'back' => 'Back to the hotel', 'member_link' => 'Member sign in', 'account_link' => 'My account',
+            'loyalty_title' => 'My membership', 'your_points' => 'Your points', 'tier' => 'Tier', 'no_tier' => 'Member', 'member_discount' => 'Member discount',
+            'discount_benefit' => ':percent% off every stay you book', 'next_tier' => ':points more points to reach :tier', 'top_tier' => 'You have reached our highest tier.',
+            'points_history' => 'Points history', 'no_points' => 'No points yet. Points arrive after your stay.', 'earn_rule' => 'Every :spend spent on a stay earns 1 point.',
             'mail_subject' => 'Your sign-in code for :brand', 'mail_intro' => 'Use this code to sign in to your :brand member account:', 'mail_expiry' => 'It works for :minutes minutes and only once.', 'mail_ignore' => 'If you did not ask for it, you can ignore this email — nobody can sign in without the code.',
         ],
         'id' => [
@@ -52,6 +55,9 @@ class MemberLabels
             'unavailable' => 'Tanggal tersebut tidak tersedia untuk kamar ini. Silakan coba tanggal lain.', 'not_changeable' => 'Reservasi ini tidak bisa diubah lagi secara online. Silakan hubungi hotel.',
             'check_in_past' => 'Tanggal check-in tidak boleh di masa lalu.', 'check_out_after' => 'Tanggal check-out harus setelah check-in.', 'too_long' => 'Lama menginap dibatasi :max malam.',
             'invalid' => 'Mohon periksa kolom ini.', 'logout' => 'Keluar', 'back' => 'Kembali ke hotel', 'member_link' => 'Masuk member', 'account_link' => 'Akun saya',
+            'loyalty_title' => 'Keanggotaan saya', 'your_points' => 'Poin Anda', 'tier' => 'Tingkat', 'no_tier' => 'Member', 'member_discount' => 'Diskon member',
+            'discount_benefit' => 'Diskon :percent% untuk setiap reservasi', 'next_tier' => 'Butuh :points poin lagi untuk mencapai :tier', 'top_tier' => 'Anda sudah di tingkat tertinggi.',
+            'points_history' => 'Riwayat poin', 'no_points' => 'Belum ada poin. Poin masuk setelah masa menginap selesai.', 'earn_rule' => 'Setiap :spend untuk menginap mendapat 1 poin.',
             'mail_subject' => 'Kode masuk Anda untuk :brand', 'mail_intro' => 'Pakai kode ini untuk masuk ke akun member :brand Anda:', 'mail_expiry' => 'Kode berlaku :minutes menit dan hanya sekali pakai.', 'mail_ignore' => 'Kalau Anda tidak memintanya, abaikan saja email ini — tanpa kode, tidak ada yang bisa masuk.',
         ],
         'ja' => [
@@ -72,6 +78,9 @@ class MemberLabels
             'unavailable' => 'この日程ではこの客室をご利用いただけません。別の日程をお試しください。', 'not_changeable' => 'このご予約はオンラインでは変更できません。ホテルまでご連絡ください。',
             'check_in_past' => 'チェックイン日は過去にできません。', 'check_out_after' => 'チェックアウト日はチェックインより後にしてください。', 'too_long' => 'ご宿泊は最大:max泊までです。',
             'invalid' => 'この項目をご確認ください。', 'logout' => 'ログアウト', 'back' => 'ホテルに戻る', 'member_link' => '会員ログイン', 'account_link' => 'マイアカウント',
+            'loyalty_title' => '会員ステータス', 'your_points' => 'ポイント', 'tier' => 'ランク', 'no_tier' => '会員', 'member_discount' => '会員割引',
+            'discount_benefit' => 'ご予約ごとに:percent%割引', 'next_tier' => ':tier まであと:pointsポイント', 'top_tier' => '最上位ランクに到達しました。',
+            'points_history' => 'ポイント履歴', 'no_points' => 'ポイントはまだありません。ご宿泊後に付与されます。', 'earn_rule' => 'ご宿泊で:spendご利用ごとに1ポイント。',
             'mail_subject' => ':brand のログインコード', 'mail_intro' => ':brand の会員アカウントにログインするためのコードです：', 'mail_expiry' => '有効時間は:minutes分、1回のみ使用できます。', 'mail_ignore' => 'お心当たりがない場合は、このメールを無視してください。コードがなければ誰もログインできません。',
         ],
     ];

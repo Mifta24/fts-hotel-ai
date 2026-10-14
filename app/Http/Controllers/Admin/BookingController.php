@@ -41,7 +41,7 @@ class BookingController extends Controller
         $hotel = $this->currentHotel($request);
         abort_if($booking->hotel_id !== $hotel->id, 404);
 
-        $booking->load(['roomType', 'internalNotes.author']);
+        $booking->load(['roomType', 'member', 'internalNotes.author']);
         $history = AuditLog::where('hotel_id', $hotel->id)
             ->where('subject_type', $booking->getMorphClass())
             ->where('subject_id', $booking->id)

@@ -75,7 +75,7 @@ class BookingChangeService
 
             $this->reservations->releaseInventory($current);
 
-            $quote = $this->reservations->quote($current->roomType, $checkIn, $checkOut, $current->room_count, $current->extra_bed, lockForUpdate: true);
+            $quote = $this->reservations->quote($current->roomType, $checkIn, $checkOut, $current->room_count, $current->extra_bed, lockForUpdate: true, discountPercent: (float) $current->discount_percent);
 
             if (! $quote) {
                 throw new \DomainException('Not available');
@@ -87,6 +87,7 @@ class BookingChangeService
                 'check_in' => $checkIn->toDateString(),
                 'check_out' => $checkOut->toDateString(),
                 'total_price' => $quote['grand_total'],
+                'discount_amount' => $quote['discount_amount'],
                 'status' => Booking::STATUS_PENDING,
             ]);
             $this->reservations->holdInventory($current);

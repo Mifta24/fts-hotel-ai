@@ -41,6 +41,7 @@
                         ['route' => 'admin.bookings.index', 'label' => 'Bookings', 'ability' => 'bookings.view'],
                         ['route' => 'admin.handovers.index', 'label' => 'Handovers', 'ability' => 'handovers'],
                         ['route' => 'admin.members.index', 'label' => 'Members', 'ability' => 'members', 'feature' => 'member'],
+                        ['route' => 'admin.loyalty.edit', 'label' => 'Points & tiers', 'ability' => 'settings', 'feature' => 'member_plus'],
                         ['route' => 'admin.analytics.index', 'label' => 'Analytics', 'ability' => 'analytics'],
                         ['route' => 'admin.team.index', 'label' => 'Team', 'ability' => 'team'],
                         ['route' => 'admin.settings.edit', 'label' => 'Hotel settings', 'ability' => 'settings'],

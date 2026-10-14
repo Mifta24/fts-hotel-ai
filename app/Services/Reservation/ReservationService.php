@@ -2,6 +2,7 @@
 
 namespace App\Services\Reservation;
 
+use App\Core\Member\Models\Member;
 use App\Models\Booking;
 use App\Models\Conversation;
 use App\Models\Hotel;
@@ -24,6 +25,8 @@ class ReservationService
 
     public const PHONE_PATTERN = '/^\+?[0-9\s\-().]{6,20}$/';
 
+    public function __construct(private readonly MemberBookings $memberBookings = new MemberBookings) {}
+
     /**
      * Whether the requested party fits the room type across the requested rooms.
      */
@@ -38,7 +41,7 @@ class ReservationService
      * lacks enough free units — this is the one place price and availability
      * truth comes from, never the model.
      *
-     * @return array{nights: int, nightly: list<array{date: string, price: float}>, room_total: float, extra_bed_total: float, grand_total: float, min_available_units: int}|null
+     * @return array{nights: int, nightly: list<array{date: string, price: float}>, room_total: float, extra_bed_total: float, subtotal: float, discount_percent: float, discount_amount: float, grand_total: float, min_available_units: int}|null
      */
     public function quote(
         RoomType $roomType,
@@ -47,6 +50,7 @@ class ReservationService
         int $rooms = 1,
         bool $extraBed = false,
         bool $lockForUpdate = false,
+        float $discountPercent = 0.0,
     ): ?array {
         $nights = $checkIn->diffInDays($checkOut);
 
@@ -88,12 +92,18 @@ class ReservationService
             ? (float) $roomType->extra_bed_price * $nights * $rooms
             : 0.0;
 
+        $subtotal = $roomTotal + $extraBedTotal;
+        $discountAmount = round($subtotal * $discountPercent / 100, 2);
+
         return [
             'nights' => $nights,
             'nightly' => $nightly,
             'room_total' => $roomTotal,
             'extra_bed_total' => $extraBedTotal,
-            'grand_total' => $roomTotal + $extraBedTotal,
+            'subtotal' => $subtotal,
+            'discount_percent' => $discountPercent,
+            'discount_amount' => $discountAmount,
+            'grand_total' => $subtotal - $discountAmount,
             'min_available_units' => $minAvailable,
         ];
     }
@@ -109,8 +119,11 @@ class ReservationService
         $rooms = $data['rooms'] ?? 1;
         $extraBed = (bool) ($data['extra_bed'] ?? false);
 
-        $booking = DB::transaction(function () use ($hotel, $roomType, $data, $conversation, $rooms, $extraBed) {
-            $quote = $this->quote($roomType, $data['check_in'], $data['check_out'], $rooms, $extraBed, lockForUpdate: true);
+        $member = filled($data['member_id'] ?? null) ? Member::find($data['member_id']) : null;
+        $discountPercent = $this->memberBookings->discountFor($hotel, $member);
+
+        $booking = DB::transaction(function () use ($hotel, $roomType, $data, $conversation, $rooms, $extraBed, $discountPercent) {
+            $quote = $this->quote($roomType, $data['check_in'], $data['check_out'], $rooms, $extraBed, lockForUpdate: true, discountPercent: $discountPercent);
 
             if (! $quote) {
                 return null;
@@ -133,6 +146,8 @@ class ReservationService
                 'room_count' => $rooms,
                 'extra_bed' => $extraBed && $roomType->extra_bed_available,
                 'total_price' => $quote['grand_total'],
+                'discount_percent' => $quote['discount_percent'],
+                'discount_amount' => $quote['discount_amount'],
                 'status' => Booking::STATUS_PENDING,
                 'notes' => $data['notes'] ?? null,
             ]);

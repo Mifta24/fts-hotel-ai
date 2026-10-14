@@ -17,6 +17,7 @@
                     <div><dt class="text-xs text-stone-400">Room</dt><dd>{{ $booking->room_count }} × {{ $booking->roomType->name }}</dd></div>
                     <div><dt class="text-xs text-stone-400">Party</dt><dd>{{ $booking->adults }} adults{{ $booking->children ? ', '.$booking->children.' children' : '' }}{{ $booking->extra_bed ? ' · extra bed' : '' }}</dd></div>
                     <div><dt class="text-xs text-stone-400">Stay</dt><dd>{{ $booking->check_in->toFormattedDateString() }} → {{ $booking->check_out->toFormattedDateString() }} ({{ $booking->nights() }} nights)</dd></div>
+                    @if ((float) $booking->discount_percent > 0)<div><dt class="text-xs text-stone-400">Member discount</dt><dd>{{ rtrim(rtrim(number_format((float) $booking->discount_percent, 2, '.', ''), '0'), '.') }}% (−{{ $hotel->currency }} {{ number_format((float) $booking->discount_amount, 0, ',', '.') }})@if ($booking->member) · <a href="{{ route('admin.members.show', $booking->member_id) }}" class="underline">{{ $booking->member->displayName() }}</a>@endif</dd></div>@endif
                     <div><dt class="text-xs text-stone-400">Total</dt><dd>{{ $hotel->currency }} {{ number_format((float) $booking->total_price, 0, ',', '.') }}</dd></div>
                 </dl>
                 @if ($booking->notes)<p class="mt-3 rounded-lg bg-stone-50 px-3 py-2 italic text-stone-500">Guest request: {{ $booking->notes }}</p>@endif

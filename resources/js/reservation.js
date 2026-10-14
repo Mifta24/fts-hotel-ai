@@ -320,6 +320,9 @@ function initReservationWizard() {
             summaryRow(labels.contact, `${data.guest_name} · ${labels[data.contact_type]}: ${data.contact_value}`, 4),
         ];
         if (data.special_request) rows.push(summaryRow(labels.special, data.special_request, 4));
+        if (quote && quote.member_discount_percent > 0) {
+            rows.push(summaryRow(labels.member_discount, `${quote.member_discount_percent}% (−${money(quote.discount_amount)})`, 3));
+        }
 
         root.querySelector('[data-summary]').replaceChildren(...rows);
         root.querySelector('[data-summary-total]').textContent = quote ? money(quote.grand_total) : '';

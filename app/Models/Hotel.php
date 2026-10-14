@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Core\Member\Contracts\MemberTenant;
 use App\Core\Member\Models\Member;
+use App\Core\Member\Support\LoyaltyProgram;
+use App\Core\Member\Support\LoyaltyTier;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -49,7 +51,19 @@ class Hotel extends Model implements MemberTenant
      */
     public const FEATURE_MEMBER = 'member';
 
-    public const FEATURES = [self::FEATURE_MEMBER];
+    /**
+     * Points, tiers and member prices; only works together with the member add-on.
+     */
+    public const FEATURE_MEMBER_PLUS = 'member_plus';
+
+    public const FEATURES = [self::FEATURE_MEMBER, self::FEATURE_MEMBER_PLUS];
+
+    /**
+     * How much a guest spends for one point until the hotel sets its own, by currency.
+     */
+    private const DEFAULT_SPEND_PER_POINT = ['IDR' => 10000, 'JPY' => 1000];
+
+    private const FALLBACK_SPEND_PER_POINT = 10;
 
     protected function casts(): array
     {
@@ -111,6 +125,38 @@ class Hotel extends Model implements MemberTenant
     public function supportsMembers(): bool
     {
         return $this->hasFeature(self::FEATURE_MEMBER);
+    }
+
+    public function supportsLoyalty(): bool
+    {
+        return $this->supportsMembers() && $this->hasFeature(self::FEATURE_MEMBER_PLUS);
+    }
+
+    public function loyaltyProgram(): ?LoyaltyProgram
+    {
+        if (! $this->supportsLoyalty()) {
+            return null;
+        }
+
+        return $this->loyaltySettings();
+    }
+
+    /**
+     * The program as the hotel configured it, or the starter program if it has not yet.
+     */
+    public function loyaltySettings(): LoyaltyProgram
+    {
+        $configured = $this->setting('loyalty');
+        $spend = self::DEFAULT_SPEND_PER_POINT[$this->currency] ?? self::FALLBACK_SPEND_PER_POINT;
+
+        if (is_array($configured) && ($configured['tiers'] ?? []) !== []) {
+            return LoyaltyProgram::fromArray($configured, $spend);
+        }
+
+        return new LoyaltyProgram((float) ($configured['spend_per_point'] ?? $spend), [
+            new LoyaltyTier('Silver', 200, 5),
+            new LoyaltyTier('Gold', 1000, 10),
+        ]);
     }
 
     public function memberBrandName(): string

@@ -675,7 +675,8 @@ class HotelConciergeTools
 
         $extraBed = (bool) ($input['extra_bed'] ?? false);
         $rooms = max(1, (int) ($input['rooms'] ?? 1));
-        $stay = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, $extraBed);
+        $member = $this->memberBookings->signedIn($this->hotel);
+        $stay = $this->reservations->quote($roomType, $checkIn, $checkOut, $rooms, $extraBed, discountPercent: $this->memberBookings->discountFor($this->hotel, $member));
 
         if (! $stay) {
             return [
@@ -698,6 +699,8 @@ class HotelConciergeTools
             'nightly_breakdown' => $stay['nightly'],
             'room_total' => $stay['room_total'],
             'extra_bed_total' => $stay['extra_bed_total'],
+            'member_discount_percent' => $stay['discount_percent'],
+            'discount_amount' => $stay['discount_amount'],
             'grand_total' => $stay['grand_total'],
             'currency' => $this->hotel->currency,
             'rooms' => $rooms,

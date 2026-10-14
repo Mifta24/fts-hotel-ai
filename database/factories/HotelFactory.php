@@ -29,6 +29,11 @@ class HotelFactory extends Factory
         return $this->state(['public_status' => 'draft']);
     }
 
+    public function withLoyalty(): static
+    {
+        return $this->state(['features' => [Hotel::FEATURE_MEMBER, Hotel::FEATURE_MEMBER_PLUS]]);
+    }
+
     public function withMembers(): static
     {
         return $this->state(['features' => [Hotel::FEATURE_MEMBER]]);

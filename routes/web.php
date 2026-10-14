@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\HotelSettingsController;
 use App\Http\Controllers\Admin\HotelSwitchController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\KnowledgeItemController;
+use App\Http\Controllers\Admin\LoyaltyController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\NoteController;
 use App\Http\Controllers\Admin\RoomTypeController;
@@ -65,6 +66,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::middleware('hotel.can:members')->group(function () {
             Route::get('members', [MemberController::class, 'index'])->name('members.index');
             Route::get('members/{member}', [MemberController::class, 'show'])->whereNumber('member')->name('members.show');
+            Route::post('members/{member}/points', [MemberController::class, 'adjustPoints'])->whereNumber('member')->name('members.points');
+        });
+
+        Route::middleware('hotel.can:settings')->group(function () {
+            Route::get('loyalty', [LoyaltyController::class, 'edit'])->name('loyalty.edit');
+            Route::put('loyalty', [LoyaltyController::class, 'update'])->name('loyalty.update');
         });
 
         Route::post('notes/{type}/{id}', [NoteController::class, 'store'])->whereIn('type', ['booking', 'handover', 'member'])->whereNumber('id')->name('notes.store');
