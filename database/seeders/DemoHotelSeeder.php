@@ -222,7 +222,7 @@ class DemoHotelSeeder extends Seeder
         ];
     }
 
-    private function seedInventory(RoomType $roomType, int $totalUnits): void
+    protected function seedInventory(RoomType $roomType, int $totalUnits): void
     {
         $start = now()->startOfDay();
 

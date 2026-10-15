@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'test@example.com',
             ]);
 
-            $this->call(DemoHotelSeeder::class);
+            $this->call([DemoHotelSeeder::class, MemberDemoHotelsSeeder::class]);
         }
     }
 }
