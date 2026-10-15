@@ -22,7 +22,7 @@ class BookingController extends Controller
     {
         $hotel = $this->currentHotel($request);
 
-        $status = in_array($request->query('status'), [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_CANCELLED], true)
+        $status = in_array($request->query('status'), [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED, Booking::STATUS_COMPLETED, Booking::STATUS_CANCELLED], true)
             ? $request->query('status')
             : null;
 
@@ -67,7 +67,8 @@ class BookingController extends Controller
             $current = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
             // A cancelled booking has given its rooms back; it cannot be revived without re-checking availability.
-            if ($current->status === Booking::STATUS_CANCELLED || $current->status === $data['status']) {
+            // A completed stay can still be cancelled (a no-show, a refund), but never goes back to confirmed.
+            if ($current->status === Booking::STATUS_CANCELLED || $current->status === $data['status'] || ($current->status === Booking::STATUS_COMPLETED && $data['status'] === Booking::STATUS_CONFIRMED)) {
                 return false;
             }
 

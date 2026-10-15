@@ -37,7 +37,7 @@ class BookingChangeService
      */
     public function isChangeable(Booking $booking, Hotel $hotel): bool
     {
-        return $booking->status !== Booking::STATUS_CANCELLED
+        return in_array($booking->status, [Booking::STATUS_PENDING, Booking::STATUS_CONFIRMED], true)
             && $booking->check_in->toDateString() >= now($hotel->timezone)->toDateString();
     }
 

@@ -12,4 +12,5 @@ Artisan::command('inspire', function () {
 Schedule::command('inventory:extend')->daily();
 Schedule::command('bookings:expire-pending')->hourly()->withoutOverlapping();
 Schedule::command('model:prune', ['--model' => [MemberLoginCode::class]])->daily();
+Schedule::command('bookings:complete-stays')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('members:award-points')->dailyAt('03:00')->withoutOverlapping();

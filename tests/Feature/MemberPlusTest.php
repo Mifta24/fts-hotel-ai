@@ -114,7 +114,7 @@ class MemberPlusTest extends TestCase
         $this->assertNull($ledger->reverse($this->member, $this->booking('BK-NEVER1', $this->member)));
     }
 
-    public function test_finished_confirmed_stays_earn_points_once(): void
+    public function test_finished_stays_are_completed_and_then_earn_points_once(): void
     {
         $earns = $this->booking('BK-DONE01', $this->member);
         $this->booking('BK-PENDNG', $this->member, ['status' => Booking::STATUS_PENDING]);
@@ -122,6 +122,10 @@ class MemberPlusTest extends TestCase
         $this->booking('BK-FUTURE', $this->member, ['check_in' => $this->start->toDateString(), 'check_out' => $this->start->addDays(2)->toDateString()]);
         $this->booking('BK-GUEST1', null);
 
+        $this->artisan('members:award-points')->assertSuccessful();
+        $this->assertSame(0, MemberPoint::count(), 'a stay that is not completed yet earns nothing');
+
+        $this->artisan('bookings:complete-stays')->assertSuccessful();
         $this->artisan('members:award-points')->assertSuccessful();
         $this->artisan('members:award-points')->assertSuccessful();
 
@@ -133,6 +137,7 @@ class MemberPlusTest extends TestCase
     public function test_a_stay_cancelled_after_it_paid_out_gives_the_points_back(): void
     {
         $booking = $this->booking('BK-DONE01', $this->member);
+        $this->artisan('bookings:complete-stays')->assertSuccessful();
         $this->artisan('members:award-points')->assertSuccessful();
         $this->assertSame(200, $this->member->pointsBalance());
 
@@ -147,7 +152,7 @@ class MemberPlusTest extends TestCase
     public function test_a_hotel_without_the_plus_add_on_earns_and_discounts_nothing(): void
     {
         $this->hotel->update(['features' => [Hotel::FEATURE_MEMBER]]);
-        $this->booking('BK-DONE01', $this->member);
+        $this->booking('BK-DONE01', $this->member, ['status' => Booking::STATUS_COMPLETED]);
         $this->givePoints($this->member, 5000);
 
         $this->artisan('members:award-points')->assertSuccessful();
@@ -362,5 +367,43 @@ class MemberPlusTest extends TestCase
         $this->assertFalse($hotel->fresh()->supportsMembers());
         $this->assertFalse($hotel->fresh()->supportsLoyalty());
         $this->assertTrue($hotel->fresh()->hasFeature('member_plus'));
+    }
+
+    public function test_a_confirmed_stay_is_completed_on_its_check_out_day_and_nothing_else_is(): void
+    {
+        $over = $this->booking('BK-OVER01', null, ['check_out' => CarbonImmutable::today()->toDateString()]);
+        $tomorrow = $this->booking('BK-TMRW01', null, ['check_in' => CarbonImmutable::today()->subDay()->toDateString(), 'check_out' => CarbonImmutable::today()->addDay()->toDateString()]);
+        $pending = $this->booking('BK-PEND01', null, ['status' => Booking::STATUS_PENDING]);
+        $cancelled = $this->booking('BK-CANC01', null, ['status' => Booking::STATUS_CANCELLED]);
+
+        $this->artisan('bookings:complete-stays')->assertSuccessful();
+
+        $this->assertSame(Booking::STATUS_COMPLETED, $over->fresh()->status);
+        $this->assertSame(Booking::STATUS_CONFIRMED, $tomorrow->fresh()->status);
+        $this->assertSame(Booking::STATUS_PENDING, $pending->fresh()->status);
+        $this->assertSame(Booking::STATUS_CANCELLED, $cancelled->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', ['hotel_id' => $this->hotel->id, 'action' => 'booking.completed', 'actor' => 'system', 'subject_id' => $over->id]);
+    }
+
+    public function test_a_completed_stay_cannot_be_reopened_but_can_still_be_cancelled(): void
+    {
+        $booking = $this->booking('BK-OVER01', null, ['status' => Booking::STATUS_COMPLETED]);
+        $this->actingAs($this->owner());
+
+        $this->patch(route('admin.bookings.status', $booking), ['status' => 'confirmed'])->assertSessionHasErrors('status');
+        $this->assertSame(Booking::STATUS_COMPLETED, $booking->fresh()->status);
+
+        $this->patch(route('admin.bookings.status', $booking), ['status' => 'cancelled'])->assertSessionHas('status');
+        $this->assertSame(Booking::STATUS_CANCELLED, $booking->fresh()->status);
+
+        $this->get(route('admin.bookings.index', ['status' => 'completed']))->assertOk();
+    }
+
+    public function test_a_guest_can_no_longer_change_a_completed_stay_and_sees_it_as_completed(): void
+    {
+        $this->booking('BK-OVER01', $this->member, ['status' => Booking::STATUS_COMPLETED, 'check_in' => $this->start->toDateString(), 'check_out' => $this->start->addDays(2)->toDateString()]);
+
+        $this->actingAs($this->member, 'member')->post('/demo/member/bookings/BK-OVER01/cancel')->assertSessionHas('error');
+        $this->get('/demo/member?lang=en')->assertSee('Stay completed');
     }
 }

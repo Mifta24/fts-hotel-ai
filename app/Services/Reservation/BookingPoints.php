@@ -16,7 +16,7 @@ class BookingPoints
     public function __construct(private readonly PointsLedger $ledger) {}
 
     /**
-     * Pays out finished, confirmed stays and takes back points from stays that
+     * Pays out completed stays and takes back points from stays that
      * were cancelled after paying out. Safe to run any number of times.
      *
      * @return array{earned: int, reversed: int} how many stays were paid out and taken back
@@ -31,13 +31,11 @@ class BookingPoints
 
         $earned = 0;
         $reversed = 0;
-        $today = now($hotel->timezone)->toDateString();
         $morph = (new Booking)->getMorphClass();
 
         Booking::where('hotel_id', $hotel->id)
             ->whereNotNull('member_id')
-            ->where('status', Booking::STATUS_CONFIRMED)
-            ->whereDate('check_out', '<=', $today)
+            ->where('status', Booking::STATUS_COMPLETED)
             ->whereNotExists(fn ($query) => $query->from('member_points')
                 ->whereColumn('member_points.source_id', 'bookings.id')
                 ->where('member_points.source_type', $morph)

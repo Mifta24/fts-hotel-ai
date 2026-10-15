@@ -1,6 +1,6 @@
 <x-admin-layout title="Bookings">
     <div class="mb-4 flex gap-2 text-sm">
-        @foreach (['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'cancelled' => 'Cancelled'] as $value => $label)
+        @foreach (['' => 'All', 'pending' => 'Pending', 'confirmed' => 'Confirmed', 'completed' => 'Completed', 'cancelled' => 'Cancelled'] as $value => $label)
             <a href="{{ route('admin.bookings.index', $value ? ['status' => $value] : []) }}"
                 class="rounded-full px-3 py-1 {{ $status === $value || (! $status && $value === '') ? 'bg-stone-900 text-white' : 'bg-white border border-stone-300 text-stone-600' }}">
                 {{ $label }}
@@ -37,7 +37,7 @@
                             <span @class([
                                 'rounded-full px-2 py-0.5 text-xs',
                                 'bg-amber-100 text-amber-700' => $booking->status === 'pending',
-                                'bg-emerald-100 text-emerald-700' => $booking->status === 'confirmed',
+                                'bg-emerald-100 text-emerald-700' => in_array($booking->status, ['confirmed', 'completed'], true),
                                 'bg-stone-100 text-stone-500' => $booking->status === 'cancelled',
                             ])>{{ ucfirst($booking->status) }}</span>
                         </td>

@@ -38,6 +38,11 @@ class Booking extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    /**
+     * The stay took place: set by the system once a confirmed booking's check-out day has come.
+     */
+    public const STATUS_COMPLETED = 'completed';
+
     protected function casts(): array
     {
         return [

@@ -51,7 +51,7 @@
         (() => {
             const root = document.getElementById('manage');
             const token = document.querySelector('meta[name="csrf-token"]').content;
-            const status = { pending: @json($labels['pending']), confirmed: @json($labels['confirmed']), cancelled: @json($labels['cancelled']) };
+            const status = { pending: @json($labels['pending']), confirmed: @json($labels['confirmed']), completed: @json($labels['completed']), cancelled: @json($labels['cancelled']) };
             const nightsWord = @json($labels['nights']);
             const message = document.getElementById('message');
             const card = document.getElementById('booking');
