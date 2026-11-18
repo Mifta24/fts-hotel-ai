@@ -181,3 +181,7 @@ vendor/bin/pint --dirty
 ## Lisensi
 
 Project ini dibangun di atas [Laravel](https://laravel.com), yang berlisensi [MIT](https://opensource.org/licenses/MIT).
+
+## Deploy
+
+Push to `master` runs the tests, then pushes to the Plesk Git repo over SSH with a deploy key that can only push to `hotel-ai.git` (forced command, no shell). Secrets: `PLESK_SSH_PRIVATE_KEY`, `PLESK_SSH_KNOWN_HOSTS`, `PLESK_REMOTE_URL`.
