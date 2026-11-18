@@ -830,3 +830,32 @@ a.rc-fact { display: inline-block; color: var(--forest); text-decoration: underl
 .facility-gallery img { flex: 0 0 auto; width: 132px; height: 88px; border-radius: 10px; object-fit: cover; }
 .facility-hours { margin-top: 6px; color: var(--forest); font-size: 13px; font-weight: 600; }
 .facility-menu { max-width: 460px; }
+
+/* Showcase on desktop: the concierge's answer is staged in the middle of the screen, with a vignette,
+   a soft cone of light and cards that are dealt in one after another. Phones keep the bottom sheet. */
+@media (min-width: 900px) {
+    .showcase { top: calc(var(--header) + 8px); bottom: calc(var(--chat-composer-height) + 96px); left: 24px; right: 24px; justify-content: center; max-height: none; transform: translateY(18px) scale(.94); filter: blur(6px); transition: opacity .4s ease, transform .7s var(--ease-cine), filter .5s ease; }
+    .showcase.is-in { transform: none; filter: none; }
+    .showcase-body { max-height: calc(100dvh - var(--header) - var(--chat-composer-height) - 230px); }
+    .showcase:has(.sp) .showcase-body, .showcase:has(.rf) .showcase-body { max-height: calc(100dvh - var(--header) - var(--chat-composer-height) - 190px); }
+    .showcase-scrim { background: radial-gradient(ellipse 58% 62% at 50% 46%, #e9c98729, transparent 66%), radial-gradient(circle at 50% 48%, #0f1d1b8c, #060d0cd9 90%); backdrop-filter: blur(10px) saturate(.85); transition: opacity .5s ease; }
+    .showcase::before { content: ''; position: absolute; z-index: -1; top: -40px; left: 50%; width: min(980px, 96%); height: 100%; translate: -50% 0; background: conic-gradient(from 160deg at 50% 0, transparent 0deg, #e9c9871f 26deg, transparent 52deg); mask-image: linear-gradient(180deg, #000, transparent 85%); opacity: 0; transition: opacity 1s ease .2s; pointer-events: none; }
+    .showcase.is-in::before { opacity: 1; }
+    .showcase-bubble { transform: translateY(-8px); opacity: 0; }
+    .showcase.is-in .showcase-bubble { animation: showcase-stage-in .6s var(--ease-cine) .15s forwards; }
+    .showcase.is-in .rc, .showcase.is-in .rf, .showcase.is-in .rc-done, .showcase.is-in .sp, .showcase.is-in .rc-note { animation: showcase-stage-deal .75s var(--ease-cine) backwards; }
+    .showcase.is-in .rc:nth-child(1) { animation-delay: .12s; }
+    .showcase.is-in .rc:nth-child(2) { animation-delay: .24s; }
+    .showcase.is-in .rc:nth-child(3) { animation-delay: .36s; }
+    .showcase.is-in .rc:nth-child(n+4) { animation-delay: .48s; }
+    .showcase.is-in .rc-photo img { animation: showcase-stage-drift 9s ease-in-out .8s infinite alternate; }
+    .showcase.is-in .showcase-chips { animation: showcase-stage-in .6s var(--ease-cine) .55s backwards; }
+}
+@keyframes showcase-stage-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes showcase-stage-deal { from { opacity: 0; transform: translateY(54px) rotate(2deg) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes showcase-stage-drift { from { transform: scale(1); } to { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) {
+    .showcase { filter: none; }
+    .showcase.is-in .rc, .showcase.is-in .rf, .showcase.is-in .rc-done, .showcase.is-in .sp, .showcase.is-in .rc-note, .showcase.is-in .rc-photo img, .showcase.is-in .showcase-chips { animation: none; }
+    .showcase-bubble { opacity: 1; transform: none; animation: none !important; }
+}

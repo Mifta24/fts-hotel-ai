@@ -123,7 +123,7 @@ class ConciergeAnalytics
             ->get()
             ->map(fn (ConversationMessage $reply) => [
                 'question' => ConversationMessage::where('conversation_id', $reply->conversation_id)
-                    ->where('role', ConversationMessage::ROLE_GUEST)->where('id', '<', $reply->id)->latest('id')->value('content'),
+                    ->where('role', ConversationMessage::ROLE_GUEST)->where('id', '<', $reply->id)->reorder('id', 'desc')->value('content'),
                 'reply' => $reply->content,
                 'at' => $reply->created_at->diffForHumans(),
             ])

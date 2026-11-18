@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Hotel;
 use App\Models\RoomType;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -158,6 +159,18 @@ class ConciergeService
 
     private const SPECIFIC_FACILITY_PATTERN = '/\b(kolam|renang|pool|swimming|gym|kebugaran|fitness|spa|parkir|parking)\b|プール|ジム/iu';
 
+    /**
+     * Asking what rooms the hotel has ("what kind of room do you have?"):
+     * the room cards go on screen at once, nothing to tap first.
+     */
+    private const ROOM_LIST_PATTERN = '/\bwhat\s+(?:kinds?|types?|sort)\s+of\s+rooms?|\b(?:what|which)\s+rooms?\b|\brooms?\s+types?\b|\bkinds?\s+of\s+rooms?|\blist\s+(?:of\s+)?(?:the\s+)?rooms?|\brooms?\s+do\s+you\s+have|jenis\s+kamar|tipe\s+kamar|kamar\s+apa|ada\s+kamar|どんな部屋|部屋の種類|客室タイプ|客室の種類|どのような部屋/iu';
+
+    /**
+     * Asking for a menu. With a room word it means the rooms, otherwise the
+     * restaurant menu.
+     */
+    private const MENU_PATTERN = '/\bmenu\b|メニュー|daftar\s+makanan/iu';
+
     private const ROOM_SCOPE_PATTERN = '/\b(?:kamar|room|rooms)\b|客室|部屋/iu';
 
     private const PHOTO_OFFER_PATTERN = '/foto|gambar|photo|picture|写真/iu';
@@ -166,7 +179,7 @@ class ConciergeService
 
     private function lastGuestMessage(Conversation $conversation): string
     {
-        return (string) $conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->latest('id')->value('content');
+        return (string) $conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->reorder('id', 'desc')->value('content');
     }
 
     /**
@@ -183,7 +196,27 @@ class ConciergeService
     {
         $guest = $this->lastGuestMessage($conversation);
 
-        if ($guest === '' || preg_match(self::ROOM_DETAIL_EXCLUDE_PATTERN, $guest) === 1) {
+        if ($guest === '') {
+            return null;
+        }
+
+        if (($stay = $this->stayCall($hotel, $conversation, $tools, $guest)) !== null) {
+            return $stay;
+        }
+
+        // "Room facilities" is about what is inside a room, not the list of rooms.
+        $aboutFacilities = preg_match(self::HOTEL_FACILITY_PATTERN, $guest) === 1 || preg_match('/amenit|設備/iu', $guest) === 1;
+
+        if (! $aboutFacilities && (preg_match(self::ROOM_LIST_PATTERN, $guest) === 1
+            || (preg_match(self::MENU_PATTERN, $guest) === 1 && preg_match(self::ROOM_SCOPE_PATTERN, $guest) === 1))) {
+            return ['name' => 'recommend_rooms', 'input' => []];
+        }
+
+        if (preg_match(self::MENU_PATTERN, $guest) === 1) {
+            return ['name' => 'show_menu', 'input' => []];
+        }
+
+        if (preg_match(self::ROOM_DETAIL_EXCLUDE_PATTERN, $guest) === 1) {
             return null;
         }
 
@@ -217,7 +250,7 @@ class ConciergeService
             return null;
         }
 
-        $previous = $conversation->messages()->where('role', ConversationMessage::ROLE_ASSISTANT)->latest('id')->first();
+        $previous = $conversation->messages()->where('role', ConversationMessage::ROLE_ASSISTANT)->reorder('id', 'desc')->first();
 
         if ($previous === null || filled($previous->ui_payload) || preg_match(self::PHOTO_OFFER_PATTERN, (string) $previous->content) !== 1) {
             return null;
@@ -239,6 +272,41 @@ class ConciergeService
     }
 
     /**
+     * Dates and party size said in the chat ("check in 11/25, out 11/27, 2
+     * adults", spread over several messages) go straight to the room search,
+     * so the guest sees the available rooms and their prices without anything
+     * to tap and without the model having to remember to call the tool.
+     *
+     * @return array{name: string, input: array<string, mixed>, always: bool}|null
+     */
+    private function stayCall(Hotel $hotel, Conversation $conversation, HotelConciergeTools $tools, string $guest): ?array
+    {
+        $today = CarbonImmutable::now($hotel->timezone ?: 'UTC')->startOfDay();
+
+        if (! StayParser::mentionsStay($guest, $today, $conversation->locale)) {
+            return null;
+        }
+
+        // A named room is a booking in progress, which the booking form handles.
+        if ($tools->roomNamedIn($guest) !== null) {
+            return null;
+        }
+
+        $recent = array_reverse($conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->reorder('id', 'desc')->limit(6)->pluck('content')->map(fn ($text) => (string) $text)->all());
+        $stay = StayParser::fromMessages($recent, $today, $conversation->locale);
+
+        if ($stay['check_in'] === null || $stay['check_out'] === null || $stay['adults'] === null || $stay['check_in'] < $today->toDateString() || $stay['check_out'] <= $stay['check_in']) {
+            return null;
+        }
+
+        return [
+            'name' => 'search_rooms',
+            'input' => array_filter(['check_in' => $stay['check_in'], 'check_out' => $stay['check_out'], 'adults' => $stay['adults'], 'children' => $stay['children']], fn ($value) => $value !== null),
+            'always' => true,
+        ];
+    }
+
+    /**
      * The room the chat is about: one named in the latest messages, else the
      * one the guest has open on screen.
      */
@@ -246,7 +314,7 @@ class ConciergeService
     {
         $texts = [
             ...($previousText !== null ? [$previousText] : []),
-            ...$conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->latest('id')->limit(6)->pluck('content')->all(),
+            ...$conversation->messages()->where('role', ConversationMessage::ROLE_GUEST)->reorder('id', 'desc')->limit(6)->pluck('content')->all(),
         ];
 
         foreach ($texts as $text) {
@@ -318,15 +386,18 @@ class ConciergeService
         if ($call !== null) {
             $result = $tools->dispatch($call['name'], $call['input']);
 
-            // A miss (e.g. no photo for that facility) is left to the model to say honestly.
-            if ($result['ui'] !== null) {
+            // A miss (e.g. no photo for that facility) is left to the model to say honestly,
+            // except a stay search: "nothing free on those dates" is an answer it must see.
+            if ($result['ui'] !== null || ($call['always'] ?? false)) {
                 $callId = 'call_'.Str::random(12);
 
                 $messages[] = ['role' => 'assistant', 'content' => '', 'tool_calls' => [['id' => $callId, 'type' => 'function', 'function' => ['name' => $call['name'], 'arguments' => json_encode($call['input'])]]]];
                 $messages[] = ['role' => 'tool', 'tool_call_id' => $callId, 'content' => $result['text']];
 
                 $toolLog[] = ['name' => $call['name'], 'input' => $call['input']];
-                $this->addUiPayload($uiPayloads, $result['ui']);
+                if ($result['ui'] !== null) {
+                    $this->addUiPayload($uiPayloads, $result['ui']);
+                }
                 $preempted = true;
             }
         }

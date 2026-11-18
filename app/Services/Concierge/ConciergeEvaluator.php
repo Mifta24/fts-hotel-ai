@@ -59,7 +59,7 @@ class ConciergeEvaluator
 
             try {
                 $this->concierge->reply($hotel, $conversation, $scenario['message']);
-                $reply = $conversation->messages()->where('role', ConversationMessage::ROLE_ASSISTANT)->latest('id')->first();
+                $reply = $conversation->messages()->where('role', ConversationMessage::ROLE_ASSISTANT)->reorder('id', 'desc')->first();
                 $tools = collect($reply?->tool_calls ?? [])->pluck('name')->all();
                 $failures = $this->check($scenario['checks'], (string) $reply?->content, $tools, $scenario['message']);
 
